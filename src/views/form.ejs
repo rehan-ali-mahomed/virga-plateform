@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Formulaire d'inspection</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+</head>
+<body>
+  <div class="container">
+    <header class="d-flex justify-content-between align-items-center my-4">
+      <div id="company-info" class="d-flex align-items-center">
+        <img src="/images/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
+        <div>
+          <h1 class="h3 mb-0">AUTO PRESTO</h1>
+          <p class="mb-0">123 Rue Principale, Ville, Pays</p>
+          <p class="mb-0">Téléphone : 0123456789</p>
+        </div>
+      </div>
+      <nav>
+        <a href="/dashboard" class="btn btn-primary mr-2">Tableau de bord</a>
+        <a href="/logout" class="btn btn-danger">Déconnexion</a>
+      </nav>
+    </header>
+
+    <main>
+      <form action="/submit" method="post" id="inspection-form">
+        <% if (errors && errors.length > 0) { %>
+          <div class="alert alert-danger">
+            <ul>
+              <% errors.forEach(function(error) { %>
+                <li><%= error.msg %></li>
+              <% }); %>
+            </ul>
+          </div>
+        <% } %>
+
+        <section>
+          <h2><i class="fas fa-user"></i> Informations du client</h2>
+          <div class="form-group">
+            <label for="date">Date :</label>
+            <input type="date" id="date" name="date" value="<%= data.date || '' %>" class="form-control" required />
+          </div>
+
+          <div class="form-group">
+            <label for="client_name">Nom du client :</label>
+            <input type="text" id="client_name" name="client_name" maxlength="50" class="form-control" placeholder="Entrez le nom du client" value="<%= data.client_name || '' %>" required />
+          </div>
+
+          <div class="form-group">
+            <label for="client_phone">Téléphone du client :</label>
+            <input type="tel" id="client_phone" name="client_phone" maxlength="15" class="form-control" placeholder="Entrez le numéro de téléphone" value="<%= data.client_phone || '' %>" required />
+          </div>
+        </section>
+
+        <section>
+          <h2><i class="fas fa-car"></i> Informations du véhicule</h2>
+          <div class="form-group">
+            <label for="vehicle_registration">Immatriculation :</label>
+            <input type="text" id="vehicle_registration" name="vehicle_registration" maxlength="20" class="form-control" placeholder="Entrez l'immatriculation du véhicule" value="<%= data.vehicle_registration || '' %>" required />
+          </div>
+
+          <div class="form-group">
+            <label for="vehicle_make">Marque :</label>
+            <input type="text" id="vehicle_make" name="vehicle_make" maxlength="50" class="form-control" placeholder="Entrez la marque du véhicule" value="<%= data.vehicle_make || '' %>" required />
+          </div>
+
+          <div class="form-group">
+            <label for="vehicle_model">Modèle :</label>
+            <input type="text" id="vehicle_model" name="vehicle_model" maxlength="50" class="form-control" placeholder="Entrez le modèle du véhicule" value="<%= data.vehicle_model || '' %>" required />
+          </div>
+
+          <div class="form-group">
+            <label for="mileage">Kilométrage :</label>
+            <input type="number" id="mileage" name="mileage" min="0" max="9999999" class="form-control" placeholder="Entrez le kilométrage" value="<%= data.mileage || '' %>" required />
+          </div>
+
+          <div class="form-group">
+            <label for="next_inspection_date">Prochaine date de contrôle technique :</label>
+            <input type="date" id="next_inspection_date" name="next_inspection_date" class="form-control" value="<%= data.next_inspection_date || '' %>" />
+          </div>
+        </section>
+
+        <!-- Add more sections for inspection details -->
+
+        <button type="submit" class="btn btn-primary mt-3">
+          <i class="fas fa-save"></i> Enregistrer le rapport
+        </button>
+      </form>
+    </main>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="/js/script.js"></script>
+</body>
+</html>
