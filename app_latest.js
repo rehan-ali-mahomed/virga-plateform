@@ -11,6 +11,9 @@ const { body, validationResult } = require('express-validator');
 const helmet = require('helmet');
 const PDFDocument = require('pdfkit');
 const morgan = require('morgan');
+const pdf = require('html-pdf'); // Make sure to install this package
+const fs = require('fs');
+const SQLiteStore = require('connect-sqlite3')(session);
 
 const app = express();
 const db = new sqlite3.Database('./database.db');
@@ -18,20 +21,42 @@ const db = new sqlite3.Database('./database.db');
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://code.jquery.com",
+        "https://cdn.jsdelivr.net",
+        "https://stackpath.bootstrapcdn.com", // Add this line
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://stackpath.bootstrapcdn.com",
+        "https://cdnjs.cloudflare.com",
+      ],
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+    },
+  },
+}));
 app.use(morgan('dev'));
 
 // Configure session
 app.use(
   session({
+    store: new SQLiteStore({ db: 'sessions.db', dir: './' }),
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
-      secure: false, // Mettez true si vous utilisez HTTPS
+      secure: false, // Set to true if using HTTPS
       httpOnly: true,
-      sameSite: 'strict',
-    },
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    }
   })
 );
 
@@ -271,60 +296,10 @@ app.post(
   }
 );
 
-// New route for PDF preview
-app.get('/preview/:id', isAuthenticated, (req, res) => {
-  const reportId = req.params.id;
-  console.log('Génération du PDF pour prévisualisation, rapport ID:', reportId);
-
-  db.get('SELECT * FROM inspection_reports WHERE id = ?', [reportId], (err, report) => {
-    if (err) {
-      console.error('Erreur lors de la récupération du rapport:', err.message);
-      return res.status(500).json({ error: 'Une erreur est survenue lors de la génération du rapport.' });
-    }
-
-    if (!report) {
-      console.log("Rapport non trouvé pour l'ID:", reportId);
-      return res.status(404).json({ error: 'Rapport non trouvé' });
-    }
-
-    // Création du document PDF
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    let chunks = [];
-
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => {
-      let pdfData = Buffer.concat(chunks);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.send(pdfData);
-    });
-
-    // Add PDF content (same as in the /report/:id route)
-    doc.image('public/company_logo.png', 50, 45, { width: 100 });
-    doc.fontSize(20).text("Rapport d'inspection du véhicule", 150, 50);
-
-    doc.fontSize(12).text(`Date : ${report.date}`, 400, 50);
-    doc.text(`Nom du client : ${report.client_name}`, 400, 65);
-    doc.text(`Téléphone du client : ${report.client_phone}`, 400, 80);
-
-    // Informations du véhicule
-    doc.moveDown();
-    doc.fontSize(14).text('Informations du véhicule', { underline: true });
-    doc.fontSize(12).text(`Immatriculation : ${report.vehicle_registration}`);
-    doc.text(`Marque : ${report.vehicle_make}`);
-    doc.text(`Modèle : ${report.vehicle_model}`);
-    doc.text(`Kilométrage : ${report.mileage}`);
-    doc.text(`Prochaine date de contrôle technique : ${report.next_inspection_date}`);
-
-    // Add other sections as needed...
-
-    doc.end();
-  });
-});
-
-// Modify the existing /report/:id route
+// Route de génération du PDF
 app.get('/report/:id', isAuthenticated, (req, res) => {
   const reportId = req.params.id;
-  console.log('Génération du PDF pour téléchargement, rapport ID:', reportId);
+  console.log('Génération du PDF pour le rapport ID:', reportId);
 
   db.get('SELECT * FROM inspection_reports WHERE id = ?', [reportId], (err, report) => {
     if (err) {
@@ -370,6 +345,91 @@ app.get('/report/:id', isAuthenticated, (req, res) => {
     console.log('PDF généré et envoyé au client.');
   });
 });
+
+// Add this new route
+app.get('/generate-pdf', async (req, res) => {
+  try {
+    const htmlContent = fs.readFileSync(path.join(__dirname, 'views', 'pdf-template.ejs'), 'utf8');
+    const options = { format: 'A4' };
+    
+    pdf.create(htmlContent, options).toBuffer((err, buffer) => {
+      if (err) {
+        console.error('Error generating PDF:', err);
+        return res.status(500).send('Error generating PDF');
+      }
+      
+      const pdfFileName = `preview_${Date.now()}.pdf`;
+      const pdfPath = path.join(__dirname, 'public', 'pdfs', pdfFileName);
+      
+      fs.writeFileSync(pdfPath, buffer);
+      
+      res.json({ pdfUrl: `/pdfs/${pdfFileName}` });
+    });
+  } catch (error) {
+    console.error('Error in generate-pdf route:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+// Route for downloading the PDF
+app.get('/report/:id/download', isAuthenticated, (req, res) => {
+  const reportId = req.params.id;
+  generatePDF(reportId, res, 'attachment');
+});
+
+// Route for previewing the PDF
+app.get('/report/:id/preview', isAuthenticated, (req, res) => {
+  const reportId = req.params.id;
+  generatePDF(reportId, res, 'inline');
+});
+
+// Function to generate PDF
+function generatePDF(reportId, res, contentDisposition) {
+  db.get('SELECT * FROM inspection_reports WHERE id = ?', [reportId], (err, report) => {
+    if (err) {
+      console.error('Erreur lors de la récupération du rapport:', err.message);
+      return res.status(500).send('Une erreur est survenue lors de la génération du rapport.');
+    }
+
+    if (!report) {
+      console.log("Rapport non trouvé pour l'ID:", reportId);
+      return res.status(404).send('Rapport non trouvé');
+    }
+
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    let filename = `Rapport_Inspection_${reportId}.pdf`;
+
+    res.setHeader('Content-disposition', `${contentDisposition}; filename="${filename}"`);
+    res.setHeader('Content-type', 'application/pdf');
+
+    if (contentDisposition === 'inline') {
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    }
+
+    doc.pipe(res);
+
+    // Add content to the PDF (customize as needed)
+    doc.image('public/company_logo.png', 50, 45, { width: 100 });
+    doc.fontSize(20).text("Rapport d'inspection du véhicule", 150, 50);
+
+    doc.fontSize(12).text(`Date : ${report.date}`, 400, 50);
+    doc.text(`Nom du client : ${report.client_name}`, 400, 65);
+    doc.text(`Téléphone du client : ${report.client_phone}`, 400, 80);
+
+    // Add more content based on the report data
+    doc.moveDown();
+    doc.fontSize(14).text('Informations du véhicule', { underline: true });
+    doc.fontSize(12).text(`Immatriculation : ${report.vehicle_registration}`);
+    doc.text(`Marque : ${report.vehicle_make}`);
+    doc.text(`Modèle : ${report.vehicle_model}`);
+    doc.text(`Kilométrage : ${report.mileage}`);
+    doc.text(`Prochaine date de contrôle technique : ${report.next_inspection_date}`);
+
+    // Add more sections as needed...
+
+    doc.end();
+  });
+}
 
 // Middleware de gestion des erreurs
 app.use((err, req, res, next) => {
