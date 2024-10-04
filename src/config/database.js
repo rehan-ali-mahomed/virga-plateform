@@ -1,78 +1,108 @@
 ﻿const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcrypt');
 const path = require('path');
+const fs = require('fs');
+const logger = require('../utils/logger');
+const bcrypt = require('bcrypt');
 
-const db = new sqlite3.Database(path.join(__dirname, '..', '..', 'database.db'));
+let db;
 
 function initializeDatabase() {
-  db.serialize(() => {
-    console.log('Initialisation de la base de données...');
-  
-    // Table users
-    db.run(
-      `CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username VARCHAR(50) UNIQUE,
-        password VARCHAR(255)
-      )`,
-      (err) => {
-        if (err) {
-          console.error('Erreur lors de la création de la table users:', err.message);
-        } else {
-          console.log('Table users vérifiée/créée.');
-        }
+  return new Promise((resolve, reject) => {
+    const dbPath = path.join(__dirname, '..', '..', 'database.sqlite');
+    
+    logger.info(`Attempting to create/open database at: ${dbPath}`);
+
+    // Check if the directory exists, if not create it
+    const dbDir = path.dirname(dbPath);
+    if (!fs.existsSync(dbDir)) {
+      logger.info(`Creating directory: ${dbDir}`);
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+
+    db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+      if (err) {
+        logger.error('Error connecting to the database:', err);
+        logger.error('Current working directory:', process.cwd());
+        logger.error('__dirname:', __dirname);
+        reject(err);
+      } else {
+        logger.info(`Connected to the database at ${dbPath}`);
+        createTables()
+          .then(() => createDefaultUser())
+          .then(resolve)
+          .catch(reject);
       }
-    );
-  
-    // Insertion de l'utilisateur par défaut
-    const hashedPassword = bcrypt.hashSync('password', 10);
-    db.run(
-      `INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)`,
-      ['admin', hashedPassword],
-      function (err) {
-        if (err) {
-          console.error("Erreur lors de l'insertion de l'utilisateur par défaut:", err.message);
-        } else {
-          console.log('Utilisateur par défaut créé ou déjà existant.');
-        }
-      }
-    );
-  
-    // Table inspection_reports
-    db.run(
-      `CREATE TABLE IF NOT EXISTS inspection_reports (
+    });
+  });
+}
+
+function createTables() {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // Create users table
+      db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date DATE,
-        client_name VARCHAR(50),
-        client_phone VARCHAR(15),
-        vehicle_registration VARCHAR(20),
-        vehicle_make VARCHAR(50),
-        vehicle_model VARCHAR(50),
-        mileage INT,
-        next_inspection_date DATE,
+        username TEXT UNIQUE,
+        password TEXT
+      )`, (err) => {
+        if (err) reject(err);
+      });
+
+      // Create inspection_reports table
+      db.run(`CREATE TABLE IF NOT EXISTS inspection_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        client_name TEXT,
+        client_phone TEXT,
+        vehicle_registration TEXT,
+        vehicle_make TEXT,
+        vehicle_model TEXT,
+        mileage INTEGER,
+        next_inspection_date TEXT,
         interior TEXT,
         engine TEXT,
         front TEXT,
         rear TEXT,
         accessories TEXT,
         comments TEXT,
-        revision_oil_type VARCHAR(50),
-        revision_torque VARCHAR(50),
-        revision_oil_volume VARCHAR(50),
-        brake_disc_thickness_front FLOAT,
-        brake_disc_thickness_rear FLOAT,
+        revision_oil_type TEXT,
+        revision_torque TEXT,
+        revision_oil_volume TEXT,
+        brake_disc_thickness_front TEXT,
+        brake_disc_thickness_rear TEXT,
         work_completed TEXT
-      )`,
-      (err) => {
-        if (err) {
-          console.error('Erreur lors de la création de la table inspection_reports:', err.message);
-        } else {
-          console.log('Table inspection_reports vérifiée/créée.');
-        }
-      }
-    );
+      )`, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   });
-  console.log('Base de données initialisée...');
+}
+
+async function createDefaultUser() {
+  const defaultUsername = 'admin';
+  const defaultPassword = 'password123';
+  const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM users WHERE username = ?', [defaultUsername], (err, row) => {
+      if (err) {
+        reject(err);
+      } else if (row) {
+        logger.info('Default user already exists');
+        resolve();
+      } else {
+        db.run('INSERT INTO users (username, password) VALUES (?, ?)', [defaultUsername, hashedPassword], (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            logger.info('Default user created');
+            resolve();
+          }
+        });
+      }
+    });
+  });
 }
 
 function getDatabase() {

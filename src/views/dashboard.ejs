@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <title>Tableau de bord</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
 </head>
 <body>
   <div class="container">
     <header class="d-flex justify-content-between align-items-center my-4">
       <div id="company-info" class="d-flex align-items-center">
-        <img src="/images/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
+        <img src="/img/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
         <div>
           <h1 class="h3 mb-0">AUTO PRESTO</h1>
           <p class="mb-0">123 Rue Principale, Ville, Pays</p>
@@ -40,7 +40,7 @@
             </tr>
           </thead>
           <tbody>
-            <% if (reports.length > 0) { %>
+            <% if (reports && reports.length > 0) { %>
               <% reports.forEach(function(report) { %>
                 <tr>
                   <td><%= report.id %></td>

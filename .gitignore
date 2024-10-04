@@ -10,3 +10,4 @@ sessions.db
 
 # Ignore main database
 database.db
+database.sqlite

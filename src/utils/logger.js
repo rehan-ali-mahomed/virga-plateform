@@ -1,27 +1,18 @@
-const fs = require('fs');
-const path = require('path');
+const winston = require('winston');
 
-const logFile = path.join(__dirname, '..', '..', 'logs', 'app.log');
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `${timestamp} ${level}: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' }),
+  ],
+});
 
-function ensureLogDirectoryExists() {
-  const logDir = path.dirname(logFile);
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-}
-
-function log(level, message) {
-  ensureLogDirectoryExists();
-  const timestamp = new Date().toISOString();
-  const logMessage = `${timestamp} [${level}] ${message}\n`;
-  fs.appendFileSync(logFile, logMessage);
-  console.log(logMessage); // Also log to console for immediate feedback
-}
-
-
-module.exports = {
-  info: (message) => log('INFO', message),
-  warn: (message) => log('WARN', message),
-  error: (message) => log('ERROR', message),
-  debug: (message) => log('DEBUG', message),
-};
+module.exports = logger;
