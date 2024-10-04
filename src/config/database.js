@@ -72,6 +72,17 @@ function initializeDatabase() {
       }
     );
   });
+  console.log('Base de données initialisée...');
 }
 
-module.exports = { db, initializeDatabase };
+function getDatabase() {
+  if (!db) {
+    throw new Error('Database not initialized. Call initializeDatabase first.');
+  }
+  return db;
+}
+
+module.exports = {
+  initializeDatabase,
+  getDatabase
+};
