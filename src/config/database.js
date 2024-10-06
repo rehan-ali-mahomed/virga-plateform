@@ -8,7 +8,7 @@ let db;
 
 function initializeDatabase() {
   return new Promise((resolve, reject) => {
-    const dbPath = path.join(__dirname, '..', '..', 'database.sqlite');
+    const dbPath = path.join(process.cwd(), 'database.sqlite');
     
     logger.info(`Attempting to create/open database at: ${dbPath}`);
 
@@ -22,8 +22,6 @@ function initializeDatabase() {
     db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
       if (err) {
         logger.error('Error connecting to the database:', err);
-        logger.error('Current working directory:', process.cwd());
-        logger.error('__dirname:', __dirname);
         reject(err);
       } else {
         logger.info(`Connected to the database at ${dbPath}`);

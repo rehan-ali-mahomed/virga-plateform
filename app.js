@@ -100,3 +100,9 @@ initializeDatabase()
 
 // Error handling middleware
 app.use(errorHandler);
+
+// Ensure temp directory exists
+const tempDir = path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
