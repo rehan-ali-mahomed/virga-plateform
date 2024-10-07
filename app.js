@@ -25,6 +25,7 @@ const app = express();
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public', 'css')));
 app.use(express.static(path.join(__dirname, 'public', 'images')));
@@ -98,11 +99,43 @@ initializeDatabase()
     process.exit(1);
   });
 
-// Error handling middleware
-app.use(errorHandler);
-
 // Ensure temp directory exists
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
+
+// Cleanup temporary PDF files
+const cleanupTempFiles = () => {
+  fs.readdir(tempDir, (err, files) => {
+    if (err) {
+      logger.error('Error reading temp directory:', err);
+      return;
+    }
+    files.forEach(file => {
+      const filePath = path.join(tempDir, file);
+      fs.stat(filePath, (err, stats) => {
+        if (err) {
+          logger.error('Error getting file stats:', err);
+          return;
+        }
+        const now = new Date().getTime();
+        const endTime = new Date(stats.ctime).getTime() + 24 * 60 * 60 * 1000; // 24 hours
+        if (now > endTime) {
+          fs.unlink(filePath, err => {
+            if (err) {
+              logger.error('Error deleting file:', err);
+            } else {
+              logger.info(`Deleted old temporary file: ${file}`);
+            }
+          });
+        }
+      });
+    });
+  });
+};
+
+// Run cleanup every hour
+setInterval(cleanupTempFiles, 60 * 60 * 1000);
+
+module.exports = app;
