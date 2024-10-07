@@ -16,6 +16,7 @@ const reportRoutes = require('./src/routes/report');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const fs = require('fs');
+const { isAuthenticated } = require('./src/middleware/auth');
 const sessionDir = path.join(__dirname, 'src', 'db');
 if (!fs.existsSync(sessionDir)) {
   fs.mkdirSync(sessionDir, { recursive: true });
@@ -85,6 +86,9 @@ initializeDatabase()
     app.use('/form', formRoutes);
     app.use('/report', reportRoutes);
 
+    // Serve generated reports only to authenticated users
+    app.use('/generated_reports', isAuthenticated, express.static(path.join(__dirname, 'generated_reports')));
+
     // Error handling middleware
     app.use(errorHandler);
 
@@ -105,7 +109,7 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Cleanup temporary PDF files
+/* // Cleanup temporary PDF files
 const cleanupTempFiles = () => {
   fs.readdir(tempDir, (err, files) => {
     if (err) {
@@ -133,9 +137,10 @@ const cleanupTempFiles = () => {
       });
     });
   });
-};
+}; 
 
 // Run cleanup every hour
 setInterval(cleanupTempFiles, 60 * 60 * 1000);
+*/
 
 module.exports = app;

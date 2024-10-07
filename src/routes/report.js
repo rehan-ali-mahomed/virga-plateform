@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 
 const router = express.Router();
 
-router.get('/:id/preview', isAuthenticated, async (req, res) => {
+router.get('/preview/:id', isAuthenticated, async (req, res) => {
   const db = getDatabase();
   const reportId = req.params.id;
 
@@ -23,7 +23,11 @@ router.get('/:id/preview', isAuthenticated, async (req, res) => {
     });
 
     if (!report) {
-      return res.status(404).send('Report not found');
+      return res.status(404).json({
+        error: 'Report not found',
+        message: 'The requested report could not be found in the database.',
+        reportId: reportId
+      });
     }
 
     const pdfPath = await generatePDF(report);
@@ -35,7 +39,7 @@ router.get('/:id/preview', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/:id/download', isAuthenticated, async (req, res) => {
+router.get('/download/:id', isAuthenticated, async (req, res) => {
   const db = getDatabase();
   const reportId = req.params.id;
 

@@ -5,8 +5,8 @@ const logger = require('../utils/logger');
 
 function generatePDF(report) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    const pdfPath = path.join(__dirname, '..', '..', 'temp', `report_${report.id}.pdf`);
+    const doc = new PDFDocument({ size: 'A4', margin: 25 });
+    const pdfPath = path.join(__dirname, '..', '..', 'generated_reports', `${report.immatriculation}_${report.date}.pdf`);
     const writeStream = fs.createWriteStream(pdfPath);
 
     doc.pipe(writeStream);
