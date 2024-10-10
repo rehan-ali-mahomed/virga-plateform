@@ -26,7 +26,7 @@
     </header>
 
     <main>
-      <form action="/form" method="post" id="inspection-form">
+      <form action="/form/submit" method="POST" id="inspection-form">
         <% if (errors && errors.length > 0) { %>
           <div class="alert alert-danger">
             <ul>
@@ -58,32 +58,149 @@
         <section>
           <h2><i class="fas fa-car"></i> Informations du véhicule</h2>
           <div class="form-group">
-            <label for="vehicle_registration">Immatriculation :</label>
-            <input type="text" id="vehicle_registration" name="vehicle_registration" maxlength="20" class="form-control" placeholder="Entrez l'immatriculation du véhicule" value="<%= data.vehicle_registration || '' %>" required />
+            <label for="license_plate">Immatriculation :</label>
+            <input type="text" id="license_plate" name="license_plate" maxlength="20" class="form-control" required value="<%= data.license_plate || '' %>">
           </div>
-
           <div class="form-group">
-            <label for="vehicle_make">Marque :</label>
-            <input type="text" id="vehicle_make" name="vehicle_make" maxlength="50" class="form-control" placeholder="Entrez la marque du véhicule" value="<%= data.vehicle_make || '' %>" required />
+            <label for="owner_name">Nom du propriétaire :</label>
+            <input type="text" id="owner_name" name="owner_name" maxlength="100" class="form-control" required value="<%= data.owner_name || '' %>">
           </div>
-
           <div class="form-group">
-            <label for="vehicle_model">Modèle :</label>
-            <input type="text" id="vehicle_model" name="vehicle_model" maxlength="50" class="form-control" placeholder="Entrez le modèle du véhicule" value="<%= data.vehicle_model || '' %>" required />
-          </div>
-
-          <div class="form-group">
-            <label for="mileage">Kilométrage :</label>
-            <input type="number" id="mileage" name="mileage" min="0" max="9999999" class="form-control" placeholder="Entrez le kilométrage" value="<%= data.mileage || '' %>" required />
-          </div>
-
-          <div class="form-group">
-            <label for="next_inspection_date">Prochaine date de contrôle technique :</label>
-            <input type="date" id="next_inspection_date" name="next_inspection_date" class="form-control" value="<%= data.next_inspection_date || '' %>" />
+            <label for="contact_info">Informations de contact :</label>
+            <input type="text" id="contact_info" name="contact_info" maxlength="100" class="form-control" required value="<%= data.contact_info || '' %>">
           </div>
         </section>
 
-        <!-- Add more sections for inspection details -->
+        <section>
+          <h2><i class="fas fa-clipboard-check"></i> Statut du véhicule</h2>
+          <div class="form-group">
+            <label for="status_type">Type de statut :</label>
+            <select id="status_type" name="status_type" class="form-control" required>
+              <option value="entry_diagnostic" <%= data.status_type === 'entry_diagnostic' ? 'selected' : '' %>>Diagnostic d'entrée</option>
+              <option value="exit_repair" <%= data.status_type === 'exit_repair' ? 'selected' : '' %>>Réparation terminée</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="details">Détails :</label>
+            <textarea id="details" name="details" maxlength="1000" class="form-control" rows="5"><%= data.details || '' %></textarea>
+          </div>
+          <div class="form-group">
+            <label for="severity_level">Niveau de sévérité (1-5) :</label>
+            <input type="number" id="severity_level" name="severity_level" min="1" max="5" class="form-control" required value="<%= data.severity_level || '' %>">
+          </div>
+          <div class="form-group">
+            <label for="repair_status">Statut de réparation :</label>
+            <input type="text" id="repair_status" name="repair_status" maxlength="100" class="form-control" value="<%= data.repair_status || '' %>">
+          </div>
+          <div class="form-group">
+            <label for="cost">Coût :</label>
+            <input type="number" id="cost" name="cost" step="0.01" min="0" class="form-control" required value="<%= data.cost || '' %>">
+          </div>
+        </section>
+
+        <!-- New sections for inspection details -->
+        <section>
+          <h2><i class="fas fa-clipboard-check"></i> Détails de l'inspection</h2>
+          
+          <!-- Interior Section -->
+          <div class="form-group">
+            <h3>Intérieur</h3>
+            <% ['Antivol de roue bon état', 'Démarreur', 'Témoin tableau de bord', 'Rétroviseur', 'klaxon', 'Frein à main', 'essuie glace', 'Eclairage', 'Jeux au volant'].forEach(item => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="interior_<%= item.toLowerCase().replace(/\s/g, '_') %>" name="interior[<%= item %>]" value="true">
+                <label class="form-check-label" for="interior_<%= item.toLowerCase().replace(/\s/g, '_') %>"><%= item %></label>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Engine Section -->
+          <div class="form-group">
+            <h3>Moteur</h3>
+            <% ['Teste batterie/alternateur', 'Plaque immat AV', 'Fuite boite', 'Fuite moteur', 'supports moteur', 'Liquide de frein', 'Filtre à air', 'Courroie accessoire'].forEach(item => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="engine_<%= item.toLowerCase().replace(/\s/g, '_') %>" name="engine[<%= item %>]" value="true">
+                <label class="form-check-label" for="engine_<%= item.toLowerCase().replace(/\s/g, '_') %>"><%= item %></label>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Front Section -->
+          <div class="form-group">
+            <h3>Avant</h3>
+            <% ['Roulement', 'Pneus avant', 'Parallélisme', 'Disque avant', 'Plaquettes avant', 'Amortisseur avant', 'Biellette barre stab', 'Direction complet', 'Cardans', 'Triangles avant', 'Flexible de frein'].forEach(item => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="front_<%= item.toLowerCase().replace(/\s/g, '_') %>" name="front[<%= item %>]" value="true">
+                <label class="form-check-label" for="front_<%= item.toLowerCase().replace(/\s/g, '_') %>"><%= item %></label>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Rear Section -->
+          <div class="form-group">
+            <h3>Arrière</h3>
+            <% ['Pneus AR', 'Frein AR', 'Roulement AR', 'Flexible AR', 'Amortisseur AR', 'Silent Bloc AR'].forEach(item => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="rear_<%= item.toLowerCase().replace(/\s/g, '_') %>" name="rear[<%= item %>]" value="true">
+                <label class="form-check-label" for="rear_<%= item.toLowerCase().replace(/\s/g, '_') %>"><%= item %></label>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Accessories Section -->
+          <div class="form-group">
+            <h3>Accessoires</h3>
+            <% ['Plaque immat AR', 'Antenne radio', 'Roue de secours', 'Gilet/Triangle secu', 'Crique / Clé roue'].forEach(item => { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="accessory_<%= item.toLowerCase().replace(/\s/g, '_') %>" name="accessories[<%= item %>]" value="true">
+                <label class="form-check-label" for="accessory_<%= item.toLowerCase().replace(/\s/g, '_') %>"><%= item %></label>
+              </div>
+            <% }); %>
+          </div>
+        </section>
+
+        <!-- Comment Section -->
+        <section>
+          <h2><i class="fas fa-comment"></i> Commentaire</h2>
+          <div class="form-group">
+            <textarea id="comments" name="comments" class="form-control" rows="5" placeholder="Ajoutez un commentaire ici"><%= data.comments || '' %></textarea>
+          </div>
+        </section>
+
+        <!-- Revision Section -->
+        <section>
+          <h2><i class="fas fa-tools"></i> Révision</h2>
+          <div class="form-group">
+            <label for="revision_oil_type">Type d'huile :</label>
+            <input type="text" id="revision_oil_type" name="revision_oil_type" class="form-control" value="<%= data.revision_oil_type || '' %>" placeholder="ex: 5W30 C3" />
+          </div>
+          <div class="form-group">
+            <label for="revision_torque">Couple de serrage :</label>
+            <input type="text" id="revision_torque" name="revision_torque" class="form-control" value="<%= data.revision_torque || '' %>" placeholder="ex: 42 NM" />
+          </div>
+          <div class="form-group">
+            <label for="revision_oil_volume">Capacité d'huile :</label>
+            <input type="text" id="revision_oil_volume" name="revision_oil_volume" class="form-control" value="<%= data.revision_oil_volume || '' %>" placeholder="ex: 7.5 L" />
+          </div>
+          <div class="form-group">
+            <label for="brake_disc_thickness_front">Épaisseur min. disque avant :</label>
+            <input type="text" id="brake_disc_thickness_front" name="brake_disc_thickness_front" class="form-control" value="<%= data.brake_disc_thickness_front || '' %>" placeholder="ex: 10 MM" />
+          </div>
+          <div class="form-group">
+            <label for="brake_disc_thickness_rear">Épaisseur min. disque arrière :</label>
+            <input type="text" id="brake_disc_thickness_rear" name="brake_disc_thickness_rear" class="form-control" value="<%= data.brake_disc_thickness_rear || '' %>" placeholder="ex: 25 MM" />
+          </div>
+        </section>
+
+        <!-- Work Completed Section -->
+        <section>
+          <h2><i class="fas fa-wrench"></i> Travaux Complétés</h2>
+          <% ['MISE A ZERO VIDANGE', 'ROUE SERRER AU COUPLE', 'ETIQUETTE DE VIDANGE', 'ETIQUETTE DISTRIBUTION', 'ETIQUETTE PLAQUETTE', 'PARFUM', 'NETTOYAGE'].forEach(item => { %>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="work_completed_<%= item.toLowerCase().replace(/\s/g, '_') %>" name="work_completed[<%= item %>]" value="true">
+              <label class="form-check-label" for="work_completed_<%= item.toLowerCase().replace(/\s/g, '_') %>"><%= item %></label>
+            </div>
+          <% }); %>
+        </section>
 
         <button type="submit" class="btn btn-primary mt-3">
           <i class="fas fa-save"></i> Enregistrer le rapport

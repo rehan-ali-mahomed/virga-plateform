@@ -2,8 +2,10 @@ node_modules/
 .env
 *.log
 
+src/services/archive/
+
 # Ignore generated PDFs
-public/pdfs/*.pdf
+/generated_pdfs/*.pdf
 
 # Ignore session database
 sessions.db

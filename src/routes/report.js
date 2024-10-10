@@ -30,6 +30,8 @@ router.get('/preview/:id', isAuthenticated, async (req, res) => {
       });
     }
 
+    // display the report in log
+    logger.info(`Report: ${JSON.stringify(report)}`);
     const pdfPath = await generatePDF(report);
     res.contentType('application/pdf');
     fs.createReadStream(pdfPath).pipe(res);
@@ -67,6 +69,38 @@ router.get('/download/:id', isAuthenticated, async (req, res) => {
   } catch (error) {
     logger.error(`Error generating PDF for download (ID: ${reportId}):`, error);
     res.status(500).send('Error generating PDF');
+  }
+});
+
+router.delete('/delete/:id', isAuthenticated, async (req, res) => {
+  const db = getDatabase();
+  const reportId = req.params.id;
+
+  logger.info(`Delete requested for report ID: ${reportId}`);
+
+  try {
+    // Delete the report from the database
+    const result = await new Promise((resolve, reject) => {
+      db.run('DELETE FROM inspection_reports WHERE id = ?', [reportId], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this.changes);
+        }
+      });
+    });
+
+    // Check if any rows were affected
+    if (result === 0) {
+      logger.warn(`No report found with ID: ${reportId}`);
+      return res.status(404).json({ success: false, error: 'Report not found' });
+    }
+
+    logger.info(`Successfully deleted report with ID: ${reportId}`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error(`Error deleting report (ID: ${reportId}):`, error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

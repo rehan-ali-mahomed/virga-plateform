@@ -2,37 +2,73 @@
 const logger = require('../utils/logger');
 
 function insertReport(data) {
+  const db = getDatabase();
+
   return new Promise((resolve, reject) => {
-    const db = getDatabase();
     const {
-      date, client_name, client_phone, vehicle_registration, vehicle_make,
-      vehicle_model, mileage, next_inspection_date, interior, engine, front,
-      rear, accessories, comments, revision_oil_type, revision_torque,
-      revision_oil_volume, brake_disc_thickness_front, brake_disc_thickness_rear,
-      work_completed
+      date, client_name, client_phone, vehicle_registration, vehicle_make, vehicle_model,
+      mileage, next_inspection_date, comments, revision_oil_type, revision_torque, revision_oil_volume,
+      brake_disc_thickness_front, brake_disc_thickness_rear, interior, engine,
+      front, rear, accessories, work_completed
     } = data;
 
     const query = `
       INSERT INTO inspection_reports (
-        date, client_name, client_phone, vehicle_registration, vehicle_make,
-        vehicle_model, mileage, next_inspection_date, interior, engine, front,
-        rear, accessories, comments, revision_oil_type, revision_torque,
-        revision_oil_volume, brake_disc_thickness_front, brake_disc_thickness_rear,
-        work_completed
+        date, client_name, client_phone, vehicle_registration, vehicle_make, vehicle_model,
+        mileage, next_inspection_date, comments, revision_oil_type, revision_torque, revision_oil_volume,
+        brake_disc_thickness_front, brake_disc_thickness_rear, interior, engine,
+        front, rear, accessories, work_completed
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
+    const processCheckboxes = (obj, defaultItems) => {
+      logger.info(`Processing object: ${JSON.stringify(obj)}`);
+      const processedObj = { ...defaultItems };
+      Object.keys(obj || {}).forEach(key => {
+        processedObj[key] = obj[key] === 'true';
+      });
+      return processedObj;
+    };
+
+    // Define default items for each checkbox group
+    const defaultInterior = {
+      'Antivol de roue bon état': false, 'Démarreur': false, 'Témoin tableau de bord': false,
+      'Rétroviseur': false, 'klaxon': false, 'Frein à main': false, 'essuie glace': false,
+      'Eclairage': false, 'Jeux au volant': false
+    };
+    const defaultEngine = {
+      'Teste batterie/alternateur': false, 'Plaque immat AV': false, 'Fuite boite': false,
+      'Fuite moteur': false, 'supports moteur': false, 'Liquide de frein': false,
+      'Filtre à air': false, 'Courroie accessoire': false
+    };
+    const defaultFront = {
+      'Roulement': false, 'Pneus avant': false, 'Parallélisme': false, 'Disque avant': false,
+      'Plaquettes avant': false, 'Amortisseur avant': false, 'Biellette barre stab': false,
+      'Direction complet': false, 'Cardans': false, 'Triangles avant': false, 'Flexible de frein': false
+    };
+    const defaultRear = {
+      'Pneus AR': false, 'Frein AR': false, 'Roulement AR': false, 'Flexible AR': false,
+      'Amortisseur AR': false, 'Silent Bloc AR': false
+    };
+    const defaultAccessories = {
+      'Plaque immat AR': false, 'Antenne radio': false, 'Roue de secours': false,
+      'Gilet/Triangle secu': false, 'Crique / Clé roue': false
+    };
+    const defaultWorkCompleted = {
+      'MISE A ZERO VIDANGE': false, 'ROUE SERRER AU COUPLE': false, 'ETIQUETTE DE VIDANGE': false,
+      'ETIQUETTE DISTRIBUTION': false, 'ETIQUETTE PLAQUETTE': false, 'PARFUM': false, 'NETTOYAGE': false
+    };
+
     const params = [
-      date, client_name, client_phone, vehicle_registration, vehicle_make,
-      vehicle_model, mileage, next_inspection_date,
-      JSON.stringify(interior || []),
-      JSON.stringify(engine || []),
-      JSON.stringify(front || []),
-      JSON.stringify(rear || []),
-      JSON.stringify(accessories || []),
-      comments, revision_oil_type, revision_torque,
-      revision_oil_volume, brake_disc_thickness_front, brake_disc_thickness_rear,
-      JSON.stringify(work_completed || [])
+      date, client_name, client_phone, vehicle_registration, vehicle_make, vehicle_model,
+      mileage, next_inspection_date, comments, revision_oil_type, revision_torque, revision_oil_volume,
+      brake_disc_thickness_front, brake_disc_thickness_rear,
+      JSON.stringify(processCheckboxes(interior, defaultInterior)),
+      JSON.stringify(processCheckboxes(engine, defaultEngine)),
+      JSON.stringify(processCheckboxes(front, defaultFront)),
+      JSON.stringify(processCheckboxes(rear, defaultRear)),
+      JSON.stringify(processCheckboxes(accessories, defaultAccessories)),
+      JSON.stringify(processCheckboxes(work_completed, defaultWorkCompleted))
     ];
 
     logger.info('Executing SQL query:', query);

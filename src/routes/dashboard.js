@@ -7,12 +7,12 @@ const router = express.Router();
 
 router.get('/', isAuthenticated, (req, res) => {
   const db = getDatabase();
-  db.all('SELECT * FROM inspection_reports ORDER BY date DESC', (err, reports) => {
+  db.all('SELECT * FROM VehicleStatus ORDER BY status_date DESC', (err, statuses) => {
     if (err) {
       logger.error('Database error:', err);
       return res.status(500).render('error', { message: 'An error occurred while loading the dashboard.' });
     }
-    res.render('dashboard', { user: req.session.user, reports });
+    res.render('dashboard', { user: req.session.user, statuses });
   });
 });
 

@@ -1,15 +1,14 @@
 ﻿const { body, validationResult } = require('express-validator');
 
 const validateForm = [
-  body('date').isDate().withMessage('Please enter a valid date.'),
-  body('client_name').trim().isLength({ min: 1, max: 50 }).withMessage('Client name must be between 1 and 50 characters.'),
-  body('client_phone').trim().isLength({ min: 1, max: 15 }).withMessage('Phone number must be between 1 and 15 characters.'),
-  body('vehicle_registration').trim().isLength({ min: 1, max: 20 }).withMessage('Vehicle registration must be between 1 and 20 characters.'),
-  body('vehicle_make').trim().isLength({ min: 1, max: 50 }).withMessage('Vehicle make must be between 1 and 50 characters.'),
-  body('vehicle_model').trim().isLength({ min: 1, max: 50 }).withMessage('Vehicle model must be between 1 and 50 characters.'),
-  body('mileage').isInt({ min: 0, max: 9999999 }).withMessage('Mileage must be a number between 0 and 9,999,999.'),
-  body('next_inspection_date').optional({ checkFalsy: true }).isDate().withMessage('Please enter a valid date for the next inspection.'),
-  // Add more validations for other fields as needed
+  body('license_plate').trim().isLength({ min: 1, max: 20 }).withMessage('License plate is required and must be between 1 and 20 characters.'),
+  body('owner_name').trim().isLength({ min: 1, max: 100 }).withMessage('Owner name is required and must be between 1 and 100 characters.'),
+  body('contact_info').trim().isLength({ min: 1, max: 100 }).withMessage('Contact info is required and must be between 1 and 100 characters.'),
+  body('status_type').isIn(['entry_diagnostic', 'exit_repair']).withMessage('Invalid status type.'),
+  body('details').trim().isLength({ max: 1000 }).withMessage('Details must not exceed 1000 characters.'),
+  body('severity_level').isInt({ min: 1, max: 5 }).withMessage('Severity level must be between 1 and 5.'),
+  body('repair_status').trim().isLength({ max: 100 }).withMessage('Repair status must not exceed 100 characters.'),
+  body('cost').isFloat({ min: 0 }).withMessage('Cost must be a positive number.'),
   (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

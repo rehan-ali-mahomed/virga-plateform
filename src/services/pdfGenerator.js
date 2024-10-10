@@ -5,90 +5,153 @@ const logger = require('../utils/logger');
 
 function generatePDF(report) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 25 });
-    const pdfPath = path.join(__dirname, '..', '..', 'generated_reports', `${report.immatriculation}_${report.date}.pdf`);
+    const doc = new PDFDocument({ size: 'A4', margin: 10 });
+    const pdfPath = path.join(__dirname, '..', '..', 'generated_reports', `${report.vehicle_registration}_${report.date}.pdf`);
     const writeStream = fs.createWriteStream(pdfPath);
 
     doc.pipe(writeStream);
 
-    // Helper functions
-    const drawRect = (x, y, w, h, radius = 0) => doc.roundedRect(x, y, w, h, radius).stroke();
-    const drawFilledRect = (x, y, w, h, radius = 0, color = 'black') => doc.roundedRect(x, y, w, h, radius).fill(color);
-
-    // 1. Header
-    doc.fontSize(24).font('Helvetica-Bold').text('AUTO PRESTO', 50, 50);
-    drawFilledRect(450, 40, 80, 80, 10, '#333'); // Logo placeholder
-    doc.fontSize(10).font('Helvetica')
-       .text('3 rue de la Guadeloupe, 97490 SAINTE CLOTILDE', 50, 80)
-       .text('Tel: 0692 01 25 39 | Email: contact@autopresto.com', 50, 95)
-       .text(`Report Date: ${report.date}`, 50, 110);
-
-    // 2. Vehicle Information
-    drawRect(50, 140, 495, 80, 5);
-    doc.fontSize(14).font('Helvetica-Bold').text('Vehicle Information', 60, 150);
-    doc.fontSize(10).font('Helvetica')
-       .text(`Immatriculation: ${report.immatriculation} | Marque: ${report.vehicle_make} | Model: ${report.vehicle_model}`, 60, 170)
-       .text(`Kilometrage: ${report.kilometrage} | Prochain C.T: ${report.prochain_ct}`, 60, 185)
-       .text(`Client: ${report.client_name} | Contact: ${report.client_contact}`, 60, 200);
-
-    // 3. Inspection Sections
-    const inspectionSections = [
-      { title: 'Interior', color: '#4CAF50', icon: '🚗' },
-      { title: 'Engine', color: '#2196F3', icon: '🔧' },
-      { title: 'Front', color: '#FFC107', icon: '🛞' },
-      { title: 'Rear', color: '#9C27B0', icon: '🚙' },
-      { title: 'Accessories', color: '#FF5722', icon: '🔌' }
-    ];
-
-    const drawInspectionSection = (section, x, y, width, height, items) => {
-      drawFilledRect(x, y, width, 30, 5, section.color);
-      doc.fillColor('white').fontSize(14).font('Helvetica-Bold')
-         .text(`${section.icon} ${section.title}`, x + 10, y + 8);
-      drawRect(x, y + 30, width, height - 30, 5);
-      
-      doc.fontSize(9).font('Helvetica').fillColor('black');
-      items.forEach((item, i) => {
-        doc.text(item.name, x + 10, y + 40 + i * 20);
-        drawFilledRect(x + width - 70, y + 38 + i * 20, 60, 15, 3, item.status ? '#4CAF50' : '#E0E0E0');
-      });
+    // Color palette
+    const colors = {
+      primary: '#333333',
+      secondary: '#757575',
+      accent: '#4CAF50',
+      warning: '#F44336',
+      lightGray: '#E0E0E0',
     };
 
-    doc.addPage();
-    inspectionSections.forEach((section, index) => {
-      const x = index % 2 === 0 ? 50 : 300;
-      const y = 50 + Math.floor(index / 2) * 220;
-      drawInspectionSection(section, x, y, 245, 200, report[section.title.toLowerCase() + '_items'] || []);
+    // Helper functions
+    const drawCheckbox = (x, y, checked, color) => {
+      doc.circle(x, y, 6, { stroke: color });
+      if (checked) {
+        doc.circle(x, y, 4).fill(color);
+      }
+    };
+
+    // Header
+    doc.image('src/services/company_logo.png', 50, 50, { width: 60 });
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(colors.primary).text('Auto Presto', 120, 50);
+    doc.font('Helvetica').fontSize(10).fillColor(colors.secondary)
+      .text('3 rue de la Guadeloupe, 97400 SAINTE-CLOTILDE', 120, 72)
+      .text('Tél: 0692 01 25 39', 120, 87);
+
+    doc.font('Helvetica-Bold').fontSize(16).fillColor(colors.primary).text('Rapport d\'inspection', 400, 50);
+    doc.font('Helvetica').fontSize(10).fillColor(colors.secondary)
+      .text(`Date: ${report.date || 'N/A'}`, 400, 72)
+      .text(`N° Rapport: ${report.report_number || 'N/A'}`, 400, 87);
+
+    // Vehicle and Client Information
+    doc.moveTo(50, 120).lineTo(545, 120).stroke(colors.lightGray);
+
+    const infoFields = [
+      { label: 'Immatriculation:', value: report.vehicle_registration },
+      { label: 'Marque:', value: report.vehicle_make },
+      { label: 'Modèle:', value: report.vehicle_model },
+      { label: 'Kilométrage:', value: report.mileage ? `${report.mileage} KM` : 'N/A' },
+      { label: 'Prochain C.T:', value: report.next_inspection_date },
+      { label: 'Nom:', value: report.client_name },
+      { label: 'Téléphone:', value: report.client_phone },
+      { label: 'Adresse:', value: report.client_address || 'N/A' },
+    ];
+
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Informations du Véhicule', 50, 130);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Informations du Client', 300, 130);
+
+    infoFields.forEach((field, index) => {
+      const x = index < 5 ? 50 : 300;
+      const y = 155 + (index % 5) * 20;
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(colors.secondary).text(field.label, x, y);
+      doc.font('Helvetica').fontSize(10).fillColor(colors.primary).text(field.value || 'N/A', x + 100, y, { width: 150, ellipsis: true });
     });
 
-    // 4. Summary Section
-    doc.addPage();
-    doc.fontSize(18).font('Helvetica-Bold').text('Summary', 50, 50);
+    // Inspection Summary
+    doc.moveTo(50, 260).lineTo(545, 260).stroke(colors.lightGray);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Résumé de l\'inspection', 50, 270);
+    
+    drawCheckbox(60, 295, true, colors.accent);
+    doc.font('Helvetica').fontSize(10).fillColor(colors.primary).text('Bon État Général', 80, 290);
 
-    // Comments
-    drawRect(50, 80, 495, 100, 5);
-    doc.fontSize(12).font('Helvetica-Bold').text('📝 Comments:', 60, 90);
-    doc.fontSize(10).font('Helvetica').text(report.comments || 'No comments', 60, 110);
+    const inspectionPoints = JSON.parse(report.inspection_points || '{}');
+    const pointsChecked = Object.values(inspectionPoints).filter(Boolean).length;
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text(`${pointsChecked} sur ${Object.keys(inspectionPoints).length} points vérifiés`, 300, 290);
 
-    // Revision
-    drawRect(50, 190, 495, 80, 5);
-    doc.fontSize(12).font('Helvetica-Bold').text('🔎 Revision:', 60, 200);
-    doc.fontSize(10).font('Helvetica')
-       .text(`Oil: ${report.oil_type} | Torque: ${report.torque} | Capacity: ${report.oil_capacity}`, 60, 220)
-       .text(`Min. front disc thickness: ${report.front_disc_thickness} MM`, 60, 235)
-       .text(`Min. rear disc thickness: ${report.rear_disc_thickness} MM`, 60, 250);
+    // Points d'inspection
+    doc.moveTo(50, 320).lineTo(545, 320).stroke(colors.lightGray);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Points d\'inspection', 50, 330);
 
-    // Travaux
-    drawRect(50, 280, 495, 150, 5);
-    doc.fontSize(12).font('Helvetica-Bold').text('🔨 Work Performed:', 60, 290);
-    const travauxItems = report.travaux_items || [];
-    travauxItems.forEach((item, i) => {
-      doc.fontSize(10).font('Helvetica').text(`☐ ${item}`, 60, 310 + i * 20);
+    const columns = 2;
+    const itemsPerColumn = Math.ceil(Object.keys(inspectionPoints).length / columns);
+    const columnWidth = 245;
+
+    let yPosition = 355;
+    let currentColumn = 0;
+
+    Object.entries(inspectionPoints).forEach(([item, checked], index) => {
+      const x = 50 + currentColumn * columnWidth;
+      const y = yPosition;
+
+      drawCheckbox(x, y, checked, checked ? colors.accent : colors.warning);
+      doc.font('Helvetica').fontSize(10).fillColor(colors.primary).text(item, x + 20, y - 5, { width: columnWidth - 30 });
+
+      if ((index + 1) % itemsPerColumn === 0) {
+        currentColumn++;
+        yPosition = 355;
+      } else {
+        yPosition += 20;
+      }
     });
+
+    // Révision and Travaux Effectués
+    yPosition = Math.max(yPosition, 355 + (itemsPerColumn * 20)) + 20;
+    doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke(colors.lightGray);
+
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Révision', 50, yPosition + 10);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Travaux Effectués', 300, yPosition + 10);
+
+    const revisionItems = [
+      { label: 'Huile:', value: report.revision_oil_type },
+      { label: 'Couple de serrage:', value: report.revision_torque },
+      { label: 'Quantité:', value: report.revision_oil_volume },
+      { label: 'Epaisseur min disque avant:', value: report.brake_disc_thickness_front },
+      { label: 'Epaisseur min disque arrière:', value: report.brake_disc_thickness_rear },
+    ];
+
+    revisionItems.forEach((item, index) => {
+      const y = yPosition + 35 + index * 20;
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(colors.secondary).text(item.label, 50, y);
+      doc.font('Helvetica').fontSize(9).fillColor(colors.primary).text(item.value || 'N/A', 160, y, { width: 130 });
+    });
+
+    const workCompleted = JSON.parse(report.work_completed || '{}');
+    Object.entries(workCompleted).forEach(([item, checked], index) => {
+      const y = yPosition + 35 + index * 20;
+      drawCheckbox(300, y, checked, colors.accent);
+      doc.font('Helvetica').fontSize(9).fillColor(colors.primary).text(item, 320, y - 5, { width: 225 });
+    });
+
+    // Commentaires et Recommandations
+    const commentsY = Math.max(yPosition + 35 + (revisionItems.length * 20), yPosition + 35 + (Object.keys(workCompleted).length * 20)) + 20;
+    doc.moveTo(50, commentsY).lineTo(545, commentsY).stroke(colors.lightGray);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(colors.primary).text('Commentaires et Recommandations', 50, commentsY + 10);
+    doc.font('Helvetica').fontSize(9).fillColor(colors.primary)
+      .text(report.comments || 'Aucun commentaire.', 50, commentsY + 30, { width: 495, align: 'justify' });
+
+    // Footer
+    doc.font('Helvetica').fontSize(8).fillColor(colors.secondary)
+      .text('Ce rapport est généré automatiquement et ne nécessite pas de signature.', 50, 780, { align: 'center', width: 495 })
+      .text('Pour toute question, veuillez contacter Auto Presto au 0692 01 25 39', 50, 795, { align: 'center', width: 495 })
+      .text('© 2024 Auto Presto. Tous droits réservés.', 50, 810, { align: 'center', width: 495 });
 
     doc.end();
 
-    writeStream.on('finish', () => resolve(pdfPath));
-    writeStream.on('error', reject);
+    writeStream.on('finish', () => {
+      logger.info(`PDF generated successfully: ${pdfPath}`);
+      resolve(pdfPath);
+    });
+    writeStream.on('error', (error) => {
+      logger.error(`Error generating PDF: ${error.message}`);
+      reject(error);
+    });
   });
 }
 

@@ -18,7 +18,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+      db.get('SELECT * FROM Users WHERE user_name = ?', [username], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -33,7 +33,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).render('login', { error: 'Invalid username or password.' });
     }
 
-    req.session.user = { id: user.id, username: user.username };
+    req.session.user = { id: user.user_id, username: user.user_name, role: user.role };
     res.redirect('/dashboard');
   } catch (err) {
     logger.error('Database error during login:', err);
