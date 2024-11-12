@@ -20,10 +20,10 @@
   
   /* Container */
   .container {
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 20px auto;
     background-color: #fff;
-    padding: 30px;
+    padding: 1rem;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   }
@@ -65,7 +65,7 @@
   
   h2 {
     font-size: 20px;
-    color: #4a90e2;
+    /*color: #4a90e2;*/
     margin-bottom: 15px;
   }
   
@@ -82,7 +82,7 @@
   select,
   textarea {
     width: 100%;
-    padding: 10px;
+    /*padding: 10px;*/
     margin-top: 5px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -222,4 +222,501 @@
   .popup-icon {
     margin-right: 12px;
     font-size: 18px;
+  }
+
+  /* Form styling */
+  .card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none;
+  }
+
+  .card-header {
+    border-bottom: none;
+  }
+
+  .form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+    border-color: #80bdff;
+  }
+
+  .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
+    background-color: #007bff;
+    border-color: #007bff;
+  }
+
+  .custom-checkbox .custom-control-label {
+    cursor: pointer;
+    padding-top: 2px;
+  }
+
+  .btn-lg {
+    padding: 0.75rem 2rem;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .container {
+      padding: 0.5rem;
+    }
+    
+    .card {
+      margin-bottom: 1rem;
+    }
+    
+    .btn-lg {
+      width: 100%;
+    }
+  }
+
+  /* Header styling */
+  header img {
+    max-height: 60px;
+    width: auto;
+  }
+
+  /* Custom checkbox grid */
+  .custom-control {
+    margin-bottom: 0.5rem;
+  }
+
+  .border.rounded {
+    background-color: #f8f9fa;
+  }
+
+  /* Add these new styles for category headers */
+  .category-header {
+    margin-bottom: 1rem;
+  }
+
+  .category-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    padding: 0.5rem 0;
+    margin: 0;
+    border-bottom: 2px solid #3498db;
+  }
+
+  /* Update existing styles */
+  .border.rounded {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef !important;
+  }
+
+  .custom-control {
+    margin-bottom: 0.75rem;
+    padding-left: 2rem;
+  }
+
+  .custom-control-label {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .custom-control-input:checked ~ .custom-control-label::before {
+    background-color: #3498db;
+    border-color: #3498db;
+  }
+
+  /* Add hover effect for checkboxes */
+  .custom-control:hover {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+  }
+
+  /* Add these new styles */
+  .inspection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .inspection-category {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+
+  .category-header {
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .category-header i {
+    font-size: 1.2rem;
+    color: #6c757d;
+  }
+
+  .category-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #495057;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .checkbox-grid {
+    padding: 1rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .custom-control {
+    margin: 0;
+    padding-left: 2.5rem;
+  }
+
+  .custom-control-label {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    padding: 0.25rem 0;
+  }
+
+  .custom-control-label::before,
+  .custom-control-label::after {
+    top: 0.25rem;
+  }
+
+  .custom-control:hover {
+    background: #f8f9fa;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  /* Form improvements */
+  .form-control {
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+  }
+
+  .card {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 1rem;
+  }
+
+  .text-uppercase {
+    text-transform: uppercase;
+  }
+
+  /* Icons in labels */
+  label i {
+    margin-right: 0.5rem;
+    color: #6c757d;
+  }
+
+  /* Submit button */
+  .btn-lg {
+    padding: 1rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .btn-lg:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+  }
+
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .inspection-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .card-body {
+      padding: 1rem;
+    }
+  }
+
+  /* Add these new styles */
+  .card {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+
+  .input-group-text {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+    color: #495057;
+  }
+
+  .form-control::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+  }
+
+  /* Improve spacing between sections */
+  .card + .card {
+    margin-top: 2rem;
+  }
+
+  /* Make labels more prominent */
+  .form-group label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Add subtle transition to form controls */
+  .form-control {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* Improve input group styling */
+  .input-group {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-radius: 6px;
+  }
+
+  .input-group .form-control {
+    border-right: none;
+  }
+
+  .input-group-append .input-group-text {
+    border-left: none;
+    background-color: #fff;
+  }
+
+  /* Add visual feedback on required fields */
+  .form-control:required {
+    background-image: radial-gradient(circle at right 0.7rem top 0.7rem, #dc3545 0.25rem, transparent 0.3rem);
+    background-repeat: no-repeat;
+  }
+
+  .form-control:required:valid {
+    background-image: radial-gradient(circle at right 0.7rem top 0.7rem, #28a745 0.25rem, transparent 0.3rem);
+  }
+
+  /* Update card spacing */
+  .card {
+    margin-bottom: 1rem !important; /* Override any other margins */
+  }
+
+  /* Make card headers more compact */
+  .card-header {
+    padding: 0.75rem 1rem;
+    background-color: #0056b3 !important; /* Consistent, contrasted blue */
+  }
+
+  .card-header h2 {
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Optimize card body padding */
+  .card-body {
+    padding: 1rem;
+  }
+
+  /* Reduce row spacing */
+  .row + .row {
+    margin-top: 0.75rem;
+  }
+
+  /* Optimize form groups */
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  /* Make form labels more compact */
+  .form-group label {
+    margin-bottom: 0.25rem;
+  }
+
+  /* Optimize inspection grid spacing */
+  .inspection-grid {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  /* Update category headers */
+  .category-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Optimize checkbox spacing */
+  .checkbox-grid {
+    padding: 0.75rem;
+    gap: 0.25rem;
+  }
+
+  /* Update button spacing */
+  .text-center.mb-5 {
+    margin-bottom: 2rem !important;
+  }
+
+  /* Make consistent text color for headers */
+  .card-header.bg-primary {
+    background-color: #0056b3 !important;
+  }
+
+  .card-header i {
+    margin-right: 0.5rem;
+  }
+
+  /* Update card spacing and headers */
+  .card {
+    margin-bottom: 0.75rem !important;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* Make headers more contrasted */
+  .card-header {
+    padding: 0.6rem 1rem;
+    background-color: #1a4b8c !important; /* Darker, more contrasted blue */
+    border-bottom: none;
+  }
+
+  .card-header h2 {
+    font-size: 0.85rem;
+    letter-spacing: 0.75px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* Optimize card body padding */
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  /* Reduce row spacing */
+  .row + .row {
+    margin-top: 0.5rem;
+  }
+
+  /* Optimize form groups */
+  .form-group {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Make form labels more compact but clear */
+  .form-group label {
+    margin-bottom: 0.2rem;
+    font-size: 0.85rem;
+    color: #2c3e50;
+    font-weight: 500;
+  }
+
+  /* Update form controls */
+  .form-control {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.9rem;
+    height: calc(1.5em + 0.75rem + 2px);
+  }
+
+  /* Optimize inspection grid */
+  .inspection-grid {
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .category-header {
+    padding: 0.4rem 0.75rem;
+    background-color: #f1f4f9;
+  }
+
+  .checkbox-grid {
+    padding: 0.5rem;
+    gap: 0.2rem;
+  }
+
+  /* Update custom controls */
+  .custom-control {
+    min-height: 1.3rem;
+    padding-left: 2rem;
+  }
+
+  .custom-control-label {
+    font-size: 0.8rem;
+    padding: 0.1rem 0;
+  }
+
+  .custom-control-label::before,
+  .custom-control-label::after {
+    width: 1rem;
+    height: 1rem;
+    top: 0.2rem;
+  }
+
+  /* Optimize button spacing */
+  .text-center.mb-5 {
+    margin-bottom: 1.5rem !important;
+    margin-top: 1rem;
+  }
+
+  /* Update container spacing */
+  .container {
+    padding: 1rem;
+    max-width: 1200px;
+  }
+
+  /* Make header more compact */
+  header.my-4 {
+    margin: 0.75rem 0 !important;
+  }
+
+  /* Optimize textarea */
+  textarea.form-control {
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  /* Update inspection category styling */
+  .inspection-category {
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+  }
+
+  .category-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1a4b8c;
+  }
+
+  /* Make icons more subtle */
+  .card-header i,
+  label i {
+    opacity: 0.8;
+    font-size: 0.9rem;
+  }
+
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .card-body {
+      padding: 0.5rem;
+    }
+    
+    .row {
+      margin-right: -0.5rem;
+      margin-left: -0.5rem;
+    }
+    
+    .col-md-4, .col-md-6 {
+      padding-right: 0.5rem;
+      padding-left: 0.5rem;
+    }
   }
