@@ -1,64 +1,57 @@
-document.addEventListener('DOMContentLoaded', function() {
-  const pdfPreviewModal = document.getElementById('pdfPreviewModal');
-  const pdfPreviewFrame = document.getElementById('pdfPreviewFrame');
-  const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-  const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+document.addEventListener('DOMContentLoaded', () => {
   let reportToDelete = null;
+  const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
 
-  // Event delegation for preview buttons
-  document.addEventListener('click', function(event) {
-    if (event.target.matches('.preview-btn')) {
-      const reportId = event.target.getAttribute('data-report-id');
-      console.log(`Preview requested for report ID: ${reportId}`);
-      pdfPreviewFrame.src = `/report/preview/${reportId}`;
-      $(pdfPreviewModal).modal('show');
-    }
+  // Handle delete button clicks
+  document.querySelectorAll('.delete-report').forEach(button => {
+    button.addEventListener('click', function() {
+      reportToDelete = this.dataset.reportId;
+    });
   });
 
-  // Modal event listeners
-  $(pdfPreviewModal).on('shown.bs.modal', () => console.log('PDF preview modal opened'));
-  $(pdfPreviewModal).on('hidden.bs.modal', () => console.log('PDF preview modal closed'));
+  // Handle delete confirmation
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+    if (!reportToDelete) return;
 
-  // Event delegation for delete buttons
-  document.addEventListener('click', function(event) {
-    if (event.target.matches('.delete-btn')) {
-      reportToDelete = event.target.getAttribute('data-report-id');
-      deleteConfirmModal.show();
-    }
-  });
-
-  // Confirm delete button click handler
-  confirmDeleteBtn.addEventListener('click', function() {
-    if (reportToDelete) {
-      deleteReport(reportToDelete);
-    }
-  });
-
-  // Function to delete a report
-  const deleteReport = (reportId) => {
-    fetch(`/report/delete/${reportId}`, { method: 'DELETE' })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          removeReportRow(reportId);
-          createPopup({ message: 'Rapport supprimé avec succès', type: 'success' });
-        } else {
-          createPopup({ message: 'Erreur lors de la suppression du rapport', type: 'error' });
+    try {
+      const response = await fetch(`/report/delete/${reportToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
         }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        createPopup({ message: 'Une erreur est survenue lors de la suppression du rapport', type: 'error' });
-      })
-      .finally(() => {
-        deleteConfirmModal.hide();
-        reportToDelete = null;
       });
-  };
 
-  // Function to remove a report row from the table
-  const removeReportRow = (reportId) => {
-    const row = document.querySelector(`[data-report-id="${reportId}"]`).closest('tr');
-    if (row) row.remove();
+      const data = await response.json();
+
+      if (data.success) {
+        // Remove the row from the table
+        const row = document.querySelector(`[data-report-id="${reportToDelete}"]`).closest('tr');
+        row.remove();
+
+        // Show success message
+        showNotification('Rapport supprimé avec succès', 'success');
+      } else {
+        showNotification('Erreur lors de la suppression du rapport', 'error');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showNotification('Erreur lors de la suppression du rapport', 'error');
+    } finally {
+      deleteConfirmModal.hide();
+      reportToDelete = null;
+    }
+  });
+
+  // Notification helper function
+  const showNotification = (message, type) => {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} notification`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
   };
 });

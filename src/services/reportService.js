@@ -6,19 +6,26 @@ function insertReport(data) {
 
   return new Promise((resolve, reject) => {
     const {
-      date, client_name, client_phone, vehicle_registration, vehicle_make, vehicle_model,
-      mileage, next_inspection_date, comments, revision_oil_type, revision_torque, revision_oil_volume,
-      brake_disc_thickness_front, brake_disc_thickness_rear, interior, engine,
-      front, rear, accessories, work_completed
+      date, client_name, client_phone, license_plate,
+      revision_oil_type, revision_oil_volume,
+      brake_disc_thickness_front, brake_disc_thickness_rear,
+      comments, technician_id
     } = data;
 
     const query = `
-      INSERT INTO inspection_reports (
-        date, client_name, client_phone, vehicle_registration, vehicle_make, vehicle_model,
-        mileage, next_inspection_date, comments, revision_oil_type, revision_torque, revision_oil_volume,
-        brake_disc_thickness_front, brake_disc_thickness_rear, interior, engine,
-        front, rear, accessories, work_completed
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO InspectionReports (
+        report_id,
+        date,
+        client_name,
+        client_phone,
+        license_plate,
+        revision_oil_type,
+        revision_oil_volume,
+        brake_disc_thickness_front,
+        brake_disc_thickness_rear,
+        comments,
+        technician_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const processCheckboxes = (obj, defaultItems) => {
@@ -60,15 +67,10 @@ function insertReport(data) {
     };
 
     const params = [
-      date, client_name, client_phone, vehicle_registration, vehicle_make, vehicle_model,
-      mileage, next_inspection_date, comments, revision_oil_type, revision_torque, revision_oil_volume,
+      date, client_name, client_phone, license_plate,
+      revision_oil_type, revision_oil_volume,
       brake_disc_thickness_front, brake_disc_thickness_rear,
-      JSON.stringify(processCheckboxes(interior, defaultInterior)),
-      JSON.stringify(processCheckboxes(engine, defaultEngine)),
-      JSON.stringify(processCheckboxes(front, defaultFront)),
-      JSON.stringify(processCheckboxes(rear, defaultRear)),
-      JSON.stringify(processCheckboxes(accessories, defaultAccessories)),
-      JSON.stringify(processCheckboxes(work_completed, defaultWorkCompleted))
+      comments, technician_id
     ];
 
     logger.info('Executing SQL query:', query);

@@ -1,48 +1,83 @@
 const express = require('express');
 const router = express.Router();
-const { getDatabase, getInspectionItems } = require('../config/database');
+const { saveInspectionReport, getInspectionItems } = require('../config/database');
+const { isAuthenticated } = require('../middleware/auth');
+const logger = require('../utils/logger');
 
-// GET form page
-router.get('/', async (req, res) => {
+// GET route for rendering the form
+router.get('/', isAuthenticated, async (req, res) => {
   try {
     const inspectionItems = await getInspectionItems();
-    res.render('form', { 
+    
+    res.render('form', {
+      inspectionItems,
       data: {},
       errors: [],
-      inspectionItems: inspectionItems
+      user: req.session.user
     });
   } catch (error) {
-    console.error('Error fetching inspection items:', error);
-    res.status(500).send('Internal Server Error');
+    logger.error('Error loading form:', error);
+    res.render('error', {
+      message: 'Error loading form',
+      errors: [error.message],
+      user: req.session.user
+    });
   }
 });
 
-// POST form submission
-router.post('/submit', async (req, res) => {
+// POST route for form submission
+router.post('/submit', isAuthenticated, async (req, res) => {
   try {
-    // ... validation logic ...
+    const {
+      date, client_name, client_phone, license_plate,
+      revision_oil_type, revision_oil_volume,
+      brake_disc_thickness_front, brake_disc_thickness_rear,
+      comments, inspection
+    } = req.body;
 
-    if (errors.length > 0) {
+    // Basic validation
+    if (!date || !client_name || !license_plate) {
       const inspectionItems = await getInspectionItems();
-      return res.render('form', { 
+      return res.render('form', {
+        inspectionItems,
         data: req.body,
-        errors: errors,
-        inspectionItems: inspectionItems
+        errors: ['Please fill in all required fields'],
+        user: req.session.user
       });
     }
 
-    // ... save form data logic ...
+    // Format inspection results as JSON
+    const inspectionResults = {};
+    Object.entries(inspection || {}).forEach(([itemId, checked]) => {
+      inspectionResults[itemId] = checked === 'true';
+    });
 
-    res.redirect('/dashboard');
+    const reportData = {
+      date,
+      client_name,
+      client_phone,
+      license_plate,
+      revision_oil_type,
+      revision_oil_volume,
+      brake_disc_thickness_front,
+      brake_disc_thickness_rear,
+      comments,
+      inspection_results: JSON.stringify(inspectionResults)
+    };
+
+    const reportId = await saveInspectionReport(reportData, req.session.user.id);
+    req.flash('success', 'Report created successfully');
+    return res.redirect(`/report/${reportId}`);
   } catch (error) {
-    console.error('Error processing form:', error);
+    logger.error('Error saving report:', error);
     const inspectionItems = await getInspectionItems();
-    res.render('form', { 
+    req.flash('error', 'Error saving report');
+    return res.render('form', {
+      inspectionItems,
       data: req.body,
-      errors: [{ msg: 'An error occurred while processing your request.' }],
-      inspectionItems: inspectionItems
+      user: req.session.user
     });
   }
 });
 
-module.exports = router; 
+module.exports = router;

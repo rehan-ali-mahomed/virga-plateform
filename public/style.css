@@ -720,3 +720,106 @@
       padding-left: 0.5rem;
     }
   }
+
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    min-width: 250px;
+    padding: 15px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .table td {
+    vertical-align: middle;
+  }
+
+  .btn-group-sm > .btn,
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-radius: 0.2rem;
+  }
+
+  .modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+  }
+
+  /* Floating action button styles */
+  .btn-lg.rounded-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .btn-lg.rounded-circle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  }
+
+  /* Animation for the plus icon */
+  .btn-lg.rounded-circle i {
+    transition: transform 0.2s;
+  }
+
+  .btn-lg.rounded-circle:hover i {
+    transform: rotate(90deg);
+  }
+
+  /* Make sure the button stays on top */
+  .position-fixed {
+    z-index: 1000;
+  }
+
+  /* Floating Action Button improvements */
+  .position-fixed {
+    z-index: 1030;
+  }
+
+  .position-fixed .btn-success {
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    background-color: #28a745;
+    border: none;
+  }
+
+  .position-fixed .btn-success:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    background-color: #2fd151;
+  }
+
+  .position-fixed .btn-success i {
+    transition: transform 0.3s ease;
+  }
+
+  .position-fixed .btn-success:hover i {
+    transform: rotate(90deg);
+  }
+
+  /* Supprimer les styles non nécessaires */
+  .floating-button-label {
+    display: none;
+  }

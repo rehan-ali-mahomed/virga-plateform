@@ -10,10 +10,11 @@
     "dependencies": {
         "bcrypt": "^5.1.1",
         "body-parser": "^1.20.3",
+        "connect-flash": "^0.1.1",
         "connect-sqlite3": "^0.9.15",
         "dotenv": "^16.4.5",
         "ejs": "^3.1.10",
-        "express": "^4.21.0",
+        "express": "^4.21.1",
         "express-session": "^1.18.0",
         "express-validator": "^7.2.0",
         "helmet": "^6.2.0",
@@ -22,6 +23,7 @@
         "mysql2": "^3.11.3",
         "pdfkit": "^0.13.0",
         "sqlite3": "^5.1.7",
+        "uuid": "^11.0.3",
         "winston": "^3.14.2"
     },
     "keywords": [],

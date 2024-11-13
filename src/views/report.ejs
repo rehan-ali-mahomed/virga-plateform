@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Détails du Rapport</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
+</head>
+<body>
+  <div class="container">
+    <header class="d-flex justify-content-between align-items-center my-4">
+      <div id="company-info" class="d-flex align-items-center">
+        <img src="/img/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
+        <div>
+          <h1 class="h3 mb-0">AUTO PRESTO</h1>
+          <p class="mb-0">123 Rue Principale, Ville, Pays</p>
+          <p class="mb-0">Téléphone : 0123456789</p>
+        </div>
+      </div>
+      <nav>
+        <a href="/dashboard" class="btn btn-primary mr-2">Tableau de bord</a>
+        <a href="/logout" class="btn btn-danger">Déconnexion</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h2 class="h5 mb-0">Détails du Rapport</h2>
+        </div>
+        <div class="card-body">
+          <!-- Informations du rapport -->
+          <div class="row">
+            <div class="col-md-6">
+              <h3 class="h6">Informations Client</h3>
+              <p><strong>Nom:</strong> <%= report.client_name %></p>
+              <p><strong>Téléphone:</strong> <%= report.client_phone %></p>
+              <p><strong>Date:</strong> <%= new Date(report.date).toLocaleDateString('fr-FR') %></p>
+            </div>
+            <div class="col-md-6">
+              <h3 class="h6">Informations Véhicule</h3>
+              <p><strong>Immatriculation:</strong> <%= report.license_plate %></p>
+              <p><strong>Type d'huile:</strong> <%= report.revision_oil_type || 'N/A' %></p>
+              <p><strong>Volume d'huile:</strong> <%= report.revision_oil_volume || 'N/A' %></p>
+            </div>
+          </div>
+
+          <!-- Points d'inspection -->
+          <h3 class="h6 mt-4">Points d'inspection</h3>
+          <div class="row">
+            <% if (report.inspection_results && report.inspection_results.length > 0) { %>
+              <% report.inspection_results.forEach(function(result) { %>
+                <div class="col-md-6">
+                  <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" 
+                           id="<%= result.item_id %>" 
+                           <%= result.checked ? 'checked' : '' %> 
+                           disabled>
+                    <label class="custom-control-label" for="<%= result.item_id %>">
+                      <%= result.name %>
+                    </label>
+                  </div>
+                </div>
+              <% }); %>
+            <% } else { %>
+              <div class="col-12">
+                <p class="text-muted">Aucun point d'inspection enregistré.</p>
+              </div>
+            <% } %>
+          </div>
+
+          <!-- Commentaires -->
+          <h3 class="h6 mt-4">Commentaires</h3>
+          <p class="mb-0"><%= report.comments || 'Aucun commentaire.' %></p>
+        </div>
+      </div>
+
+      <!-- Boutons d'action -->
+      <div class="text-center mb-4">
+        <a href="/report/download/<%= report.report_id %>" class="btn btn-primary">
+          <i class="fas fa-download"></i> Télécharger PDF
+        </a>
+        <a href="/dashboard" class="btn btn-secondary ml-2">
+          <i class="fas fa-arrow-left"></i> Retour
+        </a>
+      </div>
+    </main>
+  </div>
+</body>
+</html> 

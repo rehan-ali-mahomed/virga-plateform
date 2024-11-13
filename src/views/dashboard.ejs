@@ -26,7 +26,27 @@
     </header>
 
     <main>
-      <h2 class="mb-4">Bienvenue, <%= user.username %> !</h2>
+      <h2 class="mb-4">
+        Bienvenue, <%= locals.user ? locals.user.user_name : 'Utilisateur' %> !
+      </h2>
+      
+      <% if (locals.success && locals.success.length > 0) { %>
+        <div class="alert alert-success alert-dismissible fade show">
+          <%= Array.isArray(success) ? success[0] : success %>
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      <% } %>
+
+      <% if (locals.error && locals.error.length > 0) { %>
+        <div class="alert alert-danger alert-dismissible fade show">
+          <%= Array.isArray(error) ? error[0] : error %>
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      <% } %>
       <section>
         <h3><i class="fas fa-car"></i> Statuts des véhicules récents</h3>
         <table class="table table-striped mt-3">
@@ -39,36 +59,51 @@
             </tr>
           </thead>
           <tbody>
-            <% if (statuses && statuses.length > 0) { %>
-              <% statuses.forEach(function(status) { %>
+            <% if (reports && reports.length > 0) { %>
+              <% reports.forEach(function(report) { %>
                 <tr>
-                  <td><%= status.license_plate %></td>
-                  <td><%= status.status_date %></td>
-                  <td><%= status.status_type === 'entry_diagnostic' ? 'Diagnostic d\'entrée' : 'Réparation terminée' %></td>
+                  <td><%= report.license_plate %></td>
+                  <td><%= new Date(report.date).toLocaleDateString('fr-FR') %></td>
+                  <td><%= report.client_name %></td>
                   <td>
-                    <a href="/report/<%= status.status_id %>" class="btn btn-sm btn-primary">
-                      <i class="fas fa-eye"></i> Voir
-                    </a>
-                    <a href="/report/download/<%= status.status_id %>" class="btn btn-sm btn-secondary">
-                      <i class="fas fa-download"></i> Télécharger
-                    </a>
+                    <div class="btn-group btn-group-sm">
+                      <a href="/report/<%= report.report_id %>" class="btn btn-primary">
+                        <i class="fas fa-eye"></i> Voir
+                      </a>
+                      <a 
+                        href="/report/preview/<%= report.report_id %>" 
+                        class="btn btn-info preview-pdf" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        title="Prévisualiser PDF">
+                        <i class="fas fa-file-pdf"></i>
+                      </a>
+                      <a href="/report/download/<%= report.report_id %>" class="btn btn-secondary">
+                        <i class="fas fa-download"></i>
+                      </a>
+                      <button 
+                        class="btn btn-danger delete-report"
+                        data-report-id="<%= report.report_id %>"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteConfirmModal">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               <% }); %>
             <% } else { %>
               <tr>
-                <td colspan="4">Aucun statut de véhicule trouvé.</td>
+                <td colspan="4" class="text-center">
+                  <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle"></i> Aucun rapport trouvé.
+                  </div>
+                </td>
               </tr>
             <% } %>
           </tbody>
         </table>
       </section>
-
-      <div class="mt-4">
-        <a href="/form" class="btn btn-success">
-          <i class="fas fa-plus"></i> Nouveau rapport
-        </a>
-      </div>
     </main>
   </div>
 
@@ -78,22 +113,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
   <script src="/js/dashboard.js"></script>
   <script src="/js/popupNotification.js"></script>
-
-  <div class="modal fade" id="pdfPreviewModal" tabindex="-1" role="dialog" aria-labelledby="pdfPreviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="pdfPreviewModalLabel">Aperçu du PDF</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <iframe id="pdfPreviewFrame" width="100%" height="800vh" frameborder="0"></iframe>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Add this new modal for delete confirmation -->
   <div class="modal fade" id="deleteConfirmModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
@@ -114,6 +133,17 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Remplacer le bouton flottant par -->
+  <div class="position-fixed" style="bottom: 2rem; right: 2rem;">
+    <a href="/form" 
+       class="btn btn-success btn-lg shadow-lg d-flex align-items-center" 
+       title="Créer un nouveau rapport"
+       style="padding: 1rem 2rem; border-radius: 50px;">
+      <i class="fas fa-plus" style="font-size: 1.4rem; margin-right: 0.8rem;"></i>
+      <span style="font-weight: 500; font-size: 1.1rem;">Nouveau rapport</span>
+    </a>
   </div>
 </body>
 </html>

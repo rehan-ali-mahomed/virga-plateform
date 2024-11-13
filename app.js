@@ -2,16 +2,16 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
-const bodyParser = require('body-parser');
-const path = require('path');
+const flash = require('connect-flash');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 const { initializeDatabase } = require('./src/config/database');
 const logger = require('./src/utils/logger');
 
 const authRoutes = require('./src/routes/auth');
 const dashboardRoutes = require('./src/routes/dashboard');
-const formRoutes = require('./src/routes/form');
+const formRoutes = require('./src/routes/formRoutes');
 const reportRoutes = require('./src/routes/report');
 const errorHandler = require('./src/middleware/errorHandler');
 
@@ -25,30 +25,18 @@ if (!fs.existsSync(sessionDir)) {
 const app = express();
 
 // Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'public', 'css')));
-app.use(express.static(path.join(__dirname, 'public', 'images')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public', 'css')));
+app.use(express.static(path.join(__dirname, '..', 'public', 'images')));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        "'unsafe-inline'",
-        "https://code.jquery.com",
-        "https://cdn.jsdelivr.net",
-        "https://stackpath.bootstrapcdn.com",
-      ],
-      styleSrc: [
-        "'self'",
-        "'unsafe-inline'",
-        "https://stackpath.bootstrapcdn.com",
-        "https://cdnjs.cloudflare.com",
-      ],
-      imgSrc: ["'self'", "data:"],
-      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      imgSrc: ["'self'", 'data:', 'https:'],
     },
   },
 }));
@@ -57,21 +45,32 @@ app.use(morgan('dev'));
 // Session configuration
 app.use(
   session({
-    store: new SQLiteStore({ 
-      db: 'sessions.db', 
+    store: new SQLiteStore({
       dir: path.join(__dirname, 'src', 'db'),
-      concurrentDB: true
+      db: 'sessions.db',
+      table: 'sessions'
     }),
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'default-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 1 day
+      maxAge: 24 * 60 * 60 * 1000
     }
   })
 );
+
+// Flash middleware
+app.use(flash());
+
+// Add locals middleware
+app.use((req, res, next) => {
+  res.locals.success = req.flash('success') || [];
+  res.locals.error = req.flash('error') || [];
+  res.locals.user = req.session.user || null;
+  next();
+});
 
 // View engine setup
 app.set('view engine', 'ejs');
@@ -91,6 +90,15 @@ initializeDatabase()
 
     // Error handling middleware
     app.use(errorHandler);
+
+    // 404 handler
+    app.use((req, res) => {
+      res.status(404).render('error', {
+        message: 'Page not found',
+        errors: [],
+        user: req.session.user
+      });
+    });
 
     // Start the server
     const PORT = process.env.PORT || 3000;

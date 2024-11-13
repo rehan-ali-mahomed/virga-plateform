@@ -1,18 +1,23 @@
 ﻿const logger = require('../utils/logger');
 
-function errorHandler(err, req, res, next) {
+module.exports = (err, req, res, next) => {
   logger.error('Unhandled error:', err);
   
-  // Log additional details
-  logger.error('Request URL:', req.originalUrl);
-  logger.error('Request Method:', req.method);
-  logger.error('Request Body:', req.body);
+  const errorMessage = err.message || 'Internal Server Error';
+  
+  if (req.xhr || req.headers.accept.indexOf('json') > -1) {
+    return res.status(err.status || 500).json({ error: errorMessage });
+  }
 
-  // Send a more informative error response
-  res.status(500).json({ 
-    message: 'An unexpected error occurred. Please try again later.',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+  if (req.flash) {
+    req.flash('error', errorMessage);
+  }
+  
+  res.status(err.status || 500);
+  res.render('error', {
+    message: errorMessage,
+    user: req.session.user,
+    success: req.flash('success'),
+    error: req.flash('error')
   });
-}
-
-module.exports = errorHandler;
+};

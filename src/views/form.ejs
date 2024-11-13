@@ -47,7 +47,14 @@
               <div class="col-md-4">
                 <div class="form-group">
                   <label for="date"><i class="far fa-calendar-alt"></i> Date :</label>
-                  <input type="date" id="date" name="date" value="<%= data.date || '' %>" class="form-control" required />
+                  <input 
+                    type="date" 
+                    id="date" 
+                    name="date" 
+                    class="form-control" 
+                    required 
+                    value="<%= data.date || new Date().toISOString().split('T')[0] %>"
+                  />
                 </div>
               </div>
               <div class="col-md-4">
@@ -125,14 +132,14 @@
           <div class="card-body p-0">
             <% 
             const groupedItems = {};
-            if (Array.isArray(inspectionItems)) {
-              inspectionItems.forEach(item => {
-                if (!groupedItems[item.category]) {
-                  groupedItems[item.category] = [];
-                }
-                groupedItems[item.category].push(item);
-              });
-            }
+            const items = Array.isArray(inspectionItems) ? inspectionItems : [];
+            
+            items.forEach(item => {
+              if (!groupedItems[item.category]) {
+                groupedItems[item.category] = [];
+              }
+              groupedItems[item.category].push(item);
+            });
             
             const categoryTitles = {
               'interior': 'INTÉRIEUR',
