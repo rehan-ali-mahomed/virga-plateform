@@ -4,15 +4,36 @@
   <meta charset="UTF-8" />
   <title>Erreur</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
   <div class="container">
-    <div class="error-container mt-5">
-      <h1 class="text-danger">Erreur</h1>
-      <p><%= message %></p>
-      <a href="/dashboard" class="btn btn-primary">Retour au tableau de bord</a>
+    <%- include('partials/header', {
+      title: 'Erreur',
+      bodyClass: 'error-body',
+      containerClass: 'error-container',
+      headerClass: 'error-header',
+      navClass: '',
+      showNav: false,
+      currentPage: 'error'
+    }) %>
+
+    <div class="error-content">
+      <div class="error-box">
+        <i class="fas fa-exclamation-circle"></i>
+        <h1>Erreur</h1>
+        <p><%= message %></p>
+        <a href="/dashboard" class="btn btn-primary">
+          <i class="fas fa-arrow-left"></i>
+          Retour au tableau de bord
+        </a>
+      </div>
     </div>
+
+    <%- include('partials/footer', {
+      showScripts: false,
+      customScripts: []
+    }) %>
   </div>
 </body>
 </html>

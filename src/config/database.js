@@ -47,37 +47,31 @@ const initializeDatabase = () => {
 const createTables = () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      // Create Users table with updated schema
+      // Users table remains unchanged
       db.run(`CREATE TABLE IF NOT EXISTS Users (
         user_id TEXT PRIMARY KEY,
         user_name TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE,           -- Changed from contact_info
-        phone TEXT,                  -- Added phone field
+        email TEXT UNIQUE,
+        phone TEXT,
         role TEXT CHECK(role IN ('Technician', 'Manager', 'Customer Service', 'Admin')) NOT NULL,
         specialization TEXT,
         password TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`, (err) => {
-        if (err) {
-          logger.error('Error creating Users table:', err);
-          reject(err);
-        }
-      });
+      )`);
 
-      // Create Vehicles table
-      db.run(`CREATE TABLE IF NOT EXISTS Vehicles (
+      // Vehicules table with license_plate as the main identifier
+      db.run(`CREATE TABLE IF NOT EXISTS Vehicules (
         vehicle_id TEXT PRIMARY KEY,
-        license_plate TEXT UNIQUE,
+        license_plate TEXT UNIQUE NOT NULL,
         owner_name TEXT,
-        contact_info TEXT
-      )`, (err) => {
-        if (err) {
-          logger.error('Error creating Vehicles table:', err);
-          reject(err);
-        }
-      });
+        contact_info TEXT,
+        revision_oil_type TEXT,
+        revision_oil_volume TEXT,
+        brake_disc_thickness_front TEXT,
+        brake_disc_thickness_rear TEXT
+      )`);
 
-      // Create InspectionItems table
+      // InspectionItems unchanged
       db.run(`CREATE TABLE IF NOT EXISTS InspectionItems (
         item_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -87,34 +81,24 @@ const createTables = () => {
         description TEXT,
         options TEXT,
         display_order INTEGER
-      )`, (err) => {
-        if (err) {
-          logger.error('Error creating InspectionItems table:', err);
-          reject(err);
-        }
-      });
+      )`);
 
-      // Create InspectionReports table
+      // InspectionReports without license_plate
       db.run(`CREATE TABLE IF NOT EXISTS InspectionReports (
         report_id TEXT PRIMARY KEY,
-        vehicle_id TEXT,
+        vehicle_id TEXT NOT NULL,
         date DATE NOT NULL,
         client_name TEXT NOT NULL,
         client_phone TEXT NOT NULL,
-        license_plate TEXT NOT NULL,
-        revision_oil_type TEXT,
-        revision_oil_volume TEXT,
-        brake_disc_thickness_front TEXT,
-        brake_disc_thickness_rear TEXT,
         comments TEXT,
         inspection_results JSON NOT NULL DEFAULT '{}',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         technician_id TEXT,
-        FOREIGN KEY (vehicle_id) REFERENCES Vehicles(vehicle_id),
+        FOREIGN KEY (vehicle_id) REFERENCES Vehicules(vehicle_id),
         FOREIGN KEY (technician_id) REFERENCES Users(user_id)
       )`, (err) => {
         if (err) {
-          logger.error('Error creating InspectionReports table:', err);
+          logger.error('Error creating tables:', err);
           reject(err);
         } else {
           resolve();
@@ -170,11 +154,29 @@ const getDatabase = () => {
 
 // Utility functions for each table
 
-const addVehicle = (licensePlate, ownerName, contactInfo) => {
+const addVehicle = (licensePlate, ownerName, contactInfo, vehicleDetails = {}) => {
   return new Promise((resolve, reject) => {
     const vehicleId = uuidv4();
-    db.run('INSERT INTO Vehicles (vehicle_id, license_plate, owner_name, contact_info) VALUES (?, ?, ?, ?)',
-      [vehicleId, licensePlate, ownerName, contactInfo],
+    db.run(`INSERT INTO Vehicules (
+      vehicle_id, 
+      license_plate, 
+      owner_name, 
+      contact_info,
+      revision_oil_type,
+      revision_oil_volume,
+      brake_disc_thickness_front,
+      brake_disc_thickness_rear
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        vehicleId, 
+        licensePlate, 
+        ownerName, 
+        contactInfo,
+        vehicleDetails.revision_oil_type || null,
+        vehicleDetails.revision_oil_volume || null,
+        vehicleDetails.brake_disc_thickness_front || null,
+        vehicleDetails.brake_disc_thickness_rear || null
+      ],
       (err) => {
         if (err) reject(err);
         else resolve(vehicleId);
@@ -352,64 +354,60 @@ const saveInspectionReport = (reportData, technicianId) => {
       db.run('BEGIN TRANSACTION');
 
       try {
-        // First, create or get vehicle
-        db.run(`INSERT OR IGNORE INTO Vehicles (
-          vehicle_id, license_plate, owner_name, contact_info
-        ) VALUES (?, ?, ?, ?)`, [
+        // First, create or update vehicle
+        db.run(`INSERT OR REPLACE INTO Vehicules (
+          vehicle_id, 
+          license_plate, 
+          owner_name, 
+          contact_info,
+          revision_oil_type,
+          revision_oil_volume,
+          brake_disc_thickness_front,
+          brake_disc_thickness_rear
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
           vehicleId,
           reportData.license_plate.toUpperCase(),
           reportData.client_name,
-          reportData.client_phone
+          reportData.client_phone,
+          reportData.revision_oil_type || null,
+          reportData.revision_oil_volume || null,
+          reportData.brake_disc_thickness_front || null,
+          reportData.brake_disc_thickness_rear || null
         ]);
 
-        // Get the vehicle_id if it already existed
-        db.get('SELECT vehicle_id FROM Vehicles WHERE license_plate = ?', 
+        // Get the vehicle_id for the license plate
+        db.get('SELECT vehicle_id FROM Vehicules WHERE license_plate = ?', 
           [reportData.license_plate.toUpperCase()], 
           (err, row) => {
             if (err) throw err;
             
             const finalVehicleId = row ? row.vehicle_id : vehicleId;
 
-            // Create inspection report with JSON inspection_results
+            // Create inspection report without license_plate
             db.run(`INSERT INTO InspectionReports (
               report_id,
               vehicle_id,
               date,
               client_name,
               client_phone,
-              license_plate,
-              revision_oil_type,
-              revision_oil_volume,
-              brake_disc_thickness_front,
-              brake_disc_thickness_rear,
               comments,
               inspection_results,
               technician_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
               reportId,
               finalVehicleId,
               reportData.date,
               reportData.client_name,
               reportData.client_phone,
-              reportData.license_plate.toUpperCase(),
-              reportData.revision_oil_type || null,
-              reportData.revision_oil_volume || null,
-              reportData.brake_disc_thickness_front || null,
-              reportData.brake_disc_thickness_rear || null,
               reportData.comments || null,
               reportData.inspection_results || '{}',
               technicianId
             ], (err) => {
-              if (err) {
-                throw err;
-              }
+              if (err) throw err;
               
               db.run('COMMIT', (err) => {
-                if (err) {
-                  reject(err);
-                } else {
-                  resolve(reportId);
-                }
+                if (err) reject(err);
+                else resolve(reportId);
               });
             });
           });
@@ -430,11 +428,19 @@ const getInspectionReport = (reportId) => {
     db.get(`
       SELECT 
         ir.*,
+        v.license_plate,
+        v.revision_oil_type,
+        v.revision_oil_volume,
+        v.brake_disc_thickness_front,
+        v.brake_disc_thickness_rear,
         u.user_name as technician_name,
         ii.item_id,
         ii.name,
-        ii.category
+        ii.category,
+        ii.type,
+        ii.options
       FROM InspectionReports ir
+      LEFT JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
       LEFT JOIN Users u ON ir.technician_id = u.user_id
       LEFT JOIN InspectionItems ii ON ii.is_active = true
       WHERE ir.report_id = ?
@@ -445,21 +451,20 @@ const getInspectionReport = (reportId) => {
       } else {
         if (row) {
           try {
-            // Parse the JSON inspection results
             const inspectionResults = JSON.parse(row.inspection_results || '{}');
-            
-            // Format the results to match the expected structure
-            row.inspection_results = Object.entries(inspectionResults).map(([itemId, checked]) => ({
+            row.inspection_results = Object.entries(inspectionResults).map(([itemId, data]) => ({
               item_id: itemId,
               name: row.name,
               category: row.category,
-              checked: checked
+              type: row.type,
+              value: data.value,
+              unit: row.options ? JSON.parse(row.options).unit : null
             }));
-
-            // Remove redundant fields
             delete row.item_id;
             delete row.name;
             delete row.category;
+            delete row.type;
+            delete row.options;
           } catch (error) {
             logger.error('Error parsing inspection results:', error);
             row.inspection_results = [];
@@ -467,74 +472,6 @@ const getInspectionReport = (reportId) => {
         }
         resolve(row);
       }
-    });
-  });
-};
-
-// Add this function to handle database migrations
-const migrateDatabase = () => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      // Check if we need to migrate Users table
-      db.all("PRAGMA table_info(Users)", [], (err, rows) => {
-        if (err) {
-          logger.error('Error checking table info:', err);
-          reject(err);
-          return;
-        }
-
-        // If contact_info column exists, migrate to new schema
-        if (Array.isArray(rows) && rows.some(row => row.name === 'contact_info')) {
-          logger.info('Starting Users table migration...');
-          
-          db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-
-            try {
-              // Create temporary table with new schema
-              db.run(`CREATE TABLE Users_new (
-                user_id TEXT PRIMARY KEY,
-                user_name TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE,
-                phone TEXT,
-                role TEXT CHECK(role IN ('Technician', 'Manager', 'Customer Service', 'Admin')) NOT NULL,
-                specialization TEXT,
-                password TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-              )`);
-
-              // Copy data from old table to new table
-              db.run(`INSERT INTO Users_new (
-                user_id, user_name, email, role, specialization, password
-              ) SELECT 
-                user_id, user_name, contact_info, role, specialization, password 
-                FROM Users`);
-
-              // Drop old table
-              db.run("DROP TABLE Users");
-
-              // Rename new table to Users
-              db.run("ALTER TABLE Users_new RENAME TO Users", [], (err) => {
-                if (err) {
-                  throw err;
-                }
-                db.run('COMMIT', [], () => {
-                  logger.info('Users table migration completed successfully');
-                  resolve();
-                });
-              });
-            } catch (error) {
-              db.run('ROLLBACK', [], () => {
-                logger.error('Error during migration:', error);
-                reject(error);
-              });
-            }
-          });
-        } else {
-          logger.info('No migration needed for Users table');
-          resolve();
-        }
-      });
     });
   });
 };

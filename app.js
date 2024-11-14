@@ -27,9 +27,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(express.static(path.join(__dirname, '..', 'public', 'css')));
-app.use(express.static(path.join(__dirname, '..', 'public', 'images')));
+app.use('/static', express.static(path.join(__dirname, 'public')));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {

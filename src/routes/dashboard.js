@@ -12,12 +12,13 @@ router.get('/', isAuthenticated, async (req, res) => {
         SELECT 
           ir.report_id,
           ir.date,
-          ir.license_plate,
           ir.client_name,
           ir.client_phone,
-          u.user_name as technician_name,
-          ir.created_at
+          ir.created_at,
+          v.license_plate,
+          u.user_name as technician_name
         FROM InspectionReports ir
+        JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
         LEFT JOIN Users u ON ir.technician_id = u.user_id
         ORDER BY ir.created_at DESC
         LIMIT 10

@@ -1,221 +1,240 @@
-﻿<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Fiche d'Inspection</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
-</head>
-<body>
-  <div class="container">
-    <header class="d-flex justify-content-between align-items-center my-4">
-      <div id="company-info" class="d-flex align-items-center">
-        <img src="/img/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
-        <div>
-          <h1 class="h3 mb-0">AUTO PRESTO</h1>
-          <p class="mb-0">123 Rue Principale, Ville, Pays</p>
-          <p class="mb-0">Téléphone : 0123456789</p>
+﻿<%- include('partials/header', {
+  title: 'Fiche d\'Inspection',
+  showNav: true,
+  currentPage: 'form'
+}) %>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const licensePlateInput = document.getElementById('license_plate');
+  let typingTimer;
+
+  licensePlateInput.addEventListener('input', function() {
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(function() {
+      const license_plate = licensePlateInput.value.trim().toUpperCase();
+      if (license_plate) {
+        window.location.href = `/form?license_plate=${encodeURIComponent(license_plate)}`;
+      }
+    }, 1000); // Wait 1 second after typing stops
+  });
+});
+</script>
+
+<div class="content-wrapper">
+  <form action="/form/submit" method="POST" id="inspection-form">
+    <!-- Alerts -->
+    <% if (errors && errors.length > 0) { %>
+      <div class="alert alert-danger">
+        <ul>
+          <% errors.forEach(function(error) { %>
+            <li><%= error.msg %></li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
+    <!-- Form Sections -->
+    <div class="form-sections">
+      <!-- 1. Client Information -->
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+          <h2 class="h5 mb-0"><i class="fas fa-user-circle"></i> INFORMATIONS CLIENT</h2>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="date"><i class="far fa-calendar-alt"></i> Date :</label>
+                <input 
+                  type="date" 
+                  id="date" 
+                  name="date" 
+                  class="form-control" 
+                  required 
+                  value="<%= data.date || new Date().toISOString().split('T')[0] %>"
+                />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="client_name"><i class="far fa-user"></i> Nom du client :</label>
+                <input type="text" id="client_name" name="client_name" class="form-control" value="<%= data.client_name || '' %>" required />
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="client_phone"><i class="fas fa-phone"></i> Téléphone :</label>
+                <input type="tel" id="client_phone" name="client_phone" class="form-control" value="<%= data.client_phone || '' %>" required />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <nav>
-        <a href="/dashboard" class="btn btn-primary mr-2">Tableau de bord</a>
-        <a href="/logout" class="btn btn-danger">Déconnexion</a>
-      </nav>
-    </header>
 
-    <main>
-      <form action="/form/submit" method="POST" id="inspection-form">
-        <% if (errors && errors.length > 0) { %>
-          <div class="alert alert-danger">
-            <ul>
-              <% errors.forEach(function(error) { %>
-                <li><%= error.msg %></li>
-              <% }); %>
-            </ul>
-          </div>
-        <% } %>
-
-        <!-- 1. Client Information -->
-        <div class="card mb-3">
-          <div class="card-header bg-primary text-white">
-            <h2 class="h5 mb-0"><i class="fas fa-user-circle"></i> INFORMATIONS CLIENT</h2>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="date"><i class="far fa-calendar-alt"></i> Date :</label>
-                  <input 
-                    type="date" 
-                    id="date" 
-                    name="date" 
-                    class="form-control" 
-                    required 
-                    value="<%= data.date || new Date().toISOString().split('T')[0] %>"
-                  />
-                </div>
+      <!-- 2. Vehicle Details -->
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+          <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="license_plate"><i class="fas fa-id-card"></i> Immatriculation :</label>
+                <input type="text" 
+                       id="license_plate" 
+                       name="license_plate" 
+                       class="form-control text-uppercase" 
+                       required 
+                       value="<%= data.license_plate || '' %>">
               </div>
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="client_name"><i class="far fa-user"></i> Nom du client :</label>
-                  <input type="text" id="client_name" name="client_name" class="form-control" value="<%= data.client_name || '' %>" required />
-                </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="revision_oil_type"><i class="fas fa-oil-can"></i> Type d'huile :</label>
+                <input type="text" 
+                       id="revision_oil_type" 
+                       name="revision_oil_type" 
+                       class="form-control" 
+                       value="<%= data.revision_oil_type || '' %>" 
+                       placeholder="ex: 5W30 C3">
               </div>
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="client_phone"><i class="fas fa-phone"></i> Téléphone :</label>
-                  <input type="tel" id="client_phone" name="client_phone" class="form-control" value="<%= data.client_phone || '' %>" required />
-                </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="revision_oil_volume"><i class="fas fa-fill-drip"></i> Capacité d'huile (L) :</label>
+                <input type="number" 
+                       id="revision_oil_volume" 
+                       name="revision_oil_volume" 
+                       class="form-control" 
+                       step="0.1"
+                       value="<%= data.revision_oil_volume || '' %>" 
+                       placeholder="ex: 7.5">
+              </div>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="brake_disc_thickness_front"><i class="fas fa-disc-drive"></i> Épaisseur disque avant (mm) :</label>
+                <input type="number" 
+                       id="brake_disc_thickness_front" 
+                       name="brake_disc_thickness_front" 
+                       class="form-control" 
+                       step="0.1"
+                       value="<%= data.brake_disc_thickness_front || '' %>" 
+                       placeholder="ex: 10">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="brake_disc_thickness_rear"><i class="fas fa-disc-drive"></i> Épaisseur disque arrière (mm) :</label>
+                <input type="number" 
+                       id="brake_disc_thickness_rear" 
+                       name="brake_disc_thickness_rear" 
+                       class="form-control" 
+                       step="0.1"
+                       value="<%= data.brake_disc_thickness_rear || '' %>" 
+                       placeholder="ex: 10">
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- 2. Vehicle Details -->
-        <div class="card mb-3">
-          <div class="card-header bg-primary text-white">
-            <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="license_plate"><i class="fas fa-id-card"></i> Immatriculation :</label>
-                  <input type="text" id="license_plate" name="license_plate" class="form-control text-uppercase" required value="<%= data.license_plate || '' %>">
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="revision_oil_type"><i class="fas fa-oil-can"></i> Type d'huile :</label>
-                  <input type="text" id="revision_oil_type" name="revision_oil_type" class="form-control" value="<%= data.revision_oil_type || '' %>" placeholder="ex: 5W30 C3" />
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="revision_oil_volume"><i class="fas fa-fill-drip"></i> Capacité d'huile (L) :</label>
-                  <input type="text" id="revision_oil_volume" name="revision_oil_volume" 
-                         class="form-control" value="<%= data.revision_oil_volume || '' %>" 
-                         placeholder="ex: 7.5" />
-                </div>
-              </div>
-            </div>
-            <div class="row mt-3">
-              <div class="col-md-6">
-                <div class="form-group">
-                  <label for="brake_disc_thickness_front"><i class="fas fa-disc-drive"></i> Épaisseur disque avant (mm) :</label>
-                  <input type="text" id="brake_disc_thickness_front" 
-                         name="brake_disc_thickness_front" class="form-control" 
-                         value="<%= data.brake_disc_thickness_front || '' %>" 
-                         placeholder="ex: 10" />
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-group">
-                  <label for="brake_disc_thickness_rear"><i class="fas fa-disc-drive"></i> Épaisseur disque arrière (mm) :</label>
-                  <input type="text" id="brake_disc_thickness_rear" 
-                         name="brake_disc_thickness_rear" class="form-control" 
-                         value="<%= data.brake_disc_thickness_rear || '' %>" 
-                         placeholder="ex: 25" />
-                </div>
-              </div>
-            </div>
-          </div>
+      <!-- 3. Control Points -->
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+          <h2 class="h5 mb-0"><i class="fas fa-clipboard-check"></i> POINTS DE CONTRÔLE</h2>
         </div>
+        <div class="card-body p-0">
+          <% 
+          const groupedItems = {};
+          const items = Array.isArray(inspectionItems) ? inspectionItems : [];
+          
+          items.forEach(item => {
+            if (!groupedItems[item.category]) {
+              groupedItems[item.category] = [];
+            }
+            groupedItems[item.category].push(item);
+          });
+          
+          const categoryTitles = {
+            'interior': 'INTÉRIEUR',
+            'engine': 'MOTEUR',
+            'front': 'TRAIN AVANT',
+            'rear': 'TRAIN ARRIÈRE',
+            'accessories': 'ACCESSOIRES',
+            'work_completed': 'TRAVAUX EFFECTUÉS'
+          };
 
-        <!-- 3. Control Points -->
-        <div class="card mb-3">
-          <div class="card-header bg-primary text-white">
-            <h2 class="h5 mb-0"><i class="fas fa-clipboard-check"></i> POINTS DE CONTRÔLE</h2>
-          </div>
-          <div class="card-body p-0">
-            <% 
-            const groupedItems = {};
-            const items = Array.isArray(inspectionItems) ? inspectionItems : [];
-            
-            items.forEach(item => {
-              if (!groupedItems[item.category]) {
-                groupedItems[item.category] = [];
-              }
-              groupedItems[item.category].push(item);
-            });
-            
-            const categoryTitles = {
-              'interior': 'INTÉRIEUR',
-              'engine': 'MOTEUR',
-              'front': 'TRAIN AVANT',
-              'rear': 'TRAIN ARRIÈRE',
-              'accessories': 'ACCESSOIRES',
-              'work_completed': 'TRAVAUX EFFECTUÉS'
-            };
+          const categoryIcons = {
+            'interior': 'fas fa-car',
+            'engine': 'fas fa-cogs',
+            'front': 'fas fa-wrench',
+            'rear': 'fas fa-wrench',
+            'accessories': 'fas fa-box-open',
+            'work_completed': 'fas fa-check-circle'
+          };
+          %>
 
-            const categoryIcons = {
-              'interior': 'fas fa-car',
-              'engine': 'fas fa-cogs',
-              'front': 'fas fa-wrench',
-              'rear': 'fas fa-wrench',
-              'accessories': 'fas fa-box-open',
-              'work_completed': 'fas fa-check-circle'
-            };
-            %>
-
-            <div class="inspection-grid">
-              <% if (Object.keys(groupedItems).length === 0) { %>
-                <div class="p-4 text-center text-muted">
-                  <i class="fas fa-info-circle mb-2"></i>
-                  <p>Aucun point de contrôle disponible.</p>
-                </div>
-              <% } else { %>
-                <% Object.keys(groupedItems).forEach(category => { %>
-                  <div class="inspection-category">
-                    <div class="category-header">
-                      <i class="<%= categoryIcons[category] %>"></i>
-                      <h3 class="category-title"><%= categoryTitles[category] %></h3>
-                    </div>
-                    <div class="checkbox-grid">
-                      <% groupedItems[category].forEach(item => { %>
-                        <div class="custom-control custom-checkbox">
-                          <input class="custom-control-input" 
-                                 type="checkbox" 
-                                 id="<%= category %>_<%= item.item_id %>" 
-                                 name="inspection[<%= item.item_id %>]" 
-                                 value="true"
-                                 <%= data.inspection && data.inspection[item.item_id] ? 'checked' : '' %>>
-                          <label class="custom-control-label" for="<%= category %>_<%= item.item_id %>">
-                            <%= item.name %>
-                          </label>
-                        </div>
-                      <% }); %>
-                    </div>
+          <div class="inspection-grid">
+            <% if (Object.keys(groupedItems).length === 0) { %>
+              <div class="p-4 text-center text-muted">
+                <i class="fas fa-info-circle mb-2"></i>
+                <p>Aucun point de contrôle disponible.</p>
+              </div>
+            <% } else { %>
+              <% Object.keys(groupedItems).forEach(category => { %>
+                <div class="inspection-category">
+                  <div class="category-header">
+                    <i class="<%= categoryIcons[category] %>"></i>
+                    <h3 class="category-title"><%= categoryTitles[category] %></h3>
                   </div>
-                <% }); %>
-              <% } %>
-            </div>
+                  <div class="checkbox-grid">
+                    <% groupedItems[category].forEach(item => { %>
+                      <div class="custom-control custom-checkbox">
+                        <input class="custom-control-input" 
+                               type="checkbox" 
+                               id="<%= category %>_<%= item.item_id %>" 
+                               name="inspection[<%= item.item_id %>]" 
+                               value="true"
+                               <%= data.inspection && data.inspection[item.item_id] ? 'checked' : '' %>>
+                        <label class="custom-control-label" for="<%= category %>_<%= item.item_id %>">
+                          <%= item.name %>
+                        </label>
+                      </div>
+                    <% }); %>
+                  </div>
+                </div>
+              <% }); %>
+            <% } %>
           </div>
         </div>
+      </div>
 
-        <!-- 4. Comments -->
-        <div class="card mb-3">
-          <div class="card-header bg-primary text-white">
-            <h2 class="h5 mb-0"><i class="fas fa-comment"></i> COMMENTAIRES</h2>
-          </div>
-          <div class="card-body">
-            <textarea id="comments" name="comments" class="form-control" rows="4" placeholder="Observations supplémentaires..."><%= data.comments || '' %></textarea>
-          </div>
+      <!-- 4. Comments -->
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+          <h2 class="h5 mb-0"><i class="fas fa-comment"></i> COMMENTAIRES</h2>
         </div>
-
-        <div class="text-center mb-5">
-          <button type="submit" class="btn btn-primary btn-lg">
-            <i class="fas fa-save"></i> Enregistrer le rapport
-          </button>
+        <div class="card-body">
+          <textarea id="comments" name="comments" class="form-control" rows="4" placeholder="Observations supplémentaires..."><%= data.comments || '' %></textarea>
         </div>
-      </form>
-    </main>
-  </div>
+      </div>
+    </div>
 
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="/js/script.js"></script>
-</body>
-</html>
+    <!-- Submit Button -->
+    <div class="text-center mb-5">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="fas fa-save"></i> Enregistrer le rapport
+      </button>
+    </div>
+  </form>
+</div>
+
+<%- include('partials/footer', {
+  showScripts: true,
+  customScripts: ['/static/js/script.js']
+}) %>

@@ -1,149 +1,187 @@
-﻿<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Tableau de bord</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
-  <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
-</head>
-<body>
-  <div class="container">
-    <header class="d-flex justify-content-between align-items-center my-4">
-      <div id="company-info" class="d-flex align-items-center">
-        <img src="/img/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
-        <div>
-          <h1 class="h3 mb-0">AUTO PRESTO</h1>
-          <p class="mb-0">123 Rue Principale, Ville, Pays</p>
-          <p class="mb-0">Téléphone : 0123456789</p>
+﻿<%- include('partials/header', {
+  title: 'Tableau de bord',
+  showNav: true,
+  currentPage: 'dashboard'
+}) %>
+
+<div class="content-wrapper">
+  <!-- Welcome Section -->
+  <div class="welcome-section">
+    <h2>
+      <i class="fas fa-user-circle"></i>
+      Bienvenue, <%= locals.user ? locals.user.user_name : 'Utilisateur' %>
+    </h2>
+    
+    <div class="quick-stats">
+      <div class="stat-card">
+        <i class="fas fa-file-alt"></i>
+        <div class="stat-info">
+          <h3>Rapports Totaux</h3>
+          <p><%= reports ? reports.length : 0 %></p>
         </div>
       </div>
-      <nav>
-        <a href="/dashboard" class="btn btn-primary mr-2">Tableau de bord</a>
-        <a href="/logout" class="btn btn-danger">Déconnexion</a>
-      </nav>
-    </header>
-
-    <main>
-      <h2 class="mb-4">
-        Bienvenue, <%= locals.user ? locals.user.user_name : 'Utilisateur' %> !
-      </h2>
-      
-      <% if (locals.success && locals.success.length > 0) { %>
-        <div class="alert alert-success alert-dismissible fade show">
-          <%= Array.isArray(success) ? success[0] : success %>
-          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
+      <div class="stat-card">
+        <i class="fas fa-calendar-check"></i>
+        <div class="stat-info">
+          <h3>Rapports du Mois</h3>
+          <p><%= reports ? reports.filter(r => new Date(r.date).getMonth() === new Date().getMonth()).length : 0 %></p>
         </div>
-      <% } %>
-
-      <% if (locals.error && locals.error.length > 0) { %>
-        <div class="alert alert-danger alert-dismissible fade show">
-          <%= Array.isArray(error) ? error[0] : error %>
-          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-      <% } %>
-      <section>
-        <h3><i class="fas fa-car"></i> Statuts des véhicules récents</h3>
-        <table class="table table-striped mt-3">
-          <thead class="thead-dark">
-            <tr>
-              <th>Immatriculation</th>
-              <th>Date</th>
-              <th>Type de statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (reports && reports.length > 0) { %>
-              <% reports.forEach(function(report) { %>
-                <tr>
-                  <td><%= report.license_plate %></td>
-                  <td><%= new Date(report.date).toLocaleDateString('fr-FR') %></td>
-                  <td><%= report.client_name %></td>
-                  <td>
-                    <div class="btn-group btn-group-sm">
-                      <a href="/report/<%= report.report_id %>" class="btn btn-primary">
-                        <i class="fas fa-eye"></i> Voir
-                      </a>
-                      <a 
-                        href="/report/preview/<%= report.report_id %>" 
-                        class="btn btn-info preview-pdf" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        title="Prévisualiser PDF">
-                        <i class="fas fa-file-pdf"></i>
-                      </a>
-                      <a href="/report/download/<%= report.report_id %>" class="btn btn-secondary">
-                        <i class="fas fa-download"></i>
-                      </a>
-                      <button 
-                        class="btn btn-danger delete-report"
-                        data-report-id="<%= report.report_id %>"
-                        data-bs-toggle="modal"
-                        data-bs-target="#deleteConfirmModal">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              <% }); %>
-            <% } else { %>
-              <tr>
-                <td colspan="4" class="text-center">
-                  <div class="alert alert-info mb-0">
-                    <i class="fas fa-info-circle"></i> Aucun rapport trouvé.
-                  </div>
-                </td>
-              </tr>
-            <% } %>
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </div>
-
-  <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
-  <script src="/js/dashboard.js"></script>
-  <script src="/js/popupNotification.js"></script>
-
-  <!-- Add this new modal for delete confirmation -->
-  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" role="dialog" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="deleteConfirmModalLabel">Confirmer la suppression</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          Êtes-vous sûr de vouloir supprimer ce rapport ? Cette action est irréversible.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
+      </div>
+      <div class="stat-card">
+        <i class="fas fa-clock"></i>
+        <div class="stat-info">
+          <h3>Dernière Activité</h3>
+          <p><%= reports && reports.length > 0 ? new Date(reports[0].date).toLocaleDateString('fr-FR') : 'Aucune' %></p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Remplacer le bouton flottant par -->
-  <div class="position-fixed" style="bottom: 2rem; right: 2rem;">
-    <a href="/form" 
-       class="btn btn-success btn-lg shadow-lg d-flex align-items-center" 
-       title="Créer un nouveau rapport"
-       style="padding: 1rem 2rem; border-radius: 50px;">
-      <i class="fas fa-plus" style="font-size: 1.4rem; margin-right: 0.8rem;"></i>
-      <span style="font-weight: 500; font-size: 1.1rem;">Nouveau rapport</span>
-    </a>
+  <!-- Alerts -->
+  <% if (locals.success && locals.success.length > 0) { %>
+    <div class="alert alert-success fade-out">
+      <i class="fas fa-check-circle"></i>
+      <%= Array.isArray(success) ? success[0] : success %>
+    </div>
+  <% } %>
+
+  <% if (locals.error && locals.error.length > 0) { %>
+    <div class="alert alert-danger fade-out">
+      <i class="fas fa-exclamation-circle"></i>
+      <%= Array.isArray(error) ? error[0] : error %>
+    </div>
+  <% } %>
+
+  <!-- Main Content -->
+  <section class="reports-section">
+    <div class="section-header">
+      <h3><i class="fas fa-car"></i> Rapports Récents</h3>
+      <div class="header-actions">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="searchReports" placeholder="Rechercher un rapport...">
+        </div>
+        <div class="sort-box">
+          <select id="sortReports" class="form-control">
+            <option value="date-desc">Date (Plus récent)</option>
+            <option value="date-asc">Date (Plus ancien)</option>
+            <option value="client">Client (A-Z)</option>
+            <option value="plate">Immatriculation (A-Z)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="reports-table">
+        <thead>
+          <tr>
+            <th>
+              <i class="fas fa-id-card"></i>
+              Immatriculation
+            </th>
+            <th>
+              <i class="fas fa-calendar"></i>
+              Date
+            </th>
+            <th>
+              <i class="fas fa-user"></i>
+              Client
+            </th>
+            <th>
+              <i class="fas fa-cog"></i>
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (reports && reports.length > 0) { %>
+            <% reports.forEach(function(report) { %>
+              <tr class="report-row" data-report="<%= JSON.stringify(report) %>">
+                <td class="license-plate"><%= report.license_plate %></td>
+                <td><%= new Date(report.date).toLocaleDateString('fr-FR') %></td>
+                <td><%= report.client_name %></td>
+                <td>
+                  <div class="action-buttons">
+                    <a href="/report/<%= report.report_id %>" 
+                       class="action-btn view" 
+                       title="Voir le rapport">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/report/preview/<%= report.report_id %>" 
+                       class="action-btn preview" 
+                       title="Prévisualiser PDF"
+                       target="_blank">
+                      <i class="fas fa-file-pdf"></i>
+                    </a>
+                    <a href="/report/download/<%= report.report_id %>" 
+                       class="action-btn download" 
+                       title="Télécharger">
+                      <i class="fas fa-download"></i>
+                    </a>
+                    <button class="action-btn delete"
+                            data-report-id="<%= report.report_id %>"
+                            title="Supprimer"
+                            onclick="confirmDelete('<%= report.report_id %>')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="4" class="no-reports">
+                <i class="fas fa-info-circle"></i>
+                <p>Aucun rapport trouvé</p>
+                <a href="/form" class="btn btn-primary mt-3">
+                  <i class="fas fa-plus"></i>
+                  Créer un nouveau rapport
+                </a>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Floating Action Button -->
+  <a href="/form" class="fab-button" title="Créer un nouveau rapport">
+    <i class="fas fa-plus"></i>
+    <span>Nouveau rapport</span>
+  </a>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-exclamation-triangle"></i>
+          Confirmer la suppression
+        </h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Êtes-vous sûr de vouloir supprimer ce rapport ? Cette action est irréversible.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          <i class="fas fa-times"></i> Annuler
+        </button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+          <i class="fas fa-trash"></i> Supprimer
+        </button>
+      </div>
+    </div>
   </div>
-</body>
-</html>
+</div>
+
+<%- include('partials/footer', {
+  showScripts: true,
+  customScripts: ['/static/js/dashboard.js']
+}) %>

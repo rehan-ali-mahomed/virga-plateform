@@ -1,6 +1,6 @@
 ﻿const express = require('express');
 const { isAuthenticated } = require('../middleware/auth');
-const { getDatabase, addVehicleStatus, addVehicle, getInspectionItems } = require('../config/database');
+const { getDatabase, addCarstatus, addVehicle, getInspectionItems } = require('../config/database');
 const { validateForm } = require('../utils/validation');
 const logger = require('../utils/logger');
 
@@ -38,7 +38,7 @@ router.post('/submit', isAuthenticated, validateForm, async (req, res) => {
   try {
     // First, add or get the vehicle
     let vehicleId = await new Promise((resolve, reject) => {
-      db.get('SELECT vehicle_id FROM Vehicles WHERE license_plate = ?', [license_plate], async (err, row) => {
+      db.get('SELECT vehicle_id FROM Vehicules WHERE license_plate = ?', [license_plate], async (err, row) => {
         if (err) reject(err);
         else if (row) resolve(row.vehicle_id);
         else {
@@ -49,7 +49,7 @@ router.post('/submit', isAuthenticated, validateForm, async (req, res) => {
     });
 
     // Then, add the vehicle status with inspection details
-    const statusId = await addVehicleStatus(
+    const statusId = await addCarstatus(
       vehicleId,
       status_type,
       JSON.stringify({

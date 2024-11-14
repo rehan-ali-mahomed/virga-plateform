@@ -1,92 +1,143 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Détails du Rapport</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
-</head>
-<body>
-  <div class="container">
-    <header class="d-flex justify-content-between align-items-center my-4">
-      <div id="company-info" class="d-flex align-items-center">
-        <img src="/img/company_logo.png" alt="Logo de l'entreprise" class="mr-3" style="width: 80px;" />
-        <div>
-          <h1 class="h3 mb-0">AUTO PRESTO</h1>
-          <p class="mb-0">123 Rue Principale, Ville, Pays</p>
-          <p class="mb-0">Téléphone : 0123456789</p>
+<%- include('partials/header', {
+  title: 'Détails du Rapport',
+  showNav: true,
+  currentPage: 'report'
+}) %>
+
+<div class="content-wrapper">
+  <div class="report-section">
+    <div class="section-header">
+      <h2><i class="fas fa-file-alt"></i> Détails du Rapport</h2>
+      <div class="report-actions">
+        <a href="/report/download/<%= report.report_id %>" class="action-btn download">
+          <i class="fas fa-download"></i>
+          <span>Télécharger PDF</span>
+        </a>
+        <a href="/dashboard" class="action-btn return">
+          <i class="fas fa-arrow-left"></i>
+          <span>Retour</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="card-header">
+          <i class="fas fa-user"></i>
+          <h3>Informations Client</h3>
+        </div>
+        <div class="card-content">
+          <div class="info-item">
+            <span class="label">Nom:</span>
+            <span class="value"><%= report.client_name %></span>
+          </div>
+          <div class="info-item">
+            <span class="label">Téléphone:</span>
+            <span class="value"><%= report.client_phone %></span>
+          </div>
+          <div class="info-item">
+            <span class="label">Date:</span>
+            <span class="value"><%= new Date(report.date).toLocaleDateString('fr-FR') %></span>
+          </div>
         </div>
       </div>
-      <nav>
-        <a href="/dashboard" class="btn btn-primary mr-2">Tableau de bord</a>
-        <a href="/logout" class="btn btn-danger">Déconnexion</a>
-      </nav>
-    </header>
 
-    <main>
-      <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-          <h2 class="h5 mb-0">Détails du Rapport</h2>
+      <div class="info-card">
+        <div class="card-header">
+          <i class="fas fa-car"></i>
+          <h3>Informations Véhicule</h3>
         </div>
-        <div class="card-body">
-          <!-- Informations du rapport -->
-          <div class="row">
-            <div class="col-md-6">
-              <h3 class="h6">Informations Client</h3>
-              <p><strong>Nom:</strong> <%= report.client_name %></p>
-              <p><strong>Téléphone:</strong> <%= report.client_phone %></p>
-              <p><strong>Date:</strong> <%= new Date(report.date).toLocaleDateString('fr-FR') %></p>
-            </div>
-            <div class="col-md-6">
-              <h3 class="h6">Informations Véhicule</h3>
-              <p><strong>Immatriculation:</strong> <%= report.license_plate %></p>
-              <p><strong>Type d'huile:</strong> <%= report.revision_oil_type || 'N/A' %></p>
-              <p><strong>Volume d'huile:</strong> <%= report.revision_oil_volume || 'N/A' %></p>
-            </div>
+        <div class="card-content">
+          <div class="info-item">
+            <span class="label">Immatriculation:</span>
+            <span class="value"><%= report.license_plate %></span>
           </div>
+          <div class="info-item">
+            <span class="label">Type d'huile:</span>
+            <span class="value"><%= report.revision_oil_type || 'N/A' %></span>
+          </div>
+          <div class="info-item">
+            <span class="label">Volume d'huile:</span>
+            <span class="value"><%= report.revision_oil_volume || 'N/A' %></span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Points d'inspection -->
-          <h3 class="h6 mt-4">Points d'inspection</h3>
-          <div class="row">
-            <% if (report.inspection_results && report.inspection_results.length > 0) { %>
-              <% report.inspection_results.forEach(function(result) { %>
-                <div class="col-md-6">
-                  <div class="custom-control custom-checkbox">
-                    <input type="checkbox" class="custom-control-input" 
-                           id="<%= result.item_id %>" 
-                           <%= result.checked ? 'checked' : '' %> 
-                           disabled>
-                    <label class="custom-control-label" for="<%= result.item_id %>">
-                      <%= result.name %>
-                    </label>
+    <div class="inspection-section">
+      <div class="section-header">
+        <h3><i class="fas fa-clipboard-check"></i> Points d'inspection</h3>
+      </div>
+      <div class="inspection-grid">
+        <% if (report.inspection_results && report.inspection_results.length > 0) { %>
+          <% 
+          // Grouper les résultats par catégorie
+          const groupedResults = report.inspection_results.reduce((acc, result) => {
+            if (!acc[result.category]) {
+              acc[result.category] = [];
+            }
+            acc[result.category].push(result);
+            return acc;
+          }, {});
+          %>
+          
+          <% Object.entries(groupedResults).forEach(([category, items]) => { %>
+            <div class="category-section">
+              <h4 class="category-title"><%= category.toUpperCase() %></h4>
+              <div class="category-items">
+                <% items.forEach(function(result) { %>
+                  <div class="inspection-item">
+                    <% if (result.type === 'checkbox') { %>
+                      <div class="custom-checkbox">
+                        <input type="checkbox" 
+                               id="<%= result.item_id %>" 
+                               <%= result.value ? 'checked' : '' %> 
+                               disabled>
+                        <label for="<%= result.item_id %>">
+                          <%= result.name %>
+                        </label>
+                      </div>
+                    <% } else if (result.type === 'number') { %>
+                      <div class="measurement-item">
+                        <span class="item-name"><%= result.name %>:</span>
+                        <span class="item-value"><%= result.value %> <%= result.unit || '' %></span>
+                      </div>
+                    <% } else { %>
+                      <div class="text-item">
+                        <span class="item-name"><%= result.name %>:</span>
+                        <span class="item-value"><%= result.value %></span>
+                      </div>
+                    <% } %>
                   </div>
-                </div>
-              <% }); %>
-            <% } else { %>
-              <div class="col-12">
-                <p class="text-muted">Aucun point d'inspection enregistré.</p>
+                <% }); %>
               </div>
-            <% } %>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <div class="no-data">
+            <i class="fas fa-info-circle"></i>
+            <p>Aucun point d'inspection enregistré.</p>
           </div>
-
-          <!-- Commentaires -->
-          <h3 class="h6 mt-4">Commentaires</h3>
-          <p class="mb-0"><%= report.comments || 'Aucun commentaire.' %></p>
-        </div>
+        <% } %>
       </div>
+    </div>
 
-      <!-- Boutons d'action -->
-      <div class="text-center mb-4">
-        <a href="/report/download/<%= report.report_id %>" class="btn btn-primary">
-          <i class="fas fa-download"></i> Télécharger PDF
-        </a>
-        <a href="/dashboard" class="btn btn-secondary ml-2">
-          <i class="fas fa-arrow-left"></i> Retour
-        </a>
+    <div class="comments-section">
+      <div class="section-header">
+        <h3><i class="fas fa-comments"></i> Commentaires</h3>
       </div>
-    </main>
+      <div class="comments-content">
+        <% if (report.comments) { %>
+          <p><%= report.comments %></p>
+        <% } else { %>
+          <p class="no-data">Aucun commentaire.</p>
+        <% } %>
+      </div>
+    </div>
   </div>
-</body>
-</html> 
+</div>
+
+<%- include('partials/footer', {
+  showScripts: false,
+  customScripts: []
+}) %> 

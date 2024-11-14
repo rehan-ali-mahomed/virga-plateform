@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Auto Presto</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+</head>
+<body class="app-body">
+  <div class="page-container">
+    <header class="app-header">
+      <div class="header-brand">
+        <img src="/static/img/company_logo.png" alt="Logo de l'entreprise" class="header-logo" />
+        <div class="header-info">
+          <h1>AUTO PRESTO</h1>
+          <p>123 Rue Principale, Ville, Pays</p>
+          <p>Téléphone : 0123456789</p>
+        </div>
+      </div>
+      <% if (showNav) { %>
+        <nav class="header-nav">
+          <a href="/dashboard" class="nav-btn <%= currentPage === 'dashboard' ? 'active' : '' %>">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Tableau de bord</span>
+          </a>
+          <a href="/form" class="nav-btn <%= currentPage === 'form' ? 'active' : '' %>">
+            <i class="fas fa-plus"></i>
+            <span>Nouveau rapport</span>
+          </a>
+          <a href="/logout" class="nav-btn danger">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Déconnexion</span>
+          </a>
+        </nav>
+      <% } %>
+    </header>
+    <main class="page-main">
+</body>
+</html> 
