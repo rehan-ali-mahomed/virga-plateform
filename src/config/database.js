@@ -65,10 +65,14 @@ const createTables = () => {
         license_plate TEXT UNIQUE NOT NULL,
         owner_name TEXT,
         contact_info TEXT,
+        brand TEXT,
+        model TEXT,
+        engine_code TEXT,
         revision_oil_type TEXT,
         revision_oil_volume TEXT,
         brake_disc_thickness_front TEXT,
-        brake_disc_thickness_rear TEXT
+        brake_disc_thickness_rear TEXT,
+        first_registration_date TEXT
       )`);
 
       // InspectionItems unchanged
@@ -162,16 +166,22 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehicleDetails = {}) =
       license_plate, 
       owner_name, 
       contact_info,
+      brand,
+      model,
+      engine_code,
       revision_oil_type,
       revision_oil_volume,
       brake_disc_thickness_front,
       brake_disc_thickness_rear
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         vehicleId, 
         licensePlate, 
         ownerName, 
         contactInfo,
+        vehicleDetails.brand || null,
+        vehicleDetails.model || null,
+        vehicleDetails.engine_code || null,
         vehicleDetails.revision_oil_type || null,
         vehicleDetails.revision_oil_volume || null,
         vehicleDetails.brake_disc_thickness_front || null,
@@ -360,15 +370,21 @@ const saveInspectionReport = (reportData, technicianId) => {
           license_plate, 
           owner_name, 
           contact_info,
+          brand,
+          model,
+          engine_code,
           revision_oil_type,
           revision_oil_volume,
           brake_disc_thickness_front,
           brake_disc_thickness_rear
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
           vehicleId,
           reportData.license_plate.toUpperCase(),
           reportData.client_name,
           reportData.client_phone,
+          reportData.brand || null,
+          reportData.model || null,
+          reportData.engine_code || null,
           reportData.revision_oil_type || null,
           reportData.revision_oil_volume || null,
           reportData.brake_disc_thickness_front || null,

@@ -53,6 +53,22 @@
             <span class="value"><%= report.license_plate %></span>
           </div>
           <div class="info-item">
+            <span class="label">Mise en circulation:</span>
+            <span class="value"><%= report.first_registration_date ? new Date(report.first_registration_date + '-01').toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' %></span>
+          </div>
+          <div class="info-item">
+            <span class="label">Marque:</span>
+            <span class="value"><%= report.brand || 'N/A' %></span>
+          </div>
+          <div class="info-item">
+            <span class="label">Modèle:</span>
+            <span class="value"><%= report.model || 'N/A' %></span>
+          </div>
+          <div class="info-item">
+            <span class="label">Code moteur:</span>
+            <span class="value"><%= report.engine_code || 'N/A' %></span>
+          </div>
+          <div class="info-item">
             <span class="label">Type d'huile:</span>
             <span class="value"><%= report.revision_oil_type || 'N/A' %></span>
           </div>
