@@ -1,0 +1,29 @@
+<div class="content-wrapper">
+  <% if (locals.success && locals.success.length > 0) { %>
+    <div class="alert alert-success fade-out">
+      <i class="fas fa-check-circle"></i>
+      <%= Array.isArray(success) ? success[0] : success %>
+    </div>
+  <% } %>
+
+  <% if (locals.error && locals.error.length > 0) { %>
+    <div class="alert alert-danger fade-out">
+      <i class="fas fa-exclamation-circle"></i>
+      <%= Array.isArray(error) ? error[0] : error %>
+    </div>
+  <% } %>
+
+  <div class="content-section">
+    <% if (showTitle) { %>
+      <div class="section-header">
+        <h2><i class="<%= titleIcon %>"></i> <%= title %></h2>
+        <% if (locals.headerActions) { %>
+          <div class="header-actions">
+            <%- headerActions %>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+    <%- content %>
+  </div>
+</div> 

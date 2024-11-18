@@ -2,8 +2,25 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const SVGtoPDF = require('svg-to-pdfkit');
 
-// 1. Constants and Configurations (These stay outside functions)
+const INSPECTION_ICONS = {
+  0: { path: 'img/icon_conforme.svg', label: 'Conforme' },
+  1: { path: 'img/icon_not_conforme.svg', label: 'Non conforme' },
+  2: { path: 'img/icon_unverified.svg', label: 'Non vérifié' },
+  3: { path: 'img/icon_to_plan.svg', label: 'À planifier' }
+};
+
+const getInspectionIcon = (value) => {
+  const iconConfig = INSPECTION_ICONS[value] || INSPECTION_ICONS[2]; // Default to unverified
+  return path.join(process.cwd(), 'public', iconConfig.path);
+};
+
+PDFDocument.prototype.addSVG = function(svg, x, y, options) {
+  return SVGtoPDF(this, svg, x, y, options);
+};
+
+// Core styling constants
 const fonts = {
   regular: 'Helvetica',
   bold: 'Helvetica-Bold',
@@ -15,17 +32,8 @@ const colors = {
     main: '#1e293b',
     light: '#f8fafc',
     medium: '#e2e8f0',
-    contrast: '#ffffff',
-    accent: '#2563eb',
-    header: '#334155'
+    contrast: '#ffffff'
   }
-};
-
-const statusColors = {
-  good: colors.primary.main,
-  warning: colors.primary.main,
-  critical: colors.primary.main,
-  neutral: colors.primary.main
 };
 
 const spacing = {
@@ -35,14 +43,6 @@ const spacing = {
   lg: 8,
   xl: 12,
   xxl: 16
-};
-
-const grid = {
-  columns: 12,
-  gutter: spacing.md,
-  containerPadding: spacing.lg,
-  maxWidth: 545,
-  columnWidth: (545 - (spacing.md * 11)) / 12
 };
 
 const textStyles = {
@@ -63,23 +63,8 @@ const textStyles = {
   },
   sectionHeader: {
     font: fonts.bold,
-    size: 12,
+    size: 9,
     color: colors.primary.contrast
-  },
-  categoryHeader: {
-    font: fonts.bold,
-    size: 10,
-    color: colors.primary.contrast
-  },
-  label: {
-    font: fonts.medium,
-    size: 10,
-    color: colors.primary.main
-  },
-  value: {
-    font: fonts.regular,
-    size: 10,
-    color: colors.primary.main
   },
   itemText: {
     font: fonts.regular,
@@ -88,17 +73,17 @@ const textStyles = {
   }
 };
 
-const inspectionGrid = {
+// Optimized grid settings
+const optimizedGrid = {
   columnCount: 3,
-  columnWidth: (grid.maxWidth - (grid.gutter * 2)) / 3,
-  rowHeight: spacing.xl,
-  headerHeight: spacing.xl,
-  itemHeight: spacing.xl,
-  itemPadding: spacing.md,
-  iconSize: spacing.md
+  columnWidth: Math.floor((545 - (spacing.lg * 2)) / 3),
+  itemHeight: 16,
+  headerHeight: 18,
+  spacing: spacing.xs,
+  itemPadding: 6
 };
 
-// Add back the category mapping
+// Category mapping
 const categoryMapping = {
   'engine': 'MOTEUR',
   'interior': 'INTERIEUR',
@@ -109,188 +94,48 @@ const categoryMapping = {
   'other': 'AUTRES ÉLÉMENTS'
 };
 
-// Add back helper functions
-const toSentenceCase = (text) => {
-  if (!text) return '';
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-};
-
-// Add back the parseInspectionResults function
-const parseInspectionResults = (results) => {
-  if (!results) {
-    logger.info('No inspection results to parse');
+const organizeInspectionResults = (results) => {
+  if (!results || !Array.isArray(results)) {
+    logger.warn('No inspection results to organize or invalid format');
     return {};
   }
 
   try {
-    // Create separate categories for INTERIEUR and ARRIERE
-    const organized = results.reduce((acc, result) => {
+    return results.reduce((acc, result) => {
       if (!result.category) {
-        logger.warn(`Found result without category: ${JSON.stringify(result)}`);
+        logger.warn('Found result without category:', { result });
         return acc;
       }
 
-      // Get the mapped category name
-      const mappedCategory = categoryMapping[result.category] || 'AUTRES ÉLÉMENTS';
+      const mappedCategory = categoryMapping[result.category.toLowerCase()] || 
+                           result.category.toUpperCase();
 
-      // Initialize category if it doesn't exist
       if (!acc[mappedCategory]) {
         acc[mappedCategory] = [];
       }
 
       acc[mappedCategory].push({
-        name: toSentenceCase(result.name),
-        value: result.value,
-        type: result.type,
-        status: typeof result.value === 'boolean' ? (result.value ? 'OK' : 'NOK') : result.value
+        name: result.name,
+        value: result.value || 'Non Vérifier',
+        type: result.type || 'options',
+        status: result.value === 'Conforme' ? 'good' : 
+                result.value === 'Pas bon' ? 'critical' : 
+                'neutral'
       });
 
       return acc;
     }, {});
-
-    logger.info(`Parsed ${results.length} checks into ${Object.keys(organized).length} categories`);
-    return organized;
   } catch (error) {
-    logger.error('Error parsing inspection results:', error);
+    logger.error('Error organizing inspection results:', { error: error.message });
     return {};
   }
 };
 
-// Update formatValue to remove true/false display
-const formatValue = (item) => {
-  if (!item || typeof item.value === 'undefined') return 'Non vérifié';
-
-  try {
-    switch (item.type) {
-      case 'boolean':
-        return ''; // Return empty string to hide true/false values
-      case 'number':
-        return `${item.value}${item.unit ? ` ${item.unit}` : ''}`;
-      case 'pressure':
-        return `${item.value} bar`;
-      case 'thickness':
-        return `${item.value} mm`;
-      case 'percentage':
-        return `${item.value}%`;
-      case 'text':
-        return item.value;
-      default:
-        return String(item.value);
-    }
-  } catch (error) {
-    logger.error('Error formatting value:', error);
-    return 'Erreur de format';
-  }
-};
-
-// Add back value evaluation function
-const evaluateNumericValue = (value, type) => {
-  let status;
-  switch (type) {
-    case 'percentage':
-      status = value >= 75 ? 'good' : value >= 25 ? 'warning' : 'critical';
-      return status;
-    case 'pressure':
-      status = value >= 2.0 && value <= 2.5 ? 'good' :
-               value >= 1.8 && value <= 2.7 ? 'warning' : 'critical';
-      return status;
-    case 'thickness':
-      status = value >= 5 ? 'good' : value >= 3 ? 'warning' : 'critical';
-      return status;
-    default:
-      status = value > 0 ? 'good' : 'critical';
-      return status;
-  }
-};
-
-// Définir des constantes pour les hauteurs
-const elementHeights = {
-  headerHeight: 18,      // Augmenté de 16 à 18
-  itemHeight: 16,        // Augmenté de 14 à 16
-  padding: {
-    vertical: 4,         // Augmenté de 3 à 4
-    horizontal: 8        // Augmenté de 6 à 8
-  }
-};
-
-// Mettre à jour optimizedGrid
-const optimizedGrid = {
-  columnCount: 3,
-  columnWidth: Math.floor((grid.maxWidth - (spacing.lg * 2)) / 3),
-  itemHeight: 16,        // Augmenté de 12 à 16 pour accommoder la plus grande taille de police
-  headerHeight: 18,      // Augmenté de 14 à 18
-  spacing: spacing.xs,   // Utiliser le plus petit espacement
-  itemPadding: 6        // Augmenté de 4 à 6
-};
-
-// Add the drawInspectionGrid function before generatePDF
-const drawInspectionGrid = (doc, currentX, currentY, category, items, optimizedGrid) => {
-  // En-tête de catégorie
-  doc.roundedRect(currentX, currentY, optimizedGrid.columnWidth, optimizedGrid.headerHeight, 2)
-     .fillColor(colors.primary.header)
-     .fill();
-
-  // Centrer le texte verticalement et horizontalement
-  const textY = currentY + (optimizedGrid.headerHeight - textStyles.categoryHeader.size) / 2;
-  doc.font(textStyles.categoryHeader.font)
-     .fontSize(textStyles.categoryHeader.size)
-     .fillColor(colors.primary.contrast)
-     .text(category,
-          currentX,
-          textY,
-          { 
-            width: optimizedGrid.columnWidth,
-            align: 'center'
-          });
-
-  currentY += optimizedGrid.headerHeight + spacing.sm;
-
-  // Items avec texte centré verticalement
-  items.forEach((item, index) => {
-    const bgColor = index % 2 === 0 ? colors.primary.light : colors.primary.medium;
-    
-    // Augmentation de la hauteur du rectangle de fond
-    doc.roundedRect(currentX, currentY, optimizedGrid.columnWidth, optimizedGrid.itemHeight, 2)
-       .fillColor(bgColor)
-       .fill();
-
-    // Calcul du centrage vertical avec la nouvelle taille de police
-    const textVerticalOffset = (optimizedGrid.itemHeight - textStyles.itemText.size) / 2;
-    const itemTextY = currentY + textVerticalOffset;
-    
-    // Texte de l'item
-    doc.font(textStyles.itemText.font)
-       .fontSize(textStyles.itemText.size)
-       .fillColor(colors.primary.main)
-       .text(item.name,
-            currentX + elementHeights.padding.horizontal,
-            itemTextY,
-            { 
-              width: optimizedGrid.columnWidth - (elementHeights.padding.horizontal * 2) - spacing.xl,
-              align: 'left'
-            });
-
-    // Ajustement de la position de l'icône de statut
-    drawStatusIcon(
-      doc,
-      currentX + optimizedGrid.columnWidth - elementHeights.padding.horizontal - spacing.md,
-      currentY + (optimizedGrid.itemHeight / 2),
-      item
-    );
-
-    // Augmentation de l'espacement vertical entre les items
-    currentY += optimizedGrid.itemHeight + spacing.sm;
-  });
-
-  return currentY;
-};
-
-// 2. Helper Functions
 const drawSectionHeader = (doc, x, y, width, title) => {
-  const headerHeight = inspectionGrid.headerHeight;
+  const headerHeight = optimizedGrid.headerHeight;
   
-  doc.save();
-  doc.roundedRect(x, y, width, headerHeight, 4)
+  doc.save()
+     .roundedRect(x, y, width, headerHeight, 4)
      .fillColor(colors.primary.main)
      .fill();
 
@@ -298,57 +143,25 @@ const drawSectionHeader = (doc, x, y, width, title) => {
      .fontSize(textStyles.sectionHeader.size)
      .fillColor(colors.primary.contrast)
      .text(title, 
-           x + grid.gutter, 
+           x + spacing.lg, 
            y + (headerHeight - textStyles.sectionHeader.size) / 2,
-           { width: width - (grid.gutter * 2) });
+           { width: width - (spacing.lg * 2) });
   doc.restore();
 
-  return y + headerHeight + grid.gutter;
+  return y + headerHeight + spacing.lg;
 };
 
-// Update drawStatusIcon implementation
-const drawStatusIcon = (doc, x, y, item) => {
-  let status = 'neutral';
-  
-  if (item.type === 'boolean') {
-    status = item.value === true ? 'good' : 'critical';
-  } else if (item.value !== undefined && item.value !== null) {
-    status = evaluateNumericValue(item.value, item.type);
-  }
-
-  const iconSize = 8;
-  const strokeWidth = 1.5;
-
-  if (status === 'good') {
-    doc.strokeColor(colors.primary.accent)
-       .lineWidth(strokeWidth)
-       .moveTo(x - iconSize/2, y)
-       .lineTo(x - iconSize/6, y + iconSize/3)
-       .lineTo(x + iconSize/2, y - iconSize/3)
-       .stroke();
-  } else {
-    doc.strokeColor(colors.primary.main)
-       .lineWidth(strokeWidth)
-       .moveTo(x - iconSize/2, y - iconSize/2)
-       .lineTo(x + iconSize/2, y + iconSize/2)
-       .moveTo(x + iconSize/2, y - iconSize/2)
-       .lineTo(x - iconSize/2, y + iconSize/2)
-       .stroke();
-  }
-};
-
-// Update the header section
 const drawHeader = (doc, report) => {
-  const headerHeight = 80;  // Hauteur fixe pour toute la section header
+  const headerHeight = 80;  
   
-  // Left side - Company info with larger logo
+  // Left side - Company logo
   doc.save();
   doc.roundedRect(25, 15, headerHeight * 0.75, headerHeight * 0.75, 4)
      .clip();
-  doc.image('src/services/company_logo.png', 25, 15, { height: headerHeight * 0.75 });
+  doc.image(path.join(__dirname, 'company_logo.png'), 25, 15, { height: headerHeight * 0.75 });
   doc.restore();
 
-  // Company name with more emphasis
+  // Company name
   doc.font(textStyles.mainTitle.font)
      .fontSize(textStyles.mainTitle.size)
      .fillColor(colors.primary.main)
@@ -361,7 +174,7 @@ const drawHeader = (doc, report) => {
      .lineWidth(0.5)
      .stroke();
 
-  // Company info - uniformized
+  // Company info
   const companyInfo = [
     { label: 'Adresse', value: '123 Rue Principale, 75000 Paris' },
     { label: 'Téléphone', value: '01 23 45 67 89' },
@@ -377,15 +190,14 @@ const drawHeader = (doc, report) => {
 
     doc.font(textStyles.headerInfo.font)
        .text(info.value, 150, infoY);
-    infoY += spacing.xl;  // Espacement uniforme
+    infoY += spacing.xl;
   });
 
   // Right side - Client info box
-  doc.roundedRect(380, 15, 190, headerHeight - 15, 4)  // Ajusté pour correspondre à la hauteur totale
+  doc.roundedRect(380, 15, 190, headerHeight - 15, 4)
      .fillColor(colors.primary.light)
      .fill();
 
-  // Date header with emphasis
   doc.font(textStyles.headerDate.font)
      .fontSize(textStyles.headerDate.size)
      .fillColor(colors.primary.main)
@@ -394,21 +206,19 @@ const drawHeader = (doc, report) => {
        align: 'center'
      });
 
-  // Separator line
   doc.moveTo(390, 35)
      .lineTo(560, 35)
      .strokeColor(colors.primary.medium)
      .lineWidth(0.5)
      .stroke();
 
-  // Client details uniformized
   const clientInfo = [
     { label: 'Nom', value: report.client_name || 'N/A' },
     { label: 'Téléphone', value: report.client_phone || 'N/A' },
     { label: 'Email', value: report.client_email || 'N/A' }
   ];
 
-  let clientY = 42;  // Ajusté pour l'espacement après la ligne
+  let clientY = 42;
   clientInfo.forEach(info => {
     doc.font(textStyles.headerInfo.font)
        .fontSize(textStyles.headerInfo.size)
@@ -416,59 +226,61 @@ const drawHeader = (doc, report) => {
        .text(info.label, 390, clientY);
 
     doc.font(textStyles.headerInfo.font)
-       .text(info.value, 460, clientY);
-    clientY += spacing.xl;  // Espacement uniforme
+       .text(info.value, 440, clientY);
+    clientY += spacing.xl;
   });
 
-  return headerHeight + 5;  // Retourne la hauteur totale + espacement pour la section suivante
+  return headerHeight + 5;
 };
 
-// Update drawInfoSection with swapped fields
 const drawInfoSection = (doc, report, startY) => {
   const sectionWidth = 545;
-  const vehicleHeight = 120;
+  const vehicleHeight = 125;
   const columnWidth = (sectionWidth - 60) / 2;
   
-  // Définir les informations des colonnes avec positions interchangées
-  const leftColumnInfo = [
-    { label: 'Immatriculation', value: report.license_plate, bold: true },
-    { label: 'Marque', value: report.brand || 'N/A' },
-    { label: 'Modèle', value: report.model || 'N/A' },
-    { label: 'Mise en circulation', value: report.first_registration_date ? 
-      new Date(report.first_registration_date + '-01').toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' },
-    { label: 'Kilométrage', value: report.mileage ? `${report.mileage} km` : 'N/A' }
-  ];
-
-  const rightColumnInfo = [
-    { label: 'Code moteur', value: report.engine_code || 'LXLX31' },
-    { label: 'Type d\'huile', value: report.revision_oil_type || '5W30' },
-    { label: 'Quantité', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : '7.5 L' },  // "Capacité" remplacé par "Quantité"
-    { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : '10 mm' },
-    { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : '25 mm' }
-  ];
-
-  // Section Véhicule
   doc.roundedRect(25, startY, sectionWidth, vehicleHeight, 4)
      .fillColor(colors.primary.light)
      .fill();
 
-  // Titre VÉHICULE
   doc.roundedRect(25, startY, sectionWidth, 20, 4)
      .fillColor(colors.primary.main)
      .fill();
 
-  doc.font(fonts.bold)
-     .fontSize(10)
+  doc.font(textStyles.sectionHeader.font)
+     .fontSize(textStyles.sectionHeader.size)
      .fillColor(colors.primary.contrast)
      .text('VÉHICULE', 25, startY + 5, {
        width: sectionWidth,
        align: 'center'
      });
 
-  // Colonnes d'information véhicule
-  let infoY = startY + 30; // Augmenté l'espacement après le titre
+  const leftColumnInfo = [
+    { label: 'Immatriculation', value: report.license_plate, bold: true },
+    { label: 'Marque', value: report.brand || 'N/A' },
+    { label: 'Modèle', value: report.model || 'N/A' },
+    { label: 'Kilométrage', value: report.mileage ? `${report.mileage} km` : 'N/A' },
+    { label: 'Mise en circulation', value: report.first_registration_date ? 
+      new Date(report.first_registration_date).toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' },{ label: 'Prochain C.T', value: report.next_technical_inspection ? 
+      new Date(report.next_technical_inspection).toLocaleDateString('fr-FR', { 
+        day: 'numeric', 
+        month: 'numeric', 
+        year: 'numeric'
+      }) : 'N/A' }
+    
+    
+  ];
+
+  const rightColumnInfo = [
+    { label: 'Code moteur', value: report.engine_code || 'N/A' },
+    { label: 'Type d\'huile', value: report.revision_oil_type || '5W30' },
+    { label: 'Quantité', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : '7.5 L' },
+    { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : '10 mm' },
+    { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : '25 mm' },
+  ];
+
+  let infoY = startY + 30;
   
-  // Colonne gauche
+  // Draw left column
   leftColumnInfo.forEach(info => {
     doc.font(fonts.medium)
        .fontSize(9)
@@ -480,11 +292,11 @@ const drawInfoSection = (doc, report, startY) => {
          width: columnWidth - 20,
          align: 'right'
        });
-    infoY += 16; // Espacement entre les lignes
+    infoY += 16;
   });
 
-  // Colonne droite
-  infoY = startY + 30; // Réinitialiser pour la colonne droite
+  // Draw right column
+  infoY = startY + 30;
   rightColumnInfo.forEach(info => {
     doc.font(fonts.medium)
        .fontSize(9)
@@ -499,9 +311,9 @@ const drawInfoSection = (doc, report, startY) => {
     infoY += 16;
   });
 
-  // Section Observations - maintenant clairement séparée
+  // Draw comments section if present
   if (report.comments?.trim()) {
-    const commentsY = startY + vehicleHeight + spacing.lg; // Ajout d'un espacement après la section véhicule
+    const commentsY = startY + vehicleHeight + spacing.lg;
     const commentsHeight = 100;
 
     doc.roundedRect(25, commentsY, sectionWidth, commentsHeight, 4)
@@ -512,22 +324,18 @@ const drawInfoSection = (doc, report, startY) => {
        .fillColor(colors.primary.main)
        .fill();
 
-    doc.font(fonts.bold)
-       .fontSize(9)
+    doc.font(textStyles.sectionHeader.font)
+       .fontSize(textStyles.sectionHeader.size)
        .fillColor(colors.primary.contrast)
        .text('OBSERVATIONS', 25, commentsY + 5, {
          width: sectionWidth,
          align: 'center'
        });
 
-    const sanitizeText = (text) => {
-        return report.comments.replace(/[^\x20-\x7E\n]/g, ""); // Retire les caractères non imprimables
-      };
-
     doc.font(fonts.regular)
        .fontSize(8)
        .fillColor(colors.primary.main)
-       .text(sanitizeText(report.comments), 
+       .text(report.comments.replace(/[^\x20-\x7E\n]/g, ""), 
             35, 
             commentsY + 25, 
             {
@@ -544,14 +352,87 @@ const drawInfoSection = (doc, report, startY) => {
   return startY + vehicleHeight + spacing.lg;
 };
 
-// Add footer drawing function
+const drawInspectionGrid = (doc, x, y, results, options) => {
+  let currentY = y;
+  const sectionWidth = 170; // Width for each category section
+  const spacing = 12; // Space between sections
+  const categories = Object.entries(results);
+  
+  // Process categories in groups of 3
+  for (let i = 0; i < categories.length; i += 3) {
+    const rowCategories = categories.slice(i, i + 3);
+    let maxHeight = 0;
+    
+    // Draw each category in the row
+    rowCategories.forEach(([ category, items ], index) => {
+      const xPos = x + (sectionWidth + spacing) * index;
+      let yPos = currentY;
+      
+      // Draw background for the entire section
+      doc.roundedRect(xPos, yPos, sectionWidth, 
+                     items.length * 20 + 35,
+                     4)
+         .fillColor(colors.primary.light)
+         .fill();
+      
+      // Draw category header with smaller height and new color
+      doc.roundedRect(xPos, yPos, sectionWidth, 18, 4)
+         .fillColor('#334155')
+         .fill();
+
+      // Center the text vertically and horizontally
+      doc.font(textStyles.sectionHeader.font)
+         .fontSize(textStyles.sectionHeader.size)
+         .fillColor(colors.primary.contrast)
+         .text(category, 
+               xPos, 
+               yPos + (18 - textStyles.sectionHeader.size) / 2, // Center vertically
+               { 
+                 width: sectionWidth,
+                 align: 'center',
+                 lineGap: 0
+               });
+
+      yPos += 23;
+
+      // Draw items
+      items.forEach(item => {
+        doc.font(textStyles.itemText.font)
+           .fontSize(textStyles.itemText.size)
+           .fillColor(textStyles.itemText.color)
+           .text(item.name, 
+                 xPos + 10, 
+                 yPos,
+                 { width: sectionWidth - 40 });
+
+        if (item.type === 'options') {
+          const iconPath = getInspectionIcon(item.value);
+          
+          if (fs.existsSync(iconPath)) {
+            const svgContent = fs.readFileSync(iconPath, 'utf8');
+            doc.addSVG(svgContent, 
+                      xPos + sectionWidth - 25, 
+                      yPos, 
+                      { width: 16, height: 16 });
+          }
+        }
+
+        yPos += 20;
+      });
+
+      const sectionHeight = yPos - currentY;
+      maxHeight = Math.max(maxHeight, sectionHeight);
+    });
+
+    currentY += maxHeight + spacing;
+  }
+  
+  return currentY;
+};
+
 const drawFooter = (doc, pageHeight) => {
-  // Forcer le positionnement sur la première page
-  doc.switchToPage(0);
+  const footerMargin = 30;
   
-  const footerMargin = 30; // Augmenter la marge pour être plus près du bas
-  
-  // Ligne de séparation
   doc.save()
      .moveTo(25, pageHeight - footerMargin)
      .lineTo(570, pageHeight - footerMargin)
@@ -559,14 +440,13 @@ const drawFooter = (doc, pageHeight) => {
      .lineWidth(0.5)
      .stroke();
 
-  // Copyright
   doc.font(fonts.regular)
      .fontSize(10)
      .fillColor(colors.primary.main)
      .text(
-       `© 2024 Auto Presto. Tous droits réservés.`, // Année fixe comme sur la capture
+       `© 2024 Auto Presto. Tous droits réservés.`,
        0,
-       pageHeight - footerMargin + 10, // Position plus basse
+       pageHeight - footerMargin + 10,
        {
          align: 'center',
          width: doc.page.width
@@ -574,7 +454,6 @@ const drawFooter = (doc, pageHeight) => {
      );
 };
 
-// 3. Main Function
 const generatePDF = (report) => {
   return new Promise((resolve, reject) => {
     try {
@@ -588,84 +467,22 @@ const generatePDF = (report) => {
         bufferPages: true
       });
 
-      const pdfPath = path.join(__dirname, '..', '..', 'generated_reports', `${report.license_plate}_${report.date}.pdf`);
+      const timestamp = Date.now();
+      const tempFileName = `temp_${timestamp}.pdf`;
+      const pdfPath = path.join(__dirname, '..', '..', 'generated_reports', tempFileName);
       const writeStream = fs.createWriteStream(pdfPath);
 
       doc.pipe(writeStream);
 
-      // Safe calculations with default values
-      const pageHeight = doc.page.height || 842; // A4 height
-      const pageWidth = doc.page.width || 595;  // A4 width
-      const safeMargin = spacing.lg || 24;
-      const footerHeight = 25;
-
-      // Draw header and get actual height
-      const headerHeight = Math.max(drawHeader(doc, report) || 70, 70);
-      
-      // Initialize position tracking variables
+      const pageHeight = doc.page.height;
+      const headerHeight = drawHeader(doc, report);
       let currentY = headerHeight + spacing.md;
-      let currentColumn = 0;
-      let startY = currentY;
-      let maxY = startY;
       
-      // Draw info section and get actual height
-      const infoSectionHeight = drawInfoSection(doc, report, currentY);
+      currentY = drawInfoSection(doc, report, currentY);
       
-      // Parse inspection results
-      const inspectionResults = parseInspectionResults(report.inspection_results || []);
+      const organizedResults = organizeInspectionResults(report.inspection_results || []);
+      currentY = drawInspectionGrid(doc, 25, currentY, organizedResults, optimizedGrid);
       
-      // Define the order of categories
-      const categoryOrder = [
-        'INTERIEUR',
-        'MOTEUR',
-        'AVANT',
-        'ARRIERE',
-        'ACCESSOIRES',
-        'TRAVAUX RÉALISÉS'
-      ];
-
-      // Update currentY for grid start position
-      currentY = infoSectionHeight + spacing.lg;
-      startY = currentY;
-      maxY = startY;
-
-      // Calculer la marge pour centrer les tableaux
-      const totalWidth = (optimizedGrid.columnWidth * 3) + (spacing.md * 2); // Ajusté pour un meilleur centrage
-      const leftMargin = (pageWidth - totalWidth) / 2;
-
-      // Draw categories in specific order
-      categoryOrder.forEach((category) => {
-        const items = inspectionResults[category];
-        if (!items) return;
-
-        // Utiliser leftMargin au lieu de 25 pour le centrage
-        const currentX = leftMargin + (currentColumn * (optimizedGrid.columnWidth + spacing.lg));
-
-        // Draw category and items
-        const newY = drawInspectionGrid(doc, currentX, currentY, category, items, optimizedGrid);
-        maxY = Math.max(maxY, newY);
-
-        // Update column position
-        currentColumn++;
-        if (currentColumn >= optimizedGrid.columnCount) {
-          currentColumn = 0;
-          startY = maxY + spacing.lg;
-          currentY = startY;
-          maxY = startY;
-        } else {
-          currentY = startY;
-        }
-      });
-
-      // Ensure proper spacing before footer
-      const finalY = Math.max(currentY, maxY) + spacing.xl;
-      
-      // Draw footer with safe positioning
-      const footerY = Math.min(
-        pageHeight - footerHeight + safeMargin,
-        finalY + safeMargin
-      );
-
       drawFooter(doc, pageHeight);
 
       doc.end();
@@ -680,5 +497,4 @@ const generatePDF = (report) => {
   });
 };
 
-// 4. Export
 module.exports = { generatePDF };

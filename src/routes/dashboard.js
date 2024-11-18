@@ -12,15 +12,16 @@ router.get('/', isAuthenticated, async (req, res) => {
         SELECT 
           ir.report_id,
           ir.date,
-          ir.client_name,
-          ir.client_phone,
           ir.created_at,
           v.license_plate,
-          u.user_name as technician_name
+          c.name as client_name,
+          c.phone as client_phone,
+          COALESCE(u.username, 'N/A') as technician_name
         FROM InspectionReports ir
         JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
+        JOIN Customers c ON v.customer_id = c.customer_id
         LEFT JOIN Users u ON ir.technician_id = u.user_id
-        ORDER BY ir.created_at DESC
+        ORDER BY ir.date DESC, ir.report_id DESC
         LIMIT 10
       `, (err, rows) => {
         if (err) reject(err);

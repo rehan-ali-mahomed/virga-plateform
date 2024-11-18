@@ -4,23 +4,6 @@
   currentPage: 'form'
 }) %>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const licensePlateInput = document.getElementById('license_plate');
-  let typingTimer;
-
-  licensePlateInput.addEventListener('input', function() {
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(function() {
-      const license_plate = licensePlateInput.value.trim().toUpperCase();
-      if (license_plate) {
-        window.location.href = `/form?license_plate=${encodeURIComponent(license_plate)}`;
-      }
-    }, 1000); // Wait 1 second after typing stops
-  });
-});
-</script>
-
 <div class="content-wrapper">
   <form action="/form/submit" method="POST" id="inspection-form">
     <!-- Alerts -->
@@ -36,6 +19,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Form Sections -->
     <div class="form-sections">
+      <!-- Hidden date field -->
+      <input type="hidden" id="date" name="date" 
+             value="<%= new Date().toISOString().split('T')[0] %>">
+
       <!-- 1. Client Information -->
       <div class="card mb-3">
         <div class="card-header bg-primary text-white">
@@ -43,29 +30,53 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="card-body">
           <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <div class="form-group">
-                <label for="date"><i class="far fa-calendar-alt"></i> Date :</label>
-                <input 
-                  type="date" 
-                  id="date" 
-                  name="date" 
-                  class="form-control" 
-                  required 
-                  value="<%= data.date || new Date().toISOString().split('T')[0] %>"
-                />
+                <label for="client_name">
+                  <i class="far fa-user"></i> Nom :
+                </label>
+                <input type="text" id="client_name" name="client_name" 
+                       class="form-control" value="<%= data.client_name || '' %>" required>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <div class="form-group">
-                <label for="client_name"><i class="far fa-user"></i> Nom du client :</label>
-                <input type="text" id="client_name" name="client_name" class="form-control" value="<%= data.client_name || '' %>" required />
+                <label for="client_phone">
+                  <i class="fas fa-phone"></i> Téléphone :
+                </label>
+                <input type="tel" id="client_phone" name="client_phone" 
+                       class="form-control" value="<%= data.client_phone || '' %>" required>
               </div>
             </div>
-            <div class="col-md-4">
+          </div>
+          <div class="row mt-2">
+            <div class="col-md-6">
               <div class="form-group">
-                <label for="client_phone"><i class="fas fa-phone"></i> Téléphone :</label>
-                <input type="tel" id="client_phone" name="client_phone" class="form-control" value="<%= data.client_phone || '' %>" required />
+                <label for="client_email">
+                  <i class="fas fa-envelope"></i> Email :
+                </label>
+                <input type="email" id="client_email" name="client_email" 
+                       class="form-control" value="<%= data.client_email || '' %>">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="client_address">
+                  <i class="fas fa-map-marker-alt"></i> Adresse :
+                </label>
+                <input type="text" id="client_address" name="client_address" 
+                       class="form-control" value="<%= data.client_address || '' %>">
+              </div>
+            </div>
+          </div>
+          <div class="row mt-2">
+            <div class="col-md-6">
+              <div class="form-check">
+                <input type="checkbox" id="is_company" name="is_company" 
+                       class="form-check-input" <%= data.is_company ? 'checked' : '' %>>
+                <label class="form-check-label" for="is_company">
+                  <i class="fas fa-building"></i> Société
+                </label>
               </div>
             </div>
           </div>
@@ -78,33 +89,16 @@ document.addEventListener('DOMContentLoaded', function() {
           <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
         </div>
         <div class="card-body">
-          <!-- Vehicle Information - First Row -->
+          <!-- Première ligne -->
           <div class="row">
             <div class="col-md-3">
               <div class="form-group">
                 <label for="license_plate">
                   <i class="fas fa-id-card"></i> Immatriculation :
                 </label>
-                <input type="text" 
-                       id="license_plate" 
-                       name="license_plate" 
-                       class="form-control form-control-lg text-uppercase" 
-                       required 
+                <input type="text" id="license_plate" name="license_plate" 
+                       class="form-control text-uppercase" required 
                        value="<%= data.license_plate || '' %>">
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="form-group">
-                <label for="first_registration_date">
-                  <i class="fas fa-calendar-alt"></i> Mise en circulation :
-                </label>
-                <input type="month" 
-                       id="first_registration_date" 
-                       name="first_registration_date" 
-                       class="form-control form-control-lg" 
-                       value="<%= data.first_registration_date ? data.first_registration_date.substring(0, 7) : '' %>"
-                       pattern="[0-9]{4}-[0-9]{2}"
-                       placeholder="MM/AAAA">
               </div>
             </div>
             <div class="col-md-3">
@@ -112,12 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label for="brand">
                   <i class="fas fa-car"></i> Marque :
                 </label>
-                <input type="text" 
-                       id="brand" 
-                       name="brand" 
-                       class="form-control form-control-lg" 
-                       value="<%= data.brand || '' %>" 
-                       placeholder="ex: Renault">
+                <input type="text" id="brand" name="brand" class="form-control" 
+                       value="<%= data.brand || '' %>" placeholder="ex: Renault">
               </div>
             </div>
             <div class="col-md-3">
@@ -125,42 +115,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label for="model">
                   <i class="fas fa-car-side"></i> Modèle :
                 </label>
-                <input type="text" 
-                       id="model" 
-                       name="model" 
-                       class="form-control form-control-lg" 
-                       value="<%= data.model || '' %>" 
-                       placeholder="ex: Clio">
+                <input type="text" id="model" name="model" class="form-control" 
+                       value="<%= data.model || '' %>" placeholder="ex: Clio">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="engine_code">
+                  <i class="fas fa-cogs"></i> Code moteur :
+                </label>
+                <input type="text" id="engine_code" name="engine_code" 
+                       class="form-control" value="<%= data.engine_code || '' %>" 
+                       placeholder="ex: K9K">
               </div>
             </div>
           </div>
 
-          <!-- Vehicle Technical Info - Second Row -->
+          <!-- Deuxième ligne -->
           <div class="row mt-2">
             <div class="col-md-3">
               <div class="form-group">
-                <label for="engine_code">
-                  <i class="fas fa-engine"></i> Code moteur :
+                <label for="first_registration_date">
+                  <i class="fas fa-calendar-alt"></i> Mise en circulation :
                 </label>
-                <input type="text" 
-                       id="engine_code" 
-                       name="engine_code" 
-                       class="form-control form-control-lg" 
-                       value="<%= data.engine_code || '' %>" 
-                       placeholder="K9K">
+                <input type="month" id="first_registration_date" 
+                       name="first_registration_date" class="form-control" 
+                       value="<%= data.first_registration_date || '' %>"
+                       placeholder="MM/AAAA">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
                 <label for="revision_oil_type">
-                  <i class="fas fa-oil-can"></i> Type huile :
+                  <i class="fas fa-oil-can"></i> Type d'huile :
                 </label>
-                <input type="text" 
-                       id="revision_oil_type" 
-                       name="revision_oil_type" 
-                       class="form-control form-control-lg" 
-                       value="<%= data.revision_oil_type || '' %>" 
-                       placeholder="5W30">
+                <input type="text" id="revision_oil_type" name="revision_oil_type" 
+                       class="form-control" value="<%= data.revision_oil_type || '' %>" 
+                       placeholder="ex: 5W30">
               </div>
             </div>
             <div class="col-md-3">
@@ -168,27 +159,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label for="revision_oil_volume">
                   <i class="fas fa-fill-drip"></i> Volume (L) :
                 </label>
-                <input type="number" 
-                       id="revision_oil_volume" 
-                       name="revision_oil_volume" 
-                       class="form-control form-control-lg" 
-                       step="0.1"
-                       value="<%= data.revision_oil_volume || '' %>" 
-                       placeholder="5.5">
+                <input type="number" id="revision_oil_volume" 
+                       name="revision_oil_volume" class="form-control" 
+                       step="0.1" value="<%= data.revision_oil_volume || '' %>" 
+                       placeholder="ex: 5.5">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
                 <label for="brake_disc_thickness_front">
-                  <i class="fas fa-disc-drive"></i> Disque AV (mm) :
+                  <i class="fas fa-disc-drive"></i> Disques AV (mm) :
                 </label>
-                <input type="number" 
-                       id="brake_disc_thickness_front" 
-                       name="brake_disc_thickness_front" 
-                       class="form-control form-control-lg" 
-                       step="0.1"
-                       value="<%= data.brake_disc_thickness_front || '' %>" 
-                       placeholder="10">
+                <input type="number" id="brake_disc_thickness_front" 
+                       name="brake_disc_thickness_front" class="form-control" 
+                       step="0.1" value="<%= data.brake_disc_thickness_front || '' %>" 
+                       placeholder="ex: 10">
+              </div>
+            </div>
+          </div>
+
+          <!-- Troisième ligne -->
+          <div class="row mt-2">
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="brake_disc_thickness_rear">
+                  <i class="fas fa-disc-drive"></i> Disques AR (mm) :
+                </label>
+                <input type="number" id="brake_disc_thickness_rear" 
+                       name="brake_disc_thickness_rear" class="form-control" 
+                       step="0.1" value="<%= data.brake_disc_thickness_rear || '' %>" 
+                       placeholder="ex: 10">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="mileage">
+                  <i class="fas fa-tachometer-alt"></i> Kilométrage :
+                </label>
+                <input type="number" id="mileage" name="mileage" 
+                       class="form-control" value="<%= data.mileage || '' %>" 
+                       min="0" max="100000000"
+                       placeholder="ex: 100000">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="next_technical_inspection">
+                  <i class="fas fa-calendar-check"></i> Prochain contrôle technique :
+                </label>
+                <input type="date" id="next_technical_inspection" 
+                       name="next_technical_inspection" class="form-control" 
+                       value="<%= data.next_technical_inspection || '' %>">
               </div>
             </div>
           </div>
@@ -198,7 +219,9 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- 3. Control Points -->
       <div class="card mb-3">
         <div class="card-header bg-primary text-white">
-          <h2 class="h5 mb-0"><i class="fas fa-clipboard-check"></i> POINTS DE CONTRÔLE</h2>
+          <h2 class="h5 mb-0">
+            <i class="fas fa-clipboard-check"></i> POINTS DE CONTRÔLE
+          </h2>
         </div>
         <div class="card-body p-0">
           <% 
@@ -232,36 +255,45 @@ document.addEventListener('DOMContentLoaded', function() {
           %>
 
           <div class="inspection-grid">
-            <% if (Object.keys(groupedItems).length === 0) { %>
-              <div class="p-4 text-center text-muted">
-                <i class="fas fa-info-circle mb-2"></i>
-                <p>Aucun point de contrôle disponible.</p>
-              </div>
-            <% } else { %>
-              <% Object.keys(groupedItems).forEach(category => { %>
-                <div class="inspection-category">
-                  <div class="category-header">
-                    <i class="<%= categoryIcons[category] %>"></i>
-                    <h3 class="category-title"><%= categoryTitles[category] %></h3>
-                  </div>
-                  <div class="checkbox-grid">
-                    <% groupedItems[category].forEach(item => { %>
-                      <div class="custom-control custom-checkbox">
-                        <input class="custom-control-input" 
-                               type="checkbox" 
-                               id="<%= category %>_<%= item.item_id %>" 
-                               name="inspection[<%= item.item_id %>]" 
-                               value="true"
-                               <%= data.inspection && data.inspection[item.item_id] ? 'checked' : '' %>>
-                        <label class="custom-control-label" for="<%= category %>_<%= item.item_id %>">
-                          <%= item.name %>
-                        </label>
-                      </div>
-                    <% }); %>
-                  </div>
+            <% Object.keys(groupedItems).forEach(category => { %>
+              <div class="inspection-category">
+                <div class="category-header">
+                  <i class="<%= categoryIcons[category] %>"></i>
+                  <h3 class="category-title"><%= categoryTitles[category] %></h3>
                 </div>
-              <% }); %>
-            <% } %>
+                <div class="checkbox-grid">
+                  <% groupedItems[category].forEach(item => { %>
+                    <div class="inspection-item">
+                      <div class="custom-control custom-radio-group">
+                        <label class="control-label"><%= item.name %></label>
+                        <div class="radio-options">
+                          <% 
+                          const itemOptions = item.options ? JSON.parse(item.options) : [];
+                          itemOptions.forEach(option => { 
+                          %>
+                            <div class="custom-control custom-radio custom-control-inline">
+                              <input type="radio" 
+                                     id="<%= category %>_<%= item.item_id %>_<%= option.id %>" 
+                                     name="inspection[<%= item.item_id %>]" 
+                                     value="<%= option.id %>"
+                                     class="custom-control-input"
+                                     <%= data.inspection && data.inspection[item.item_id] === option.id ? 'checked' : '' %>>
+                              <label class="custom-control-label" 
+                                     for="<%= category %>_<%= item.item_id %>_<%= option.id %>">
+                                <img src="<%= option.icon %>" 
+                                     alt="<%= option.label %>" 
+                                     class="option-icon" />
+                                <%= option.label %>
+                              </label>
+                            </div>
+                          <% }); %>
+                        </div>
+                      </div>
+                    </div>
+                  <% }); %>
+                </div>
+              </div>
+            <% }); %>
           </div>
         </div>
       </div>
@@ -272,7 +304,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <h2 class="h5 mb-0"><i class="fas fa-comment"></i> COMMENTAIRES</h2>
         </div>
         <div class="card-body">
-          <textarea id="comments" name="comments" class="form-control" rows="4" placeholder="Observations supplémentaires..."><%= data.comments || '' %></textarea>
+          <textarea id="comments" name="comments" class="form-control" rows="4" 
+                    placeholder="Observations supplémentaires..."><%= data.comments || '' %></textarea>
         </div>
       </div>
     </div>

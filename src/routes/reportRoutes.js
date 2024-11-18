@@ -32,7 +32,7 @@ router.get('/download/:id', isAuthenticated, async (req, res) => {
     const db = getDatabase();
     const report = await new Promise((resolve, reject) => {
       db.get(`
-        SELECT ir.*, u.user_name as technician_name
+        SELECT ir.*, u.username as technician_name
         FROM InspectionReports ir
         LEFT JOIN Users u ON ir.technician_id = u.user_id
         WHERE ir.report_id = ?

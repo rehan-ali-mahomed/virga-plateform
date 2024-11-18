@@ -16,7 +16,7 @@ router.get('/', isAuthenticated, async (req, res) => {
           ir.date,
           v.license_plate,
           v.owner_name as client_name,
-          u.user_name as technician_name
+          u.username as technician_name
         FROM InspectionReports ir
         JOIN Cars v ON ir.vehicle_id = v.vehicle_id
         LEFT JOIN Users u ON ir.technician_id = u.user_id

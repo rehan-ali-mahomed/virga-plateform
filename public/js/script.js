@@ -1,120 +1,191 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('inspection-form');
-  const loadingOverlay = document.getElementById('loading-overlay');
-
-  // Form submission event
-  form.addEventListener('submit', (e) => {
-    // Perform client-side validation
-    if (!validateForm()) {
-      e.preventDefault();
-      return;
+  
+  // Debug helper
+  const debug = (message, error = null) => {
+    console.log('Debug:', message);
+    if (error) {
+      console.error('Error details:', error);
     }
-
-    // Show loading overlay
-    loadingOverlay.style.display = 'flex';
-  });
+  };
 
   // Client-side validation function
   function validateForm() {
-    let isValid = true;
+    try {
+      let isValid = true;
+      debug('Starting form validation');
 
-    // Validate date
-    const dateInput = document.getElementById('date');
-    if (!dateInput.value) {
-      showError(dateInput, 'Please enter a valid date.');
-      isValid = false;
-    } else {
-      clearError(dateInput);
+      // Validate required fields
+      const requiredFields = [
+        { id: 'client_name', message: 'Le nom du client est requis.' },
+        { id: 'client_phone', message: 'Le téléphone du client est requis.' },
+        { id: 'license_plate', message: 'L\'immatriculation est requise.' },
+        { id: 'date', message: 'La date est requise.' }
+      ];
+
+      requiredFields.forEach(field => {
+        const input = document.getElementById(field.id);
+        if (!input) {
+          debug(`Required field not found: ${field.id}`);
+          isValid = false;
+          return;
+        }
+        
+        if (!input.value.trim()) {
+          debug(`Empty required field: ${field.id}`);
+          showError(input, field.message);
+          isValid = false;
+        } else {
+          clearError(input);
+        }
+      });
+
+      // Validate phone format
+      const phoneInput = document.getElementById('client_phone');
+      if (phoneInput && phoneInput.value) {
+        const phoneRegex = /^[0-9]{10}$/;
+        if (!phoneRegex.test(phoneInput.value.trim())) {
+          debug('Invalid phone format');
+          showError(phoneInput, 'Format de téléphone invalide (10 chiffres requis).');
+          isValid = false;
+        }
+      }
+
+      // Validate email format if provided
+      const emailInput = document.getElementById('client_email');
+      if (emailInput && emailInput.value) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailInput.value.trim())) {
+          debug('Invalid email format');
+          showError(emailInput, 'Format d\'email invalide.');
+          isValid = false;
+        }
+      }
+
+      // Validate license plate format
+      const licensePlateInput = document.getElementById('license_plate');
+      if (licensePlateInput && licensePlateInput.value) {
+        const plateRegex = /^[A-Z]{2}[-]?[0-9]{3}[-]?[A-Z]{2}$/;
+        const value = licensePlateInput.value.trim().toUpperCase();
+        if (!plateRegex.test(value)) {
+          debug('Invalid license plate format');
+          showError(licensePlateInput, 'Format d\'immatriculation invalide (ex: AB-123-CD).');
+          isValid = false;
+        }
+      }
+
+      // Validate date format if present
+      const dateInput = document.getElementById('date');
+      if (dateInput && dateInput.value) {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(dateInput.value.trim())) {
+          debug('Invalid date format');
+          showError(dateInput, 'Format de date invalide (YYYY-MM-DD).');
+          isValid = false;
+        }
+      }
+
+      debug(`Form validation result: ${isValid}`);
+      return isValid;
+    } catch (error) {
+      debug('Error in validateForm', error);
+      return false;
     }
-
-    // Validate client name
-    const clientNameInput = document.getElementById('client_name');
-    if (!clientNameInput.value || clientNameInput.value.length > 50) {
-      showError(clientNameInput, 'Client name must be at most 50 characters long.');
-      isValid = false;
-    } else {
-      clearError(clientNameInput);
-    }
-
-    // Validate client phone
-    const clientPhoneInput = document.getElementById('client_phone');
-    if (!clientPhoneInput.value || clientPhoneInput.value.length > 15) {
-      showError(clientPhoneInput, 'Phone number must be at most 15 characters long.');
-      isValid = false;
-    } else {
-      clearError(clientPhoneInput);
-    }
-
-    // Validate vehicle registration
-    const vehicleRegistrationInput = document.getElementById('vehicle_registration');
-    if (!vehicleRegistrationInput.value || vehicleRegistrationInput.value.length > 20) {
-      showError(vehicleRegistrationInput, 'Vehicle registration must be at most 20 characters long.');
-      isValid = false;
-    } else {
-      clearError(vehicleRegistrationInput);
-    }
-
-    // Validate vehicle make
-    const vehicleMakeInput = document.getElementById('vehicle_make');
-    if (!vehicleMakeInput.value || vehicleMakeInput.value.length > 50) {
-      showError(vehicleMakeInput, 'Vehicle make must be at most 50 characters long.');
-      isValid = false;
-    } else {
-      clearError(vehicleMakeInput);
-    }
-
-    // Validate vehicle model
-    const vehicleModelInput = document.getElementById('vehicle_model');
-    if (!vehicleModelInput.value || vehicleModelInput.value.length > 50) {
-      showError(vehicleModelInput, 'Vehicle model must be at most 50 characters long.');
-      isValid = false;
-    } else {
-      clearError(vehicleModelInput);
-    }
-
-    // Validate mileage
-    const mileageInput = document.getElementById('mileage');
-    if (!mileageInput.value || isNaN(mileageInput.value) || mileageInput.value < 0 || mileageInput.value > 9999999) {
-      showError(mileageInput, 'Mileage must be a number between 0 and 9,999,999.');
-      isValid = false;
-    } else {
-      clearError(mileageInput);
-    }
-
-    // Validate next inspection date (optional)
-    const nextInspectionDateInput = document.getElementById('next_inspection_date');
-    if (nextInspectionDateInput.value && !isValidDate(nextInspectionDateInput.value)) {
-      showError(nextInspectionDateInput, 'Please enter a valid date for the next inspection.');
-      isValid = false;
-    } else {
-      clearError(nextInspectionDateInput);
-    }
-
-    return isValid;
   }
 
+  // Helper functions for error handling
   function showError(input, message) {
-    const formGroup = input.closest('.form-group');
-    const errorElement = formGroup.querySelector('.error-message') || document.createElement('div');
-    errorElement.className = 'error-message text-danger';
-    errorElement.textContent = message;
-    formGroup.appendChild(errorElement);
-    input.classList.add('is-invalid');
+    try {
+      if (!input) {
+        debug('Cannot show error: input is null');
+        return;
+      }
+
+      const formGroup = input.closest('.form-group');
+      if (!formGroup) {
+        debug('Cannot show error: .form-group not found');
+        return;
+      }
+
+      const errorDiv = formGroup.querySelector('.error-message') || document.createElement('div');
+      errorDiv.className = 'error-message text-danger small mt-1';
+      errorDiv.textContent = message;
+      
+      if (!formGroup.querySelector('.error-message')) {
+        formGroup.appendChild(errorDiv);
+      }
+      input.classList.add('is-invalid');
+      
+      debug(`Error shown: ${message}`);
+    } catch (error) {
+      debug('Error in showError', error);
+    }
   }
 
   function clearError(input) {
-    const formGroup = input.closest('.form-group');
-    const errorElement = formGroup.querySelector('.error-message');
-    if (errorElement) {
-      errorElement.remove();
+    try {
+      if (!input) {
+        debug('Cannot clear error: input is null');
+        return;
+      }
+
+      const formGroup = input.closest('.form-group');
+      if (!formGroup) {
+        debug('Cannot clear error: .form-group not found');
+        return;
+      }
+
+      const errorDiv = formGroup.querySelector('.error-message');
+      if (errorDiv) {
+        errorDiv.remove();
+      }
+      input.classList.remove('is-invalid');
+      
+      debug(`Error cleared for input: ${input.id}`);
+    } catch (error) {
+      debug('Error in clearError', error);
     }
-    input.classList.remove('is-invalid');
   }
 
-  function isValidDate(dateString) {
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(dateString)) return false;
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date);
+  // Form submission handler
+  if (form) {
+    debug('Form found, adding submit event listener');
+    form.addEventListener('submit', (e) => {
+      try {
+        if (!validateForm()) {
+          debug('Form validation failed, preventing submission');
+          e.preventDefault();
+        } else {
+          debug('Form validation successful, allowing submission');
+        }
+      } catch (error) {
+        debug('Error in submit handler', error);
+        e.preventDefault();
+      }
+    });
+  } else {
+    debug('Form not found in DOM');
+  }
+
+  // Auto-format license plate
+  const licensePlateInput = document.getElementById('license_plate');
+  if (licensePlateInput) {
+    debug('License plate input found, adding input event listener');
+    licensePlateInput.addEventListener('input', (e) => {
+      try {
+        let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (value.length > 4) {
+          value = value.slice(0, 2) + '-' + value.slice(2, 5) + '-' + value.slice(5, 7);
+        } else if (value.length > 2) {
+          value = value.slice(0, 2) + '-' + value.slice(2);
+        }
+        e.target.value = value;
+        debug('License plate formatted:', value);
+      } catch (error) {
+        debug('Error in license plate formatter', error);
+      }
+    });
+  } else {
+    debug('License plate input not found');
   }
 });

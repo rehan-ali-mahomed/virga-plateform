@@ -15,4 +15,7 @@ const logger = winston.createLogger({
   ],
 });
 
+// Temporarily set to debug level to see all logs
+// logger.level = 'debug';
+
 module.exports = logger;

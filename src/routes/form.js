@@ -25,57 +25,24 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 router.post('/submit', isAuthenticated, validateForm, async (req, res) => {
-  const db = getDatabase();
-  const {
-    license_plate, owner_name, contact_info,
-    status_type, details, severity_level, repair_status, cost,
-    inspection,
-    comments,
-    revision_oil_type, revision_torque, revision_oil_volume,
-    brake_disc_thickness_front, brake_disc_thickness_rear
-  } = req.body;
-
   try {
-    // First, add or get the vehicle
-    let vehicleId = await new Promise((resolve, reject) => {
-      db.get('SELECT vehicle_id FROM Vehicules WHERE license_plate = ?', [license_plate], async (err, row) => {
-        if (err) reject(err);
-        else if (row) resolve(row.vehicle_id);
-        else {
-          const newVehicleId = await addVehicle(license_plate, owner_name, contact_info);
-          resolve(newVehicleId);
-        }
+    // Convert inspection values to integers
+    if (req.body.inspection) {
+      Object.keys(req.body.inspection).forEach(key => {
+        req.body.inspection[key] = {
+          value: parseInt(req.body.inspection[key], 10)
+        };
       });
-    });
+    }
 
-    // Then, add the vehicle status with inspection details
-    const statusId = await addCarstatus(
-      vehicleId,
-      status_type,
-      JSON.stringify({
-        details,
-        inspection,
-        comments,
-        revision: {
-          oil_type: revision_oil_type,
-          torque: revision_torque,
-          oil_volume: revision_oil_volume,
-          brake_disc_thickness_front,
-          brake_disc_thickness_rear
-        }
-      }),
-      severity_level,
-      repair_status,
-      cost,
-      req.session.user.id
-    );
-
-    res.redirect(`/report/${statusId}`);
+    const reportId = await saveInspectionReport(req.body, req.user.user_id);
+    res.redirect(`/report/${reportId}`);
   } catch (error) {
     logger.error('Error submitting form:', error);
     res.status(500).render('form', { 
       data: req.body, 
-      errors: [{ msg: 'An error occurred while submitting the form.' }] 
+      errors: [{ msg: 'Une erreur est survenue lors de l\'enregistrement.' }],
+      inspectionItems: req.inspectionItems || []
     });
   }
 });
