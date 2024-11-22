@@ -1,15 +1,16 @@
 ﻿<%- include('partials/header', {
   title: 'Tableau de bord',
   showNav: true,
-  currentPage: 'dashboard'
+  currentPage: 'dashboard',
+  isAdmin: user.role === 'admin'
 }) %>
 
 <div class="content-wrapper">
-  <!-- Welcome Section -->
+  <!-- Welcome Section
   <div class="welcome-section">
     <h2>
       <i class="fas fa-user-circle"></i>
-      Bienvenue, <%= locals.user ? locals.user.user_name : 'Utilisateur' %>
+      Bienvenue, <%= locals.user ? locals.user.username : 'Utilisateur' %>
     </h2>
     
     <div class="quick-stats">
@@ -35,22 +36,7 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Alerts -->
-  <% if (locals.success && locals.success.length > 0) { %>
-    <div class="alert alert-success fade-out">
-      <i class="fas fa-check-circle"></i>
-      <%= Array.isArray(success) ? success[0] : success %>
-    </div>
-  <% } %>
-
-  <% if (locals.error && locals.error.length > 0) { %>
-    <div class="alert alert-danger fade-out">
-      <i class="fas fa-exclamation-circle"></i>
-      <%= Array.isArray(error) ? error[0] : error %>
-    </div>
-  <% } %>
+  </div> -->
 
   <!-- Main Content -->
   <section class="reports-section">
@@ -60,14 +46,6 @@
         <div class="search-box">
           <i class="fas fa-search"></i>
           <input type="text" id="searchReports" placeholder="Rechercher un rapport...">
-        </div>
-        <div class="sort-box">
-          <select id="sortReports" class="form-control">
-            <option value="date-desc">Date (Plus récent)</option>
-            <option value="date-asc">Date (Plus ancien)</option>
-            <option value="client">Client (A-Z)</option>
-            <option value="plate">Immatriculation (A-Z)</option>
-          </select>
         </div>
       </div>
     </div>
@@ -81,12 +59,16 @@
               Immatriculation
             </th>
             <th>
-              <i class="fas fa-calendar"></i>
-              Date
-            </th>
-            <th>
               <i class="fas fa-user"></i>
               Client
+            </th>
+            <th>
+              <i class="fas fa-car"></i>
+              Véhicule
+            </th>
+            <th>
+              <i class="fas fa-calendar"></i>
+              Date
             </th>
             <th>
               <i class="fas fa-cog"></i>
@@ -99,8 +81,9 @@
             <% reports.forEach(function(report) { %>
               <tr class="report-row" data-report="<%= JSON.stringify(report) %>">
                 <td class="license-plate"><%= report.license_plate %></td>
-                <td><%= new Date(report.date).toLocaleDateString('fr-FR') %></td>
                 <td><%= report.client_name %></td>
+                <td><%= report.brand && report.model ? `${report.brand} | ${report.model}` : 'N/A' %></td>
+                <td><%= new Date(report.created_at).toLocaleDateString('fr-FR') %></td>
                 <td>
                   <div class="action-buttons">
                     <a href="/report/<%= report.report_id %>" 
@@ -122,7 +105,7 @@
                     <button class="action-btn delete"
                             data-report-id="<%= report.report_id %>"
                             title="Supprimer"
-                            onclick="confirmDelete('<%= report.report_id %>')">
+                            >
                       <i class="fas fa-trash"></i>
                     </button>
                   </div>

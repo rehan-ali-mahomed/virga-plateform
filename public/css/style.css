@@ -71,7 +71,7 @@
   
   label {
     display: block;
-    margin-top: 15px;
+    margin: 0;
     font-weight: bold;
     color: #555;
   }
@@ -82,8 +82,7 @@
   select,
   textarea {
     width: 100%;
-    /*padding: 10px;*/
-    margin-top: 5px;
+    padding: 3px;
     border: 1px solid #ccc;
     border-radius: 4px;
   }
@@ -103,7 +102,6 @@
   }
   
   button {
-    margin-top: 30px;
     padding: 15px 30px;
     background-color: #4a90e2;
     border: none;
@@ -270,7 +268,7 @@
 
   /* Header styling */
   header img {
-    max-height: 60px;
+    max-height: 70px;
     width: auto;
   }
 
@@ -284,9 +282,6 @@
   }
 
   /* Add these new styles for category headers */
-  .category-header {
-    margin-bottom: 1rem;
-  }
 
   .category-title {
     font-size: 1rem;
@@ -336,6 +331,7 @@
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #e9ecef;
     overflow: hidden;
   }
 
@@ -381,7 +377,7 @@
 
   .custom-control-label::before,
   .custom-control-label::after {
-    top: 0.25rem;
+    top: 0.39rem;
   }
 
   .custom-control:hover {
@@ -655,13 +651,6 @@
     padding: 0.1rem 0;
   }
 
-  .custom-control-label::before,
-  .custom-control-label::after {
-    width: 1rem;
-    height: 1rem;
-    top: 0.2rem;
-  }
-
   /* Optimize button spacing */
   .text-center.mb-5 {
     margin-bottom: 1.5rem !important;
@@ -683,12 +672,6 @@
   textarea.form-control {
     min-height: 80px;
     resize: vertical;
-  }
-
-  /* Update inspection category styling */
-  .inspection-category {
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
   }
 
   .category-title {
@@ -755,17 +738,6 @@
     line-height: 1.5;
     border-radius: 0.2rem;
   }
-
-  .modal-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-  }
-
-  .modal-footer {
-    background-color: #f8f9fa;
-    border-top: 1px solid #dee2e6;
-  }
-
   /* Floating action button styles */
   .btn-lg.rounded-circle {
     display: flex;
@@ -969,7 +941,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .section-header h3 {
@@ -983,7 +955,7 @@
 
   .search-box {
     position: relative;
-    width: 300px;
+    width: auto;
   }
 
   .search-box i {
@@ -995,7 +967,7 @@
   }
 
   .search-box input {
-    width: 100%;
+    width: auto;
     padding: 0.5rem 1rem 0.5rem 2.5rem;
     border: 1px solid #dee2e6;
     border-radius: 6px;
@@ -1136,6 +1108,13 @@
   .modal-title i {
     color: #dc2626;
     margin-right: 0.5rem;
+  }
+
+  .modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
   }
 
   /* Responsive adjustments */
@@ -1312,11 +1291,8 @@
   .info-item {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
-  }
-
-  .info-item:last-child {
-    margin-bottom: 0;
+    margin-bottom: 9px;
+    padding-bottom: 0.75rem;
   }
 
   .info-item .label {
@@ -1441,7 +1417,7 @@
   }
 
   .page-container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 2rem;
     min-height: 100vh;
@@ -1468,12 +1444,13 @@
   .header-brand {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
   .header-logo {
-    width: 60px;
+    width: auto;
     height: auto;
+    border-radius: 10px;
   }
 
   .header-info h1 {
@@ -1727,12 +1704,6 @@
     padding: 0.75rem;
   }
 
-  .inspection-category {
-    background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  }
-
   .category-header {
     background: #f8f9fa;
     padding: 0.5rem 0.75rem;
@@ -1772,8 +1743,9 @@
 
   .custom-radio-group {
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    flex-direction: row;
+    /* align-items: center; */
+    justify-content: space-between;
   }
 
   .control-label {
@@ -1822,8 +1794,8 @@
   }
 
   .option-icon {
-    width: 16px;
-    height: 16px;
+    width: 26px;
+    height: 26px;
     object-fit: contain;
   }
 
@@ -1840,14 +1812,13 @@
 
   .radio-options {
     display: flex;
-    gap: 12px;
+    gap: 23px;
     flex-wrap: wrap;
   }
 
   .custom-control-inline {
     display: flex;
     align-items: center;
-    margin-right: 1rem;
   }
 
   .custom-control-label {
@@ -1855,4 +1826,10 @@
     align-items: center;
     gap: 4px;
     cursor: pointer;
+  }
+
+  .search-box input:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
   }

@@ -4,8 +4,11 @@ const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.printf(({ timestamp, level, message }) => {
-      return `${timestamp} ${level}: ${message}`;
+    winston.format.json(),
+    winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+      const meta = Object.keys(metadata).length ? 
+        `\n${JSON.stringify(metadata, null, 2)}` : '';
+      return `${timestamp} ${level}: ${message}${meta}`;
     })
   ),
   transports: [

@@ -4,12 +4,15 @@ node_modules/
 
 src/services/archive/
 
-# Ignore generated PDFs
-/generated_pdfs/*.pdf
-
 # Ignore session database
 sessions.db
 
 # Ignore main database
 database.db
 database.sqlite
+
+# Ignore SSL certificate
+ssl/
+
+# Ignore generated reports
+generated_reports/

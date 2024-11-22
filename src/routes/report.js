@@ -1,11 +1,27 @@
 ﻿const express = require('express');
 const router = express.Router();
 const { isAuthenticated } = require('../middleware/auth');
-const { getDatabase } = require('../config/database');
+const { getDatabase, getUser } = require('../config/database');
 const { generatePDF } = require('../services/pdfGenerator');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+
+const INSPECTION_ICONS = {
+  0: { path: 'img/icon_conforme.svg', label: 'Conforme' },
+  1: { path: 'img/icon_not_conforme.svg', label: 'Non conforme' },
+  2: { path: 'img/icon_unverified.svg', label: 'Non vérifié' },
+  3: { path: 'img/icon_to_plan.svg', label: 'À planifier' }
+};
+
+const getInspectionLabeledIcon = (value) => {
+  const iconConfig = INSPECTION_ICONS[value] || INSPECTION_ICONS[2]; // Default to unverified
+  return {
+    icon_relative_path: `/static/${iconConfig.path}`,
+    icon_absolute_path: path.join(process.cwd(), 'public', iconConfig.path),
+    label: iconConfig.label
+  };
+};
 
 // Core SQL query for report data
 const getReportQuery = `
@@ -25,18 +41,17 @@ const getReportQuery = `
     c.email as client_email,
     c.address as client_address,
     c.is_company,
-    u.username as technician_name,
+    u.username as username,
     GROUP_CONCAT(json_object(
       'item_id', ii.item_id,
       'name', ii.name,
       'category', ii.category,
-      'type', ii.type,
-      'description', ii.description
+      'type', ii.type
     )) as inspection_items
   FROM InspectionReports ir
   JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
   JOIN Customers c ON v.customer_id = c.customer_id
-  LEFT JOIN Users u ON ir.technician_id = u.user_id
+  LEFT JOIN Users u ON ir.created_by = u.user_id
   LEFT JOIN InspectionItems ii ON ii.is_active = true 
     AND JSON_EXTRACT(ir.inspection_results, CONCAT('$.', ii.item_id)) IS NOT NULL
   WHERE ir.report_id = ?
@@ -51,8 +66,8 @@ const parseInspectionResults = (row) => {
 
   try {
     logger.debug('Parsing inspection data:', {
-      results: row.inspection_results,
-      items: row.inspection_items
+      results: row.inspection_results.length,
+      items: row.inspection_items.split(',').length
     });
     
     // Parse the JSON strings
@@ -61,30 +76,28 @@ const parseInspectionResults = (row) => {
     
     // Map items with their values from inspection_results
     row.inspection_results = items.map(item => {
-      const value = inspectionResults[item.item_id];
-      
-      logger.debug(`Mapping item ${item.item_id}:`, {
-        itemName: item.name,
-        value: value,
-        defaultValue: 'Non Vérifier'
-      });
+      const item_value = inspectionResults[item.item_id];
+      const labeledIcon = getInspectionLabeledIcon(item_value);
+
+      // Log each item mapping with structured data
+      logger.debug(`Mapping inspection item ${item.name} : ${labeledIcon.label} [${labeledIcon.icon_absolute_path}]`);
 
       return {
         item_id: item.item_id,
         name: item.name,
         category: item.category,
         type: item.type || 'options',
-        // Only use 'Non Vérifier' if value is undefined or null
-        value: value !== undefined && value !== null ? value : 'Non Vérifier',
-        description: item.description
+        value: labeledIcon
       };
     });
 
     return row;
   } catch (error) {
-    logger.error('Error parsing inspection results:', { 
-      error: error.message,
-      rawData: {
+    logger.error('Failed to parse inspection results', { 
+      error_name: error.name,
+      error_message: error.message,
+      stack: error.stack,
+      raw_data: {
         inspection_results: row.inspection_results,
         inspection_items: row.inspection_items
       }
@@ -113,10 +126,13 @@ const getReport = async (reportId) => {
   });
 };
 
-const handlePDFStream = (pdfPath, res, fileName = null, download = false) => {
+const handlePDFStream = (pdfPath, res, customer_name, license_plate, formatedDate, download = false) => {
   const fileStream = fs.createReadStream(pdfPath);
+  const fileName = `${customer_name} - ${license_plate} - ${formatedDate}.pdf`;
   
-  res.setHeader('Content-Disposition', download ? `attachment; filename="${fileName}"` : `inline; filename="${fileName}"`);
+  res.setHeader('Content-Disposition', download ?
+     `attachment; filename="${fileName}"` : 
+     `inline; filename="${fileName}"`);
 
   
   res.setHeader('Content-Type', 'application/pdf');
@@ -144,7 +160,8 @@ router.get('/preview/:id', isAuthenticated, async (req, res) => {
 
     formatDates(report);
     const pdfPath = await generatePDF(report);
-    handlePDFStream(pdfPath, res, `${report.license_plate}.pdf`);
+    const formatedDate = report.created_at.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+    handlePDFStream(pdfPath, res, report.client_name, report.license_plate, formatedDate);
   } catch (error) {
     logger.error(`Error in preview route (ID: ${req.params.id}):`, error);
     res.status(500).json({ error: 'Error generating preview' });
@@ -160,10 +177,9 @@ router.get('/download/:id', isAuthenticated, async (req, res) => {
 
     formatDates(report);
     const pdfPath = await generatePDF(report);
-    const safeDate = report.date.toISOString().split('T')[0];
-    const fileName = `rapport_${report.license_plate}_${safeDate}.pdf`;
+    const formatedDate = report.created_at.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
     
-    handlePDFStream(pdfPath, res, fileName, true);
+    handlePDFStream(pdfPath, res, report.client_name, report.license_plate, formatedDate, true);
   } catch (error) {
     logger.error(`Error generating PDF for download (ID: ${req.params.id}):`, error);
     res.status(500).send('Error generating PDF');
@@ -212,10 +228,15 @@ router.get('/:id', isAuthenticated, async (req, res) => {
       });
     }
 
+    const username = await getUser(report.created_by);
+
+    logger.info(`Username: ${username} with id: ${report.created_by}`);
+
     res.render('report', { 
       report, 
       errors: [],
-      user: req.session.user
+      user: req.session.user,
+      username: username
     });
   } catch (error) {
     logger.error('Error fetching report:', error);

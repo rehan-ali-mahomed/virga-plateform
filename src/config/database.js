@@ -25,14 +25,14 @@ const initializeDatabase = () => {
     ensureDirectories();
     
     const dbPath = path.join(process.cwd(), 'src', 'db', 'database.sqlite');
-    logger.info(`Attempting to create/open database at: ${dbPath}`);
+    logger.debug(`Attempting to create/open database at: ${dbPath}`);
 
     db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
       if (err) {
         logger.error('Error connecting to the database:', err);
         reject(err);
       } else {
-        logger.info(`Connected to the database at ${dbPath}`);
+        logger.debug(`Connected to the database at ${dbPath}`);
         createTables()
           .then(() => createDefaultUser())
           .then(() => seedInspectionItems())
@@ -51,7 +51,7 @@ const createTables = () => {
         user_id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE,
-        role TEXT CHECK(role IN ('Technician', 'Manager', 'Customer Service', 'Admin')) NOT NULL,
+        role TEXT NOT NULL,
         password TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
@@ -87,9 +87,8 @@ const createTables = () => {
         item_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         type TEXT CHECK(type IN ('checkbox', 'text', 'number', 'options')) NOT NULL,
-        category TEXT CHECK(category IN ('interior', 'engine', 'front', 'rear', 'accessories', 'work_completed')) NOT NULL,
+        category TEXT NOT NULL,
         is_active BOOLEAN DEFAULT true,
-        description TEXT,
         options TEXT,
         display_order INTEGER
       )`);
@@ -98,15 +97,15 @@ const createTables = () => {
       db.run(`CREATE TABLE IF NOT EXISTS InspectionReports (
         report_id TEXT PRIMARY KEY,
         vehicle_id TEXT NOT NULL,
-        date DATE NOT NULL,
-        comments TEXT,
-        inspection_results JSON NOT NULL DEFAULT '{}',
-        technician_id TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         mileage INTEGER,
+        comments TEXT,
         next_technical_inspection DATE,
+        number_of_filters INTEGER,
+        inspection_results JSON NOT NULL DEFAULT '{}',
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (vehicle_id) REFERENCES Vehicules(vehicle_id),
-        FOREIGN KEY (technician_id) REFERENCES Users(user_id)
+        FOREIGN KEY (created_by) REFERENCES Users(user_id)
       )`, (err) => {
         if (err) {
           logger.error('Error creating tables:', err);
@@ -129,7 +128,7 @@ const createDefaultUser = async () => {
       if (err) {
         reject(err);
       } else if (row) {
-        logger.info('Default user already exists');
+        logger.debug(`Default user ${defaultUsername} already exists`);
         resolve();
       } else {
         const userId = uuidv4();
@@ -141,12 +140,12 @@ const createDefaultUser = async () => {
             role, 
             password
           ) VALUES (?, ?, ?, ?, ?)`, 
-          [userId, defaultUsername, 'admin@example.com', 'Admin', hashedPassword], 
+          [userId, defaultUsername, 'admin@example.com', 'admin', hashedPassword], 
           (err) => {
             if (err) {
               reject(err);
             } else {
-              logger.info('Default user created');
+              logger.debug(`Default user ${defaultUsername} created`);
               resolve();
             }
           }
@@ -222,6 +221,15 @@ const addUser = (userName, email, role, password) => {
   });
 };
 
+const getUser = (userId) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT username FROM Users WHERE user_id = ?', [userId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row.username);
+    });
+  });
+};
+
 // Add function to seed default inspection items
 const seedInspectionItems = () => {
   const defaultOptions = JSON.stringify([
@@ -246,62 +254,66 @@ const seedInspectionItems = () => {
 
       const defaultItems = [
         // Interior items
-        { category: 'interior', name: 'Antivol de roue bon état', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'interior', name: 'Démarreur', type: 'options', options: defaultOptions, display_order: 2 },
-        { category: 'interior', name: 'Témoin tableau de bord', type: 'options', options: defaultOptions, display_order: 3 },
-        { category: 'interior', name: 'Rétroviseur', type: 'options', options: defaultOptions, display_order: 4 },
-        { category: 'interior', name: 'Klaxon', type: 'options', options: defaultOptions, display_order: 5 },
-        { category: 'interior', name: 'Frein à main', type: 'options', options: defaultOptions, display_order: 6 },
-        { category: 'interior', name: 'Essuie glace', type: 'options', options: defaultOptions, display_order: 7 },
-        { category: 'interior', name: 'Eclairage', type: 'options', options: defaultOptions, display_order: 8 },
-        { category: 'interior', name: 'Jeux au volant', type: 'options', options: defaultOptions, display_order: 9 },
+        { category: 'Intérieur', name: 'Antivol de roues', type: 'options', options: defaultOptions, display_order: 1 },
+        { category: 'Intérieur', name: 'Démarreur', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Intérieur', name: 'Voyants tableau de bord', type: 'options', options: defaultOptions, display_order: 3 },
+        { category: 'Intérieur', name: 'Rétroviseurs', type: 'options', options: defaultOptions, display_order: 4 },
+        { category: 'Intérieur', name: 'Klaxon', type: 'options', options: defaultOptions, display_order: 5 },
+        { category: 'Intérieur', name: 'Frein à main', type: 'options', options: defaultOptions, display_order: 6 },
+        { category: 'Intérieur', name: 'Essuie-glaces', type: 'options', options: defaultOptions, display_order: 7 },
+        { category: 'Intérieur', name: 'Éclairage', type: 'options', options: defaultOptions, display_order: 8 },
+        { category: 'Intérieur', name: 'Jeu au volant', type: 'options', options: defaultOptions, display_order: 9 },
 
         // Engine items
-        { category: 'engine', name: 'Teste batterie/alternateur', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'engine', name: 'Plaque immat AV', type: 'options', options: defaultOptions, display_order: 2 },
-        { category: 'engine', name: 'Fuite boite', type: 'options', options: defaultOptions, display_order: 3 },
-        { category: 'engine', name: 'Fuite moteur', type: 'options', options: defaultOptions, display_order: 4 },
-        { category: 'engine', name: 'Supports moteur', type: 'options', options: defaultOptions, display_order: 5 },
-        { category: 'engine', name: 'Liquide de frein', type: 'options', options: defaultOptions, display_order: 6 },
-        { category: 'engine', name: 'Filtre à air', type: 'options', options: defaultOptions, display_order: 7 },
-        { category: 'engine', name: 'Courroie accessoire', type: 'options', options: defaultOptions, display_order: 8 },
+        { category: 'Moteur', name: 'Niveau d\'huile moteur', type: 'options', options: defaultOptions, display_order: 1 },
+        { category: 'Moteur', name: 'Niveau refroidissement', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Moteur', name: 'Niveau liquide de frein', type: 'options', options: defaultOptions, display_order: 3 },
+        { category: 'Moteur', name: 'Batterie & Alternateur', type: 'options', options: defaultOptions, display_order: 4 },
+        { category: 'Moteur', name: 'Fuite boîte de vitesses', type: 'options', options: defaultOptions, display_order: 6 },
+        { category: 'Moteur', name: 'Fuite de moteur', type: 'options', options: defaultOptions, display_order: 7 },
+        { category: 'Moteur', name: 'Supports moteur', type: 'options', options: defaultOptions, display_order: 8 },
+        { category: 'Moteur', name: 'Liquide de frein', type: 'options', options: defaultOptions, display_order: 6 },
+        { category: 'Moteur', name: 'Filtre à air', type: 'options', options: defaultOptions, display_order: 7 },
+        { category: 'Moteur', name: 'Courroie accessoire', type: 'options', options: defaultOptions, display_order: 8 },
+
 
         // Front items
-        { category: 'front', name: 'Roulement', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'front', name: 'Pneus avant', type: 'options', options: defaultOptions, display_order: 2 },
-        { category: 'front', name: 'Parallélisme', type: 'options', options: defaultOptions, display_order: 3 },
-        { category: 'front', name: 'Disque avant', type: 'options', options: defaultOptions, display_order: 4 },
-        { category: 'front', name: 'Plaquettes avant', type: 'options', options: defaultOptions, display_order: 5 },
-        { category: 'front', name: 'Amortisseur avant', type: 'options', options: defaultOptions, display_order: 6 },
-        { category: 'front', name: 'Biellette barre stab', type: 'options', options: defaultOptions, display_order: 7 },
-        { category: 'front', name: 'Direction complet', type: 'options', options: defaultOptions, display_order: 8 },
-        { category: 'front', name: 'Cardans', type: 'options', options: defaultOptions, display_order: 9 },
-        { category: 'front', name: 'Triangles avant', type: 'options', options: defaultOptions, display_order: 10 },
-        { category: 'front', name: 'Flexible de frein', type: 'options', options: defaultOptions, display_order: 11 },
+        { category: 'Direction Avant', name: 'Roulement AV', type: 'options', options: defaultOptions, display_order: 1 },
+        { category: 'Direction Avant', name: 'Pneus AV', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Direction Avant', name: 'Parallélisme', type: 'options', options: defaultOptions, display_order: 3 },
+        { category: 'Direction Avant', name: 'Disques de frein AV', type: 'options', options: defaultOptions, display_order: 4 },
+        { category: 'Direction Avant', name: 'Plaquettes de frein AV', type: 'options', options: defaultOptions, display_order: 5 },
+        { category: 'Direction Avant', name: 'Amortisseur AV', type: 'options', options: defaultOptions, display_order: 6 },
+        { category: 'Direction Avant', name: 'Biellette barre stab', type: 'options', options: defaultOptions, display_order: 7 },
+        { category: 'Direction Avant', name: 'Direction complète', type: 'options', options: defaultOptions, display_order: 8 },
+        { category: 'Direction Avant', name: 'Cardans', type: 'options', options: defaultOptions, display_order: 9 },
+        { category: 'Direction Avant', name: 'Triangles AV', type: 'options', options: defaultOptions, display_order: 10 },
+        { category: 'Direction Avant', name: 'Flexible de frein AV', type: 'options', options: defaultOptions, display_order: 11 },
 
         // Rear items
-        { category: 'rear', name: 'Pneus AR', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'rear', name: 'Frein AR', type: 'options', options: defaultOptions, display_order: 2 },
-        { category: 'rear', name: 'Roulement AR', type: 'options', options: defaultOptions, display_order: 3 },
-        { category: 'rear', name: 'Flexible AR', type: 'options', options: defaultOptions, display_order: 4 },
-        { category: 'rear', name: 'Amortisseur AR', type: 'options', options: defaultOptions, display_order: 5 },
-        { category: 'rear', name: 'Silent Bloc AR', type: 'options', options: defaultOptions, display_order: 6 },
+        { category: 'Direction Arrière', name: 'Pneus AR', type: 'options', options: defaultOptions, display_order: 1 },
+        { category: 'Direction Arrière', name: 'Freins AR', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Direction Arrière', name: 'Roulement AR', type: 'options', options: defaultOptions, display_order: 3 },
+        { category: 'Direction Arrière', name: 'Flexible de frein AR', type: 'options', options: defaultOptions, display_order: 4 },
+        { category: 'Direction Arrière', name: 'Amortisseur AR', type: 'options', options: defaultOptions, display_order: 5 },
+        { category: 'Direction Arrière', name: 'Silent Blocs AR', type: 'options', options: defaultOptions, display_order: 6 },
 
         // Accessories items
-        { category: 'accessories', name: 'Plaque immat AR', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'accessories', name: 'Antenne radio', type: 'options', options: defaultOptions, display_order: 2 },
-        { category: 'accessories', name: 'Roue de secours', type: 'options', options: defaultOptions, display_order: 3 },
-        { category: 'accessories', name: 'Gilet/Triangle secu', type: 'options', options: defaultOptions, display_order: 4 },
-        { category: 'accessories', name: 'Crique / Clé roue', type: 'options', options: defaultOptions, display_order: 5 },
+        { category: 'Accessoires', name: 'Plaque immatriculation AV', type: 'options', options: defaultOptions, display_order: 1 },
+        { category: 'Accessoires', name: 'Plaque immatriculation AR', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Accessoires', name: 'Antenne radio', type: 'options', options: defaultOptions, display_order: 3 },
+        { category: 'Accessoires', name: 'Roue de secours', type: 'options', options: defaultOptions, display_order: 4 },
+        { category: 'Accessoires', name: 'Gilet & Triangle', type: 'options', options: defaultOptions, display_order: 5 },
+        { category: 'Accessoires', name: 'Crique / Clé roue', type: 'options', options: defaultOptions, display_order: 6 },
 
         // Work completed items
-        { category: 'work_completed', name: 'Mise a zero vidange', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'work_completed', name: 'Roue serrer au couple', type: 'options', options: defaultOptions, display_order: 2 },
-        { category: 'work_completed', name: 'Etiquette de vidange', type: 'options', options: defaultOptions, display_order: 3 },
-        { category: 'work_completed', name: 'Etiquette distribution', type: 'options', options: defaultOptions, display_order: 4 },
-        { category: 'work_completed', name: 'Etiquette plaquette', type: 'options', options: defaultOptions, display_order: 5 },
-        { category: 'work_completed', name: 'Parfum', type: 'options', options: defaultOptions, display_order: 6 },
-        { category: 'work_completed', name: 'Nettoyage', type: 'options', options: defaultOptions, display_order: 7 }
+        { category: 'Travaux terminés', name: 'Mise à zéro vidange', type: 'options', options: defaultOptions, display_order: 1 },
+        { category: 'Travaux terminés', name: 'Serrage des roues au couple', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Travaux terminés', name: 'Etiquette de vidange', type: 'options', options: defaultOptions, display_order: 3 },
+        { category: 'Travaux terminés', name: 'Etiquette distribution', type: 'options', options: defaultOptions, display_order: 4 },
+        { category: 'Travaux terminés', name: 'Etiquette plaquettes', type: 'options', options: defaultOptions, display_order: 5 },
+        { category: 'Travaux terminés', name: 'Parfum intérieur', type: 'options', options: defaultOptions, display_order: 6 },
+        { category: 'Travaux terminés', name: 'Nettoyage', type: 'options', options: defaultOptions, display_order: 7 }
       ];
 
       // Use serialize to ensure sequential insertion
@@ -310,8 +322,8 @@ const seedInspectionItems = () => {
         
         const stmt = db.prepare(`
           INSERT INTO InspectionItems (
-            item_id, name, type, category, is_active, description, options, display_order
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            item_id, name, type, category, is_active, options, display_order
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
         );
 
         defaultItems.forEach(item => {
@@ -321,7 +333,6 @@ const seedInspectionItems = () => {
             item.type,
             item.category,
             true,
-            null,
             item.options,
             item.display_order
           ]);
@@ -357,7 +368,7 @@ const getInspectionItems = () => {
 };
 
 // Add function to save inspection report
-const saveInspectionReport = (reportData, technicianId) => {
+const saveInspectionReport = (reportData, userId) => {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
     const reportId = uuidv4();
@@ -401,27 +412,26 @@ const saveInspectionReport = (reportData, technicianId) => {
             reportData.first_registration_date || null
           ], function(err) {
             if (err) throw err;
-
             // 3. Créer le rapport d'inspection
             db.run(`INSERT INTO InspectionReports (
               report_id,
               vehicle_id,
-              date,
+              mileage,
               comments,
+              next_technical_inspection,
+              number_of_filters,
               inspection_results,
-              technician_id,
-              created_at,
-              mileage,  
-              next_technical_inspection
-            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)`, [
+              created_by,
+              created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`, [
               reportId,
               vehicleId,
-              reportData.date,
-              reportData.comments || null,
-              JSON.stringify(reportData.inspection || '{}'),
-              technicianId,
               reportData.mileage || null,
-              reportData.next_technical_inspection || null
+              reportData.comments || null,
+              reportData.next_technical_inspection || null,
+              reportData.number_of_filters || null,
+              JSON.stringify(reportData.inspection || '{}'),
+              userId
             ], function(err) {
               if (err) throw err;
 
@@ -459,7 +469,7 @@ const getInspectionReport = (reportId) => {
         v.brake_disc_thickness_front,
         v.brake_disc_thickness_rear,
         v.first_registration_date,
-        u.username as technician_name,
+        u.username as username,
         c.name as client_name,
         c.phone as client_phone,
         c.email as client_email,
@@ -467,7 +477,7 @@ const getInspectionReport = (reportId) => {
         c.is_company
       FROM InspectionReports ir
       LEFT JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
-      LEFT JOIN Users u ON ir.technician_id = u.user_id
+      LEFT JOIN Users u ON ir.created_by = u.user_id
       LEFT JOIN Customers c ON v.customer_id = c.customer_id
       WHERE ir.report_id = ?
     `, [reportId], (err, reportData) => {
@@ -534,5 +544,6 @@ module.exports = {
   addUser,
   getInspectionItems,
   saveInspectionReport,
-  getInspectionReport
+  getInspectionReport,
+  getUser
 };

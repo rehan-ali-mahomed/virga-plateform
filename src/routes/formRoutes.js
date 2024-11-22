@@ -10,7 +10,8 @@ router.get('/', isAuthenticated, async (req, res) => {
     res.render('form', { 
       errors: null, 
       data: {}, 
-      inspectionItems 
+      inspectionItems,
+      user: req.session.user
     });
   } catch (error) {
     res.status(500).render('error', { 
@@ -24,7 +25,8 @@ router.post('/submit', isAuthenticated, async (req, res) => {
   try {
     const inspectionItems = await getInspectionItems();
     req.inspectionItems = inspectionItems;
-    await submitForm(req, res);
+    const userId = req.user.id;
+    await submitForm(req, res, userId);
   } catch (error) {
     res.status(500).render('form', {
       data: req.body,

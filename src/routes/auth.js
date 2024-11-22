@@ -1,6 +1,6 @@
 ﻿const express = require('express');
 const bcrypt = require('bcrypt');
-const { getDatabase, addUser } = require('../config/database');
+const { getDatabase } = require('../config/database');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -22,7 +22,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM Users WHERE user_name = ?', [username], (err, row) => {
+      db.get('SELECT * FROM Users WHERE username = ?', [username.toLowerCase()], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -45,10 +45,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    req.session.user = { 
+    req.session.user = {
       id: user.user_id, 
-      username: user.user_name, 
-      role: user.role 
+      username: user.username, 
+      role: user.role.toLowerCase()
     };
     res.redirect('/dashboard');
   } catch (err) {
@@ -66,17 +66,6 @@ router.get('/logout', (req, res) => {
     if (err) logger.error('Session destruction error:', err);
     res.redirect('/login');
   });
-});
-
-router.post('/register', async (req, res) => {
-  try {
-    const { userName, email, phone, role, specialization, password } = req.body;
-    const userId = await addUser(userName, email, phone, role, specialization, password);
-    // ... rest of the registration logic
-  } catch (error) {
-    logger.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
-  }
 });
 
 module.exports = router;

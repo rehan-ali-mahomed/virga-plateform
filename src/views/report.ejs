@@ -1,7 +1,8 @@
 <%- include('partials/header', {
   title: 'Détails du Rapport',
   showNav: true,
-  currentPage: 'report'
+  currentPage: 'report',
+  isAdmin: user.role === 'admin'
 }) %>
 
 <div class="content-wrapper">
@@ -9,119 +10,156 @@
     <!-- Header Section -->
     <div class="card mb-3">
       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h2 class="h5 mb-0"><i class="fas fa-file-alt"></i> DÉTAILS DU RAPPORT</h2>
+        <div>
+          <h2 class="h5 mb-0"><i class="fas fa-file-alt"></i> DÉTAILS DU RAPPORT</h2>
+          <div class="text-white-50 small font-italic mt-2" style="font-family: 'Open Sans', sans-serif;">
+            <i class="far fa-calendar-alt me-1"></i> Créé le <%= report.created_at %>    <br> <i class="far fa-user-circle ms-1"></i> Par : <%= username %>
+          </div>
+        </div>
         <div class="report-actions">
-          <a href="/report/download/<%= report.report_id %>" class="btn btn-light btn-sm">
-            <i class="fas fa-download"></i> Télécharger PDF
-          </a>
-          <a href="/dashboard" class="btn btn-light btn-sm ml-2">
-            <i class="fas fa-arrow-left"></i> Retour
-          </a>
+          <div class="floating-menu">
+            <a href="/report/preview/<%= report.report_id %>" 
+               class="btn btn-light btn-sm mr-2"
+               target="_blank">
+              <i class="fas fa-eye"></i> Aperçu
+            </a>
+            <a href="/report/download/<%= report.report_id %>" 
+               class="btn btn-light btn-sm">
+              <i class="fas fa-download"></i> Télécharger
+            </a>
+            <a href="/dashboard" class="btn btn-light btn-sm ml-2">
+              <i class="fas fa-arrow-left"></i> Retour
+            </a>
+          </div>
         </div>
+        
       </div>
     </div>
 
-    <!-- Client Information -->
-    <div class="card mb-3">
-      <div class="card-header bg-primary text-white">
-        <h2 class="h5 mb-0"><i class="fas fa-user-circle"></i> INFORMATIONS CLIENT</h2>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="far fa-user"></i> Nom :</label>
-              <div class="form-control-static"><%= report.client_name %></div>
-            </div>
+    <!-- Main Info Section -->
+    <div class="info-container row">
+      <!-- Client Information - Left Column -->
+      <div class="col-lg-4 col-md-12 mb-3">
+        <div class="card h-100">
+          <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0"><i class="fas fa-user-circle"></i> INFORMATIONS CLIENT</h2>
           </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-phone"></i> Téléphone :</label>
-              <div class="form-control-static"><%= report.client_phone %></div>
-            </div>
-          </div>
-          <% if (report.client_email) { %>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-envelope"></i> Email :</label>
-              <div class="form-control-static"><%= report.client_email %></div>
-            </div>
-          </div>
-          <% } %>
-          <% if (report.client_address) { %>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-map-marker-alt"></i> Adresse :</label>
-              <div class="form-control-static"><%= report.client_address %></div>
-            </div>
-          </div>
-          <% } %>
-        </div>
-      </div>
-    </div>
-
-    <!-- Vehicle Information -->
-    <div class="card mb-3">
-      <div class="card-header bg-primary text-white">
-        <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-car"></i> Immatriculation :</label>
-              <div class="form-control-static"><%= report.license_plate %></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-calendar-alt"></i> Mise en circulation :</label>
-              <div class="form-control-static">
-                <%= report.first_registration_date ? new Date(report.first_registration_date + '-01').toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' %>
+          <div class="card-body">
+            <div class="client-info">
+              <div class="info-item">
+                <label><i class="far fa-user"></i> Nom :</label>
+                <div class="form-control-static"><%= report.client_name %></div>
               </div>
+              <div class="info-item">
+                <label><i class="fas fa-phone"></i> Téléphone :</label>
+                <div class="form-control-static"><%= report.client_phone %></div>
+              </div>
+              <% if (report.client_email) { %>
+              <div class="info-item">
+                <label><i class="fas fa-envelope"></i> Email :</label>
+                <div class="form-control-static"><%= report.client_email %></div>
+              </div>
+              <% } %>
+              <% if (report.client_address) { %>
+              <div class="info-item">
+                <label><i class="fas fa-map-marker-alt"></i> Adresse :</label>
+                <div class="form-control-static"><%= report.client_address %></div>
+              </div>
+              <% } %>
             </div>
           </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-tag"></i> Marque :</label>
-              <div class="form-control-static"><%= report.brand || 'N/A' %></div>
-            </div>
+        </div>
+      </div>
+
+      <!-- Vehicle Information - Right Column -->
+      <div class="col-lg-8 col-md-12 mb-3">
+        <div class="card h-100">
+          <div class="card-header bg-primary text-white">
+            <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
           </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-car-side"></i> Modèle :</label>
-              <div class="form-control-static"><%= report.model || 'N/A' %></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-cogs"></i> Code moteur :</label>
-              <div class="form-control-static"><%= report.engine_code || 'N/A' %></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-oil-can"></i> Type d'huile :</label>
-              <div class="form-control-static"><%= report.revision_oil_type || 'N/A' %></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-tint"></i> Volume d'huile :</label>
-              <div class="form-control-static"><%= report.revision_oil_volume || 'N/A' %></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-tachometer-alt"></i> Kilométrage :</label>
-              <div class="form-control-static"><%= report.mileage ? `${report.mileage} km` : 'N/A' %></div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-group">
-              <label><i class="fas fa-calendar-check"></i> Prochain contrôle technique :</label>
-              <div class="form-control-static">
-                <%= report.next_technical_inspection ? new Date(report.next_technical_inspection).toLocaleDateString('fr-FR', { day: 'numeric', month: 'numeric', year: 'numeric' }) : 'N/A' %>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-car"></i> Immatriculation :</label>
+                  <div class="form-control-static"><%= report.license_plate %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-cogs"></i> Code moteur :</label>
+                  <div class="form-control-static"><%= report.engine_code || 'N/A' %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fa-solid fa-trademark"></i> Marque :</label>
+                  <div class="form-control-static"><%= report.brand || 'N/A' %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-oil-can"></i> Type d'huile :</label>
+                  <div class="form-control-static"><%= report.revision_oil_type || 'N/A' %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fa-solid fa-car-side"></i>Modèle :</label>
+                  <div class="form-control-static"><%= report.model || 'N/A' %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-tint"></i> Volume d'huile :</label>
+                  <div class="form-control-static"><%= report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-tachometer-alt"></i> Kilométrage :</label>
+                  <div class="form-control-static"><%= report.mileage ? `${report.mileage} km` : 'N/A' %></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fa-solid fa-cookie-bite"></i> Disques AV :</label>
+                  <div class="form-control-static">
+                    <%= report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : 'N/A' %>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-calendar-alt"></i> Mise en circulation :</label>
+                  <div class="form-control-static">
+                    <%= report.first_registration_date ? new Date(report.first_registration_date + '-01').toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' %>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fa-solid fa-cookie"></i> Disques AR :</label>
+                  <div class="form-control-static">
+                    <%= report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : 'N/A' %>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-calendar-check"></i> Prochain contrôle technique :</label>
+                  <div class="form-control-static">
+                    <%= report.next_technical_inspection ? new Date(report.next_technical_inspection).toLocaleDateString('fr-FR', { day: 'numeric', month: 'numeric', year: 'numeric' }) : 'N/A' %>
+                  </div>
+                </div>
+              </div>
+            <div class="col-md-6">
+              <div class="info-item">
+                <label><i class="fas fa-filter"></i> Nombre de filtres :</label>
+                <div class="form-control-static">
+                  <%= report.number_of_filters ? `${report.number_of_filters} filtres` : 'N/A' %>
+                </div>
+                </div>
               </div>
             </div>
           </div>
@@ -145,12 +183,22 @@
               acc[result.category].push(result);
               return acc;
             }, {});
+
+            const categoryIcons = {
+              'Intérieur': 'fas fa-car',
+              'Moteur': 'fas fa-cogs',
+              'Direction Avant': 'fas fa-wrench',
+              'Direction Arrière': 'fas fa-wrench',
+              'Accessoires': 'fas fa-box-open',
+              'Travaux terminés': 'fas fa-check-circle'
+            };
             %>
             
             <% Object.entries(groupedResults).forEach(([category, items]) => { %>
               <div class="inspection-category">
                 <div class="category-header">
-                  <h4 class="category-title"><%= category.toUpperCase() %></h4>
+                  <i class="<%= categoryIcons[category] %>"></i>
+                  <h3 class="category-title"><%= category %></h3>
                 </div>
                 <div class="checkbox-grid">
                   <% items.forEach(function(result) { %>
@@ -159,40 +207,14 @@
                         <div class="custom-radio-group">
                           <label class="control-label"><%= result.name %></label>
                           <div class="form-control-static">
-                            <% 
-                            try {
-                              const options = Array.isArray(result.options) ? result.options : JSON.parse(result.options || '[]');
-                              const option = options.find(opt => opt.id === result.value);
-                            %>
-                              <% if (option) { %>
-                                <div class="status-indicator">
-                                  <img src="<%= option.icon %>" 
-                                       alt="<%= option.label %>" 
-                                       class="option-icon"
-                                       width="16" 
-                                       height="16" />
-                                  <span class="status-label"><%= option.label %></span>
-                                </div>
-                              <% } else { %>
-                                <div class="status-indicator">
-                                  <img src="/static/img/icon_unverified.svg" 
-                                       alt="Non vérifié" 
-                                       class="option-icon"
-                                       width="16" 
-                                       height="16" />
-                                  <span class="status-label">Non vérifié</span>
-                                </div>
-                              <% } %>
-                            <% } catch (e) { %>
-                              <div class="status-indicator">
-                                <img src="/static/img/icon_unverified.svg" 
-                                     alt="Non vérifié" 
-                                     class="option-icon"
-                                     width="16" 
-                                     height="16" />
-                                <span class="status-label">Non vérifié</span>
-                              </div>
-                            <% } %>
+                            <div class="status-indicator">
+                              <img src="<%= result.value.icon_relative_path %>" 
+                                   alt="<%= result.value.label %>" 
+                                   class="option-icon"
+                                   width="16" 
+                                   height="16" />
+                              <span class="status-label"><%= result.value.label %></span>
+                            </div>
                           </div>
                         </div>
                       <% } else if (result.type === 'number') { %>

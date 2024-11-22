@@ -1,20 +1,13 @@
+const logger = require("../../src/utils/logger");
+
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('inspection-form');
-  
-  // Debug helper
-  const debug = (message, error = null) => {
-    console.log('Debug:', message);
-    if (error) {
-      console.error('Error details:', error);
-    }
-  };
 
   // Client-side validation function
   function validateForm() {
     try {
       let isValid = true;
-      debug('Starting form validation');
-
+      
       // Validate required fields
       const requiredFields = [
         { id: 'client_name', message: 'Le nom du client est requis.' },
@@ -26,13 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
       requiredFields.forEach(field => {
         const input = document.getElementById(field.id);
         if (!input) {
-          debug(`Required field not found: ${field.id}`);
+          logger.error(`Required field not found: ${field.id}`);
           isValid = false;
           return;
         }
         
         if (!input.value.trim()) {
-          debug(`Empty required field: ${field.id}`);
+          logger.error(`Empty required field: ${field.id}`);
           showError(input, field.message);
           isValid = false;
         } else {
@@ -45,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (phoneInput && phoneInput.value) {
         const phoneRegex = /^[0-9]{10}$/;
         if (!phoneRegex.test(phoneInput.value.trim())) {
-          debug('Invalid phone format');
+          logger.error('Invalid phone format');
           showError(phoneInput, 'Format de téléphone invalide (10 chiffres requis).');
           isValid = false;
         }
@@ -56,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (emailInput && emailInput.value) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(emailInput.value.trim())) {
-          debug('Invalid email format');
+          logger.error('Invalid email format');
           showError(emailInput, 'Format d\'email invalide.');
           isValid = false;
         }
@@ -68,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const plateRegex = /^[A-Z]{2}[-]?[0-9]{3}[-]?[A-Z]{2}$/;
         const value = licensePlateInput.value.trim().toUpperCase();
         if (!plateRegex.test(value)) {
-          debug('Invalid license plate format');
+          logger.error('Invalid license plate format');
           showError(licensePlateInput, 'Format d\'immatriculation invalide (ex: AB-123-CD).');
           isValid = false;
         }
@@ -79,16 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dateInput && dateInput.value) {
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         if (!dateRegex.test(dateInput.value.trim())) {
-          debug('Invalid date format');
+          logger.error('Invalid date format');
           showError(dateInput, 'Format de date invalide (YYYY-MM-DD).');
           isValid = false;
         }
       }
 
-      debug(`Form validation result: ${isValid}`);
+      logger.info(`Form validation result: ${isValid}`);
       return isValid;
     } catch (error) {
-      debug('Error in validateForm', error);
+      logger.error('Error in validateForm', error);
       return false;
     }
   }
@@ -97,13 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function showError(input, message) {
     try {
       if (!input) {
-        debug('Cannot show error: input is null');
+        logger.error('Cannot show error: input is null');
         return;
       }
 
       const formGroup = input.closest('.form-group');
       if (!formGroup) {
-        debug('Cannot show error: .form-group not found');
+        logger.error('Cannot show error: .form-group not found');
         return;
       }
 
@@ -116,22 +109,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       input.classList.add('is-invalid');
       
-      debug(`Error shown: ${message}`);
+      logger.error(`Error shown: ${message}`);
     } catch (error) {
-      debug('Error in showError', error);
+      logger.error('Error in showError', error);
     }
   }
 
   function clearError(input) {
     try {
       if (!input) {
-        debug('Cannot clear error: input is null');
+        logger.error('Cannot clear error: input is null');
         return;
       }
 
       const formGroup = input.closest('.form-group');
       if (!formGroup) {
-        debug('Cannot clear error: .form-group not found');
+        logger.error('Cannot clear error: .form-group not found');
         return;
       }
 
@@ -141,36 +134,33 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       input.classList.remove('is-invalid');
       
-      debug(`Error cleared for input: ${input.id}`);
     } catch (error) {
-      debug('Error in clearError', error);
+      logger.error('Error in clearError', error);
     }
   }
 
   // Form submission handler
   if (form) {
-    debug('Form found, adding submit event listener');
     form.addEventListener('submit', (e) => {
       try {
         if (!validateForm()) {
-          debug('Form validation failed, preventing submission');
+          logger.error('Form validation failed, preventing submission');
           e.preventDefault();
         } else {
-          debug('Form validation successful, allowing submission');
+          logger.info('Form validation successful, allowing submission');
         }
       } catch (error) {
-        debug('Error in submit handler', error);
+        logger.error('Error in submit handler', error);
         e.preventDefault();
       }
     });
   } else {
-    debug('Form not found in DOM');
+    logger.error('Form not found in DOM');
   }
 
   // Auto-format license plate
   const licensePlateInput = document.getElementById('license_plate');
   if (licensePlateInput) {
-    debug('License plate input found, adding input event listener');
     licensePlateInput.addEventListener('input', (e) => {
       try {
         let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -180,12 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
           value = value.slice(0, 2) + '-' + value.slice(2);
         }
         e.target.value = value;
-        debug('License plate formatted:', value);
+        logger.info('License plate formatted:', value);
       } catch (error) {
-        debug('Error in license plate formatter', error);
+        logger.error('Error in license plate formatter', error);
       }
     });
   } else {
-    debug('License plate input not found');
+    logger.error('License plate input not found');
   }
 });

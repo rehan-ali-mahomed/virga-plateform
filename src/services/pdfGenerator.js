@@ -4,18 +4,6 @@ const path = require('path');
 const logger = require('../utils/logger');
 const SVGtoPDF = require('svg-to-pdfkit');
 
-const INSPECTION_ICONS = {
-  0: { path: 'img/icon_conforme.svg', label: 'Conforme' },
-  1: { path: 'img/icon_not_conforme.svg', label: 'Non conforme' },
-  2: { path: 'img/icon_unverified.svg', label: 'Non vérifié' },
-  3: { path: 'img/icon_to_plan.svg', label: 'À planifier' }
-};
-
-const getInspectionIcon = (value) => {
-  const iconConfig = INSPECTION_ICONS[value] || INSPECTION_ICONS[2]; // Default to unverified
-  return path.join(process.cwd(), 'public', iconConfig.path);
-};
-
 PDFDocument.prototype.addSVG = function(svg, x, y, options) {
   return SVGtoPDF(this, svg, x, y, options);
 };
@@ -83,17 +71,6 @@ const optimizedGrid = {
   itemPadding: 6
 };
 
-// Category mapping
-const categoryMapping = {
-  'engine': 'MOTEUR',
-  'interior': 'INTERIEUR',
-  'rear': 'ARRIERE',
-  'accessories': 'ACCESSOIRES',
-  'front': 'AVANT',
-  'work_completed': 'TRAVAUX RÉALISÉS',
-  'other': 'AUTRES ÉLÉMENTS'
-};
-
 const organizeInspectionResults = (results) => {
   if (!results || !Array.isArray(results)) {
     logger.warn('No inspection results to organize or invalid format');
@@ -107,8 +84,7 @@ const organizeInspectionResults = (results) => {
         return acc;
       }
 
-      const mappedCategory = categoryMapping[result.category.toLowerCase()] || 
-                           result.category.toUpperCase();
+      const mappedCategory = result.category.toUpperCase();
 
       if (!acc[mappedCategory]) {
         acc[mappedCategory] = [];
@@ -131,26 +107,6 @@ const organizeInspectionResults = (results) => {
   }
 };
 
-const drawSectionHeader = (doc, x, y, width, title) => {
-  const headerHeight = optimizedGrid.headerHeight;
-  
-  doc.save()
-     .roundedRect(x, y, width, headerHeight, 4)
-     .fillColor(colors.primary.main)
-     .fill();
-
-  doc.font(textStyles.sectionHeader.font)
-     .fontSize(textStyles.sectionHeader.size)
-     .fillColor(colors.primary.contrast)
-     .text(title, 
-           x + spacing.lg, 
-           y + (headerHeight - textStyles.sectionHeader.size) / 2,
-           { width: width - (spacing.lg * 2) });
-  doc.restore();
-
-  return y + headerHeight + spacing.lg;
-};
-
 const drawHeader = (doc, report) => {
   const headerHeight = 80;  
   
@@ -158,7 +114,7 @@ const drawHeader = (doc, report) => {
   doc.save();
   doc.roundedRect(25, 15, headerHeight * 0.75, headerHeight * 0.75, 4)
      .clip();
-  doc.image(path.join(__dirname, 'company_logo.png'), 25, 15, { height: headerHeight * 0.75 });
+  doc.image(path.join(process.cwd(), 'public', 'img', 'company_logo.png'), 25, 15, { height: headerHeight * 0.75 });
   doc.restore();
 
   // Company name
@@ -357,6 +313,7 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
   const sectionWidth = 170; // Width for each category section
   const spacing = 12; // Space between sections
   const categories = Object.entries(results);
+  const lineHeight = 22;
   
   // Process categories in groups of 3
   for (let i = 0; i < categories.length; i += 3) {
@@ -370,7 +327,7 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
       
       // Draw background for the entire section
       doc.roundedRect(xPos, yPos, sectionWidth, 
-                     items.length * 20 + 35,
+                     (items.length + 1) * lineHeight,
                      4)
          .fillColor(colors.primary.light)
          .fill();
@@ -393,7 +350,7 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
                  lineGap: 0
                });
 
-      yPos += 23;
+      yPos += lineHeight;
 
       // Draw items
       items.forEach(item => {
@@ -402,14 +359,12 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
            .fillColor(textStyles.itemText.color)
            .text(item.name, 
                  xPos + 10, 
-                 yPos,
+                 yPos + (18 - textStyles.itemText.size) / 2,
                  { width: sectionWidth - 40 });
 
         if (item.type === 'options') {
-          const iconPath = getInspectionIcon(item.value);
-          
-          if (fs.existsSync(iconPath)) {
-            const svgContent = fs.readFileSync(iconPath, 'utf8');
+          if (fs.existsSync(item.value.icon_absolute_path)) {
+            const svgContent = fs.readFileSync(item.value.icon_absolute_path, 'utf8');
             doc.addSVG(svgContent, 
                       xPos + sectionWidth - 25, 
                       yPos, 
@@ -417,7 +372,7 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
           }
         }
 
-        yPos += 20;
+        yPos += lineHeight;
       });
 
       const sectionHeight = yPos - currentY;
@@ -441,7 +396,7 @@ const drawFooter = (doc, pageHeight) => {
      .stroke();
 
   doc.font(fonts.regular)
-     .fontSize(10)
+     .fontSize(9)
      .fillColor(colors.primary.main)
      .text(
        `© 2024 Auto Presto. Tous droits réservés.`,
@@ -467,8 +422,9 @@ const generatePDF = (report) => {
         bufferPages: true
       });
 
-      const timestamp = Date.now();
-      const tempFileName = `temp_${timestamp}.pdf`;
+      const date = new Date();
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
+      const tempFileName = `${report.license_plate}_${formattedDate}.pdf`;
       const pdfPath = path.join(__dirname, '..', '..', 'generated_reports', tempFileName);
       const writeStream = fs.createWriteStream(pdfPath);
 

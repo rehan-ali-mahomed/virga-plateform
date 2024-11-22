@@ -32,9 +32,9 @@ router.get('/download/:id', isAuthenticated, async (req, res) => {
     const db = getDatabase();
     const report = await new Promise((resolve, reject) => {
       db.get(`
-        SELECT ir.*, u.username as technician_name
+        SELECT ir.*, u.username as username
         FROM InspectionReports ir
-        LEFT JOIN Users u ON ir.technician_id = u.user_id
+        LEFT JOIN Users u ON ir.created_by = u.user_id
         WHERE ir.report_id = ?
       `, [req.params.id], (err, row) => {
         if (err) reject(err);

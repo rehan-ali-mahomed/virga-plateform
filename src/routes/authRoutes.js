@@ -13,14 +13,14 @@ router.get('/', isAuthenticated, async (req, res) => {
       db.all(`
         SELECT 
           ir.report_id,
-          ir.date,
+          ir.created_at,
           v.license_plate,
           v.owner_name as client_name,
-          u.username as technician_name
+          u.username as username
         FROM InspectionReports ir
         JOIN Cars v ON ir.vehicle_id = v.vehicle_id
-        LEFT JOIN Users u ON ir.technician_id = u.user_id
-        ORDER BY ir.date DESC
+        LEFT JOIN Users u ON ir.created_by = u.user_id
+        ORDER BY ir.created_at DESC
         LIMIT 10
       `, (err, rows) => {
         if (err) reject(err);
@@ -51,7 +51,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM Users WHERE user_name = ?', [username], (err, row) => {
+      db.get('SELECT * FROM Users WHERE username = ?', [username], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -69,7 +69,7 @@ router.post('/login', async (req, res) => {
     // Store user in session with all necessary data
     req.session.user = {
       user_id: user.user_id,
-      user_name: user.user_name,
+      username: user.username,
       role: user.role,
       contact_info: user.contact_info,
       specialization: user.specialization
