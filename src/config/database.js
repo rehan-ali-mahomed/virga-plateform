@@ -79,6 +79,7 @@ const createTables = () => {
         brake_disc_thickness_front TEXT,
         brake_disc_thickness_rear TEXT,
         first_registration_date TEXT,
+        drain_plug_torque TEXT,
         FOREIGN KEY (customer_id) REFERENCES Customers(customer_id)
       )`);
 
@@ -100,7 +101,7 @@ const createTables = () => {
         mileage INTEGER,
         comments TEXT,
         next_technical_inspection DATE,
-        number_of_filters INTEGER,
+        filters TEXT,
         inspection_results JSON NOT NULL DEFAULT '{}',
         created_by TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -176,8 +177,9 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehicleDetails = {}) =
       revision_oil_type,
       revision_oil_volume,
       brake_disc_thickness_front,
-      brake_disc_thickness_rear
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      brake_disc_thickness_rear,
+      drain_plug_torque
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         vehicleId, 
         licensePlate, 
@@ -189,7 +191,8 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehicleDetails = {}) =
         vehicleDetails.revision_oil_type || null,
         vehicleDetails.revision_oil_volume || null,
         vehicleDetails.brake_disc_thickness_front || null,
-        vehicleDetails.brake_disc_thickness_rear || null
+        vehicleDetails.brake_disc_thickness_rear || null,
+        vehicleDetails.drain_plug_torque || null
       ],
       (err) => {
         if (err) reject(err);
@@ -222,9 +225,12 @@ const addUser = (userName, email, role, password) => {
 };
 
 const getUser = (userId) => {
+  // log all things from here to debugger
+  logger.debug(`Getting user with ID: ${userId}`);
   return new Promise((resolve, reject) => {
     db.get('SELECT username FROM Users WHERE user_id = ?', [userId], (err, row) => {
       if (err) reject(err);
+      else if (!row) reject(new Error(`User with ID ${userId} not found`));
       else resolve(row.username);
     });
   });
@@ -397,8 +403,9 @@ const saveInspectionReport = (reportData, userId) => {
             vehicle_id, license_plate, customer_id, brand, model, 
             engine_code, revision_oil_type, revision_oil_volume,
             brake_disc_thickness_front, brake_disc_thickness_rear,
+            drain_plug_torque,
             first_registration_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             vehicleId,
             reportData.license_plate.toUpperCase(),
             customerId,
@@ -409,6 +416,7 @@ const saveInspectionReport = (reportData, userId) => {
             reportData.revision_oil_volume || null,
             reportData.brake_disc_thickness_front || null,
             reportData.brake_disc_thickness_rear || null,
+            reportData.drain_plug_torque || null,
             reportData.first_registration_date || null
           ], function(err) {
             if (err) throw err;
@@ -419,7 +427,7 @@ const saveInspectionReport = (reportData, userId) => {
               mileage,
               comments,
               next_technical_inspection,
-              number_of_filters,
+              filters,
               inspection_results,
               created_by,
               created_at
@@ -429,7 +437,7 @@ const saveInspectionReport = (reportData, userId) => {
               reportData.mileage || null,
               reportData.comments || null,
               reportData.next_technical_inspection || null,
-              reportData.number_of_filters || null,
+              reportData.filters || null,
               JSON.stringify(reportData.inspection || '{}'),
               userId
             ], function(err) {
@@ -461,14 +469,7 @@ const getInspectionReport = (reportId) => {
     db.get(`
       SELECT 
         ir.*,
-        v.license_plate,
-        v.brand,
-        v.model,
-        v.revision_oil_type,
-        v.revision_oil_volume,
-        v.brake_disc_thickness_front,
-        v.brake_disc_thickness_rear,
-        v.first_registration_date,
+        v.*
         u.username as username,
         c.name as client_name,
         c.phone as client_phone,

@@ -83,9 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.innerHTML = reports.map(report => `
       <tr class="report-row" data-report='${JSON.stringify(report)}'>
         <td class="license-plate">${report.license_plate}</td>
-        <td>${new Date(report.date).toLocaleDateString('fr-FR')}</td>
         <td>${report.client_name}</td>
         <td>${report.brand && report.model ? `${report.brand} | ${report.model}` : 'N/A'}</td>
+        <td>${new Date(report.created_at).toLocaleDateString('fr-FR')}</td>
         <td>
           <div class="action-buttons">
             <a href="/report/${report.report_id}" 

@@ -132,9 +132,9 @@ const drawHeader = (doc, report) => {
 
   // Company info
   const companyInfo = [
-    { label: 'Adresse', value: '123 Rue Principale, 75000 Paris' },
-    { label: 'Téléphone', value: '01 23 45 67 89' },
-    { label: 'Email', value: 'contact@autopresto.fr' }
+    { label: 'Adresse', value: '3b rue de la Guadeloupe, 97400 Saint-Denis' },
+    { label: 'Téléphone', value: '+262 693 01 25 39' },
+    { label: 'Email', value: 'habibe97490@gmail.com' }
   ];
 
   let infoY = 42;
@@ -145,7 +145,7 @@ const drawHeader = (doc, report) => {
        .text(`${info.label}`, 95, infoY);
 
     doc.font(textStyles.headerInfo.font)
-       .text(info.value, 150, infoY);
+       .text(info.value, 140, infoY);
     infoY += spacing.xl;
   });
 
@@ -157,7 +157,7 @@ const drawHeader = (doc, report) => {
   doc.font(textStyles.headerDate.font)
      .fontSize(textStyles.headerDate.size)
      .fillColor(colors.primary.main)
-     .text(` ${new Date(report.date).toLocaleDateString('fr-FR')}`, 390, 20, {
+     .text(` ${new Date(report.created_at).toLocaleDateString('fr-FR')}`, 390, 20, {
        width: 170,
        align: 'center'
      });
@@ -191,7 +191,7 @@ const drawHeader = (doc, report) => {
 
 const drawInfoSection = (doc, report, startY) => {
   const sectionWidth = 545;
-  const vehicleHeight = 125;
+  const vehicleHeight = 140;
   const columnWidth = (sectionWidth - 60) / 2;
   
   doc.roundedRect(25, startY, sectionWidth, vehicleHeight, 4)
@@ -216,22 +216,19 @@ const drawInfoSection = (doc, report, startY) => {
     { label: 'Modèle', value: report.model || 'N/A' },
     { label: 'Kilométrage', value: report.mileage ? `${report.mileage} km` : 'N/A' },
     { label: 'Mise en circulation', value: report.first_registration_date ? 
-      new Date(report.first_registration_date).toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' },{ label: 'Prochain C.T', value: report.next_technical_inspection ? 
-      new Date(report.next_technical_inspection).toLocaleDateString('fr-FR', { 
-        day: 'numeric', 
-        month: 'numeric', 
-        year: 'numeric'
-      }) : 'N/A' }
-    
-    
+      new Date(report.first_registration_date).toLocaleDateString('fr-FR') : 'N/A' },
+    { label: 'Prochain C.T', value: report.next_technical_inspection ? 
+      new Date(report.next_technical_inspection).toLocaleDateString('fr-FR') : 'N/A' },
+    { label: 'Couple de serrage', value: report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A' }
   ];
 
   const rightColumnInfo = [
     { label: 'Code moteur', value: report.engine_code || 'N/A' },
-    { label: 'Type d\'huile', value: report.revision_oil_type || '5W30' },
-    { label: 'Quantité', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : '7.5 L' },
-    { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : '10 mm' },
-    { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : '25 mm' },
+    { label: 'Type d\'huile', value: report.revision_oil_type || 'N/A' },
+    { label: 'Quantité', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' },
+    { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : 'N/A' },
+    { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : 'N/A' },
+    { label: 'Filtres révision', value: report.filters || 'N/A' }
   ];
 
   let infoY = startY + 30;
@@ -261,7 +258,7 @@ const drawInfoSection = (doc, report, startY) => {
 
     doc.font(info.bold ? fonts.bold : fonts.regular)
        .text(info.value, sectionWidth/2 + 15, infoY, {
-         width: columnWidth - 20,
+         width: columnWidth - 10,
          align: 'right'
        });
     infoY += 16;

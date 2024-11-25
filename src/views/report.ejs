@@ -99,7 +99,7 @@
               </div>
               <div class="col-md-6">
                 <div class="info-item">
-                  <label><i class="fas fa-oil-can"></i> Type d'huile :</label>
+                  <label><i class="fas fa-oil-can"></i> Type d'huile / Classe huile :</label>
                   <div class="form-control-static"><%= report.revision_oil_type || 'N/A' %></div>
                 </div>
               </div>
@@ -111,8 +111,8 @@
               </div>
               <div class="col-md-6">
                 <div class="info-item">
-                  <label><i class="fas fa-tint"></i> Volume d'huile :</label>
-                  <div class="form-control-static"><%= report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' %></div>
+                  <label><i class="fas fa-tint"></i> Volume d'huile / Couple de serrage :</label>
+                  <div class="form-control-static"><%= report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' %> / <%= report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A' %></div>
                 </div>
               </div>
               <div class="col-md-6">
@@ -133,7 +133,7 @@
                 <div class="info-item">
                   <label><i class="fas fa-calendar-alt"></i> Mise en circulation :</label>
                   <div class="form-control-static">
-                    <%= report.first_registration_date ? new Date(report.first_registration_date + '-01').toLocaleDateString('fr-FR', { month: 'numeric', year: 'numeric' }) : 'N/A' %>
+                    <%= report.first_registration_date ? new Date(report.first_registration_date ).toLocaleDateString('fr-FR') : 'N/A' %>
                   </div>
                 </div>
               </div>
@@ -147,18 +147,18 @@
               </div>
               <div class="col-md-6">
                 <div class="info-item">
-                  <label><i class="fas fa-calendar-check"></i> Prochain contrôle technique :</label>
+                  <label><i class="fas fa-calendar-check"></i> Prochain C.T. :</label>
                   <div class="form-control-static">
-                    <%= report.next_technical_inspection ? new Date(report.next_technical_inspection).toLocaleDateString('fr-FR', { day: 'numeric', month: 'numeric', year: 'numeric' }) : 'N/A' %>
+                    <%= report.next_technical_inspection ? new Date(report.next_technical_inspection).toLocaleDateString('fr-FR') : 'N/A' %>
                   </div>
                 </div>
               </div>
-            <div class="col-md-6">
-              <div class="info-item">
-                <label><i class="fas fa-filter"></i> Nombre de filtres :</label>
-                <div class="form-control-static">
-                  <%= report.number_of_filters ? `${report.number_of_filters} filtres` : 'N/A' %>
-                </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label><i class="fas fa-filter"></i> Filtres :</label>
+                  <div class="form-control-static">
+                    <%= report.filters ? `${report.filters}` : 'N/A' %>
+                  </div>
                 </div>
               </div>
             </div>

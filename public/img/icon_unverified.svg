@@ -3,6 +3,5 @@
   <circle cx="12" cy="12" r="10" fill="none" stroke="#3d4761" stroke-width="2" />
   
   <!-- Texte N/A en Blanc avec une Police Moderne et Arrondie -->
-  <text x="50%" y="53%" dominant-baseline="middle" text-anchor="middle" fill="#3d4761" 
-    font-family="Arial, sans-serif" font-size="9" font-weight="bold">N/A</text>
+  
 </svg>

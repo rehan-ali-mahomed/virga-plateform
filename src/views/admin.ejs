@@ -85,8 +85,12 @@
 
     <!-- Users Card -->
     <div class="bg-white shadow rounded-lg">
-      <div class="p-4 border-b">
+      <div class="p-4 border-b flex justify-between items-center">
         <h2 class="text-xl font-semibold">Users</h2>
+        <button id="new-user-btn"
+                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+          New User
+        </button>
       </div>
       <div class="p-4 overflow-x-auto">
         <% if (users && users.length > 0) { %>
@@ -182,8 +186,12 @@
 
     <!-- Inspection Items Card -->
     <div class="bg-white shadow rounded-lg md:col-span-2">
-      <div class="p-4 border-b">
+      <div class="p-4 border-b flex justify-between items-center">
         <h2 class="text-xl font-semibold">Inspection Items</h2>
+        <button id="new-inspection-item-btn"
+                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+          New Item
+        </button>
       </div>
       <div class="p-4 overflow-x-auto">
         <% if (inspectionItems && inspectionItems.length > 0) { %>
@@ -195,6 +203,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Order</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -203,8 +212,12 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.name %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.type %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.category %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.is_active ? "Yes" : "No" %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.is_active ? "Oui" : "Non" %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.display_order %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 flex justify-start gap-4">
+                    <a class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 edit-inspection-item-btn" data-id="<%= item.item_id %>">Edit</a>
+                    <a class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 delete-inspection-item-btn" data-id="<%= item.item_id %>">Delete</a>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>
@@ -216,5 +229,135 @@
     </div>
 
   </div>
+
+  <!-- After the content-wrapper div -->
+  <div id="modalContainer" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <!-- User Creation Modal -->
+    <div id="userModal" class="bg-white rounded-lg p-6 w-full max-w-md hidden">
+      <h3 class="text-xl font-semibold mb-4">New User</h3>
+      <form id="userForm" class="space-y-4">
+        <input type="hidden" id="userId" name="user_id">
+        
+        <div>
+          <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+          <input type="text" id="username" name="username" required
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="email" name="email" required
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+          <input type="password" id="password" name="password" required minlength="4"
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+          <select id="role" name="role" required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1 pl-2">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="mechanic">Mechanic</option>
+            <option value="secretary">Secretary</option>
+          </select>
+        </div>
+        
+        <div class="flex justify-end space-x-3 mt-6">
+          <button type="button" id="cancelModalBtn"
+                  class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            Create
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Inspection Item Creation Modal -->
+    <div id="inspectionItemModal" class="bg-white rounded-lg p-6 w-full max-w-md hidden">
+      <h3 class="text-xl font-semibold mb-4">New Inspection Item</h3>
+      <form id="inspectionItemForm" class="space-y-4">
+        <input type="hidden" id="itemId" name="item_id">
+        
+        <div>
+          <label for="itemName" class="block text-sm font-medium text-gray-700">Name</label>
+          <input type="text" id="itemName" name="name" required
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label for="itemCategory" class="block text-sm font-medium text-gray-700">Category</label>
+          <div class="flex space-x-2">
+            <select id="itemCategory" name="category"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
+              <% const categories = [...new Set(inspectionItems.map(item => item.category))]; %>
+              <% let CountItemsByCategories = {}; %>
+              <% categories.forEach(category => { %>
+                <% CountItemsByCategories[category] = inspectionItems.filter(item => item.category === category).length; %>
+                <option value="<%= category %>" count="<%= CountItemsByCategories[category] %>"><%= category %> (<%= CountItemsByCategories[category] %>)</option>
+              <% }); %>
+              <option value="new">Add New Category</option>
+            </select>
+          </div>
+        </div>
+        
+        <div id="newCategoryInput" class="hidden">
+          <label for="newCategory" class="block text-sm font-medium text-gray-700">New Category Name</label>
+          <input type="text" id="newCategory" name="newCategory"
+                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label for="itemType" class="block text-sm font-medium text-gray-700">Type</label>
+          <select id="itemType" name="type" required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1 pl-2">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="options">Options</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="itemActive" class="block text-sm font-medium text-gray-700">Active</label>
+          <input type="checkbox" id="itemActive" name="is_active" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+        
+        <div id="optionsSection" class="hidden">
+          <label class="block text-sm font-medium text-gray-700">Options</label>
+          <div class="space-y-2" id="optionsList">
+            <!-- Options will be added here dynamically -->
+          </div>
+          <button type="button" id="new-option-btn"
+                  class="mt-2 px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400">
+            Add Option
+          </button>
+        </div>
+        
+        <div class="flex justify-end space-x-3 mt-6">
+          <button type="button" id="cancelInspectionItemModalBtn"
+                  class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            Create
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="fixed top-2 right-2 flex flex-col items-end space-y-2 z-50" aria-live="assertive" aria-atomic="true">
+    </div>
+
+  <script src="/static/js/admin.js"></script>
 </body>
 </html>

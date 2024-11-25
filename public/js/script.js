@@ -1,5 +1,3 @@
-const logger = require("../../src/utils/logger");
-
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('inspection-form');
 

@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { isAuthenticated } = require('../middleware/auth');
-const { getDatabase } = require('../config/database');
+const { getDatabase, addUser } = require('../config/database');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const path = require('path');
 
 // Middleware to check if the user has an Admin role
 const isAdmin = (req, res, next) => {
@@ -53,6 +55,27 @@ const dbRun = (db, query, params = []) => {
     });
   });
 };
+
+// Configure multer for icon uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'public/img/icons/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `icon_${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'image/svg+xml') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only SVG files are allowed'));
+    }
+  }
+});
 
 // GET /admin - Render Admin Dashboard
 router.get('/', isAuthenticated, isAdmin, async (req, res) => {
@@ -138,7 +161,6 @@ router.get('/users', isAuthenticated, isAdmin, async (req, res) => {
 
 // POST /admin/users - Create a new user
 router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { username, email, role, password } = req.body;
 
   if (!username || !password || !role) {
@@ -146,19 +168,8 @@ router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
   }
 
   try {
-    const userId = uuidv4();
-    await dbRun(db, `
-      INSERT INTO Users (user_id, username, email, role, password)
-      VALUES (?, ?, ?, ?, ?)`,
-      [
-        userId,
-        username,
-        email || null,
-        role,
-        password // Assume password is hashed elsewhere
-      ]
-    );
-    res.status(201).json({ message: 'Utilisateur créé avec succès.' });
+    addUser(username, email, role, password);
+    res.status(201).json({ message: `Utilisateur ${username} créé avec succès.`});
   } catch (error) {
     logger.error('Erreur lors de la création de l\'utilisateur:', error);
     res.status(500).json({ error: 'Erreur lors de la création de l\'utilisateur.' });
@@ -215,6 +226,30 @@ router.delete('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
     logger.error('Erreur lors de la suppression de l\'utilisateur:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur.' });
   }
+});
+
+// Check if username exists
+router.get('/users/check-username', isAuthenticated, isAdmin, async (req, res) => {
+  const db = getDatabase();
+  const { username } = req.query;
+  
+  try {
+    const user = await dbGet(db, 'SELECT username FROM Users WHERE username = ?', [username]);
+    res.json({ exists: !!user });
+  } catch (error) {
+    logger.error('Error checking username:', error);
+    res.status(500).json({ error: 'Failed to check username' });
+  }
+});
+
+// Handle icon upload
+router.post('/upload-icon', isAuthenticated, isAdmin, upload.single('icon'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  
+  const iconPath = `/img/icons/${req.file.filename}`;
+  res.json({ iconPath });
 });
 
 // ==================== Customers Management ====================
@@ -469,8 +504,8 @@ router.delete('/vehicles/:id', isAuthenticated, isAdmin, async (req, res) => {
 
 // ==================== Inspection Items Management ====================
 
-// GET /admin/inspection-items - List all inspection items
-router.get('/inspection-items', isAuthenticated, isAdmin, async (req, res) => {
+// GET /admin/inspectionItems - List all inspection items
+router.get('/inspectionItems', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   try {
     const inspectionItems = await dbAll(db, 'SELECT * FROM InspectionItems');
@@ -481,8 +516,21 @@ router.get('/inspection-items', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
-// POST /admin/inspection-items - Create a new inspection item
-router.post('/inspection-items', isAuthenticated, isAdmin, async (req, res) => {
+// GET /admin/inspectionItems/:id - Get an inspection item by id
+router.get('/inspectionItems/:id', isAuthenticated, isAdmin, async (req, res) => {
+  const db = getDatabase();
+  const { id } = req.params;
+  try {
+    const inspectionItem = await dbGet(db, 'SELECT * FROM InspectionItems WHERE item_id = ?', [id]);
+    res.json({ inspectionItem });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération des points de contrôle:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des points de contrôle.' });
+  }
+});
+
+// POST /admin/inspectionItems - Create a new inspection item
+router.post('/inspectionItems', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   const { name, type, category, is_active, display_order, options } = req.body;
 
@@ -503,7 +551,7 @@ router.post('/inspection-items', isAuthenticated, isAdmin, async (req, res) => {
         type,
         category,
         is_active ? 1 : 0,
-        display_order || null,
+        display_order || 0,
         optionsJSON
       ]
     );
@@ -515,8 +563,8 @@ router.post('/inspection-items', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
-// PUT /admin/inspection-items/:id - Update an existing inspection item
-router.put('/inspection-items/:id', isAuthenticated, isAdmin, async (req, res) => {
+// PUT /admin/inspectionItems/:id - Update an existing inspection item
+router.put('/inspectionItems/:id', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   const { id } = req.params;
   const { name, type, category, is_active, display_order, options } = req.body;
@@ -556,8 +604,8 @@ router.put('/inspection-items/:id', isAuthenticated, isAdmin, async (req, res) =
   }
 });
 
-// DELETE /admin/inspection-items/:id - Delete an inspection item
-router.delete('/inspection-items/:id', isAuthenticated, isAdmin, async (req, res) => {
+// DELETE /admin/inspectionItems/:id - Delete an inspection item
+router.delete('/inspectionItems/:id', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   const { id } = req.params;
 

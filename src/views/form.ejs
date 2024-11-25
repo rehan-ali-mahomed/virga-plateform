@@ -139,16 +139,26 @@
                 <label for="first_registration_date">
                   <i class="fas fa-calendar-alt"></i> Mise en circulation :
                 </label>
-                <input type="month" id="first_registration_date" 
+                <input type="date" id="first_registration_date" 
                        name="first_registration_date" class="form-control" 
                        value="<%= data.first_registration_date || '' %>"
-                       placeholder="MM/AAAA">
+                       placeholder="ex: 24/11/2016">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="next_technical_inspection">
+                  <i class="fas fa-calendar-check"></i> Prochain C.T. :
+                </label>
+                <input type="date" id="next_technical_inspection" 
+                       name="next_technical_inspection" class="form-control" 
+                       value="<%= data.next_technical_inspection || '' %>">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
                 <label for="revision_oil_type">
-                  <i class="fas fa-oil-can"></i> Type d'huile :
+                  <i class="fas fa-oil-can"></i> Type d'huile / Classe huile :
                 </label>
                 <input type="text" id="revision_oil_type" name="revision_oil_type" 
                        class="form-control" value="<%= data.revision_oil_type || '' %>" 
@@ -156,25 +166,29 @@
               </div>
             </div>
             <div class="col-md-3">
-              <div class="form-group">
-                <label for="revision_oil_volume">
+              <div class="row">
+                <div class="col-md">
+                  <div class="form-group">
+                    <label for="revision_oil_volume">
                   <i class="fas fa-fill-drip"></i> Volume (L) :
                 </label>
                 <input type="number" id="revision_oil_volume" 
                        name="revision_oil_volume" class="form-control" 
                        step="0.1" value="<%= data.revision_oil_volume || '' %>" 
                        placeholder="ex: 5.5">
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="form-group">
-                <label for="brake_disc_thickness_front">
-                  <i class="fas fa-disc-drive"></i> Disques AV (mm) :
-                </label>
-                <input type="number" id="brake_disc_thickness_front" 
-                       name="brake_disc_thickness_front" class="form-control" 
-                       step="0.1" value="<%= data.brake_disc_thickness_front || '' %>" 
-                       placeholder="ex: 10">
+                  </div>
+                </div>
+                <div class="col-md">
+                  <div class="form-group">
+                    <label for="drain_plug_torque">
+                      <i class="fas fa-fill-drip"></i> Serrage (Nm) :
+                    </label>
+                    <input type="number" id="drain_plug_torque" 
+                       name="drain_plug_torque" class="form-control" 
+                       step="0.1" value="<%= data.drain_plug_torque || '' %>" 
+                       placeholder="ex: 25">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -183,13 +197,24 @@
           <div class="row mt-2">
             <div class="col-md-3">
               <div class="form-group">
+                <label for="brake_disc_thickness_front">
+                  <i class="fas fa-disc-drive"></i> Disques AV (mm) :
+                </label>
+                <input type="text" id="brake_disc_thickness_front" 
+                       name="brake_disc_thickness_front" class="form-control" 
+                       step="5" value="<%= data.brake_disc_thickness_front || '' %>" 
+                       placeholder="ex: 230 / 245 / 260">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
                 <label for="brake_disc_thickness_rear">
                   <i class="fas fa-disc-drive"></i> Disques AR (mm) :
                 </label>
-                <input type="number" id="brake_disc_thickness_rear" 
+                <input type="text" id="brake_disc_thickness_rear" 
                        name="brake_disc_thickness_rear" class="form-control" 
-                       step="0.1" value="<%= data.brake_disc_thickness_rear || '' %>" 
-                       placeholder="ex: 10">
+                       step="5" value="<%= data.brake_disc_thickness_rear || '' %>" 
+                       placeholder="ex: 10 / 24 / 36">
               </div>
             </div>
             <div class="col-md-3">
@@ -199,29 +224,18 @@
                 </label>
                 <input type="number" id="mileage" name="mileage" 
                        class="form-control" value="<%= data.mileage || '' %>" 
-                       min="0" max="100000000"
                        placeholder="ex: 100000">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
-                <label for="next_technical_inspection">
-                  <i class="fas fa-calendar-check"></i> Prochain contrôle technique :
+                <label for="filters">
+                  <i class="fas fa-filter"></i> Filtres :
                 </label>
-                <input type="date" id="next_technical_inspection" 
-                       name="next_technical_inspection" class="form-control" 
-                       value="<%= data.next_technical_inspection || '' %>">
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="form-group">
-                <label for="number_of_filters">
-                  <i class="fas fa-filter"></i> Nombre de filtres :
-                </label>
-                <input type="number" id="number_of_filters" name="number_of_filters" 
+                <input type="text" id="filters" name="filters" 
                        class="form-control" required 
-                       value="<%= data.number_of_filters || '' %>"
-                       placeholder="ex: 3">
+                       value="<%= data.filters || '' %>"
+                       placeholder="ex: 3F ou FH / FA / FC">
               </div>
             </div>
           </div>
