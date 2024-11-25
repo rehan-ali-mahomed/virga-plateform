@@ -225,7 +225,7 @@ const drawInfoSection = (doc, report, startY) => {
   const rightColumnInfo = [
     { label: 'Code moteur', value: report.engine_code || 'N/A' },
     { label: 'Type d\'huile', value: report.revision_oil_type || 'N/A' },
-    { label: 'Quantité', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' },
+    { label: 'Quantité / Serrage', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' + ' / ' + report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A' },
     { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : 'N/A' },
     { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : 'N/A' },
     { label: 'Filtres révision', value: report.filters || 'N/A' }
