@@ -1,11 +1,9 @@
-const { saveInspectionReport } = require('../config/database');
+const { saveInspectionReport, updateInspectionReports } = require('../config/database');
 const logger = require('../utils/logger');
 
-const submitForm = async (req, res, userId) => {
+const submitForm = async (req, res, userId, returnReportId = false) => {
   try {
-    if (!req.body.date) {
-      req.body.date = new Date().toISOString().split('T')[0];
-    }
+    logger.debug('Submitting form:', req.body);
 
     const reportId = await saveInspectionReport(req.body, userId);
     
@@ -14,7 +12,12 @@ const submitForm = async (req, res, userId) => {
     }
 
     logger.info(`Report saved successfully with ID: ${reportId} by user: ${userId}`);
-    return res.redirect(`/report/${reportId}`);
+    if (returnReportId) {
+      logger.debug('Returning report ID:', reportId);
+      return reportId;
+    } else {
+      res.redirect(`/report/${reportId}`);
+    }
 
   } catch (error) {
     logger.error('Error submitting form:', error);
@@ -26,6 +29,21 @@ const submitForm = async (req, res, userId) => {
   }
 };
 
+const updateForm = async (req, res, userId) => {
+  try {
+    const reportId = await updateInspectionReports(req.params.id, req.body, userId);
+    return res.redirect(`/report/${reportId}`);
+  } catch (error) {
+    logger.error('Error updating form:', error);
+    return res.render('form', {
+      data: req.body,
+      errors: [{ msg: 'Une erreur est survenue lors de la mise à jour.' }],
+      inspectionItems: req.inspectionItems || []
+    });
+  }
+}
+
 module.exports = {
-  submitForm
+  submitForm,
+  updateForm
 }; 

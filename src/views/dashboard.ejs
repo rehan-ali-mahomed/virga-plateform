@@ -82,7 +82,7 @@
               <tr class="report-row" data-report="<%= JSON.stringify(report) %>">
                 <td class="license-plate"><%= report.license_plate %></td>
                 <td><%= report.client_name %></td>
-                <td><%= report.brand && report.model ? `${report.brand} | ${report.model}` : 'N/A' %></td>
+                <td><%= report.brand && report.model ? `${report.brand} ${report.model}` : 'N/A' %></td>
                 <td><%= new Date(report.created_at).toLocaleDateString('fr-FR') %></td>
                 <td>
                   <div class="action-buttons">
@@ -102,10 +102,14 @@
                        title="Télécharger">
                       <i class="fas fa-download"></i>
                     </a>
+                    <a href="/form/<%= report.report_id %>"
+                       class="action-btn edit"
+                       title="Modifier">
+                       <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
                     <button class="action-btn delete"
                             data-report-id="<%= report.report_id %>"
-                            title="Supprimer"
-                            >
+                            title="Supprimer">
                       <i class="fas fa-trash"></i>
                     </button>
                   </div>

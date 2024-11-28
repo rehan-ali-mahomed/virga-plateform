@@ -1,5 +1,5 @@
 {
-    "name": "vehicle-inspection-app",
+    "name": "vehicule-inspection-app",
     "version": "1.0.0",
     "description": "Vehicle Inspection Report Application",
     "main": "src/app.js",

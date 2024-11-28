@@ -115,14 +115,14 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
     const inspectionReportsPromise = dbAll(db, queries[0], searchTerm ? [params[0]] : []);
     const usersPromise = dbAll(db, queries[1], searchTerm ? [params[1], params[2]] : []);
     const customersPromise = dbAll(db, queries[2], searchTerm ? [params[3], params[4], params[5]] : []);
-    const vehiclesPromise = dbAll(db, queries[3], searchTerm ? [params[6], params[7], params[8]] : []);
+    const vehiculesPromise = dbAll(db, queries[3], searchTerm ? [params[6], params[7], params[8]] : []);
     const inspectionItemsPromise = dbAll(db, queries[4], searchTerm ? [params[9], params[10]] : []);
 
-    const [inspectionReports, users, customers, vehicles, inspectionItems] = await Promise.all([
+    const [inspectionReports, users, customers, vehicules, inspectionItems] = await Promise.all([
       inspectionReportsPromise,
       usersPromise,
       customersPromise,
-      vehiclesPromise,
+      vehiculesPromise,
       inspectionItemsPromise
     ]);
 
@@ -130,7 +130,7 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
       inspectionReports,
       users,
       customers,
-      vehicles,
+      vehicules,
       inspectionItems,
       user: req.session.user,
       searchTerm: searchTerm || ''
@@ -354,20 +354,20 @@ router.delete('/customers/:id', isAuthenticated, isAdmin, async (req, res) => {
 
 // ==================== Vehicles Management ====================
 
-// GET /admin/vehicles - List all vehicles
-router.get('/vehicles', isAuthenticated, isAdmin, async (req, res) => {
+// GET /admin/vehicules - List all vehicules
+router.get('/vehicules', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   try {
-    const vehicles = await dbAll(db, 'SELECT * FROM Vehicules');
-    res.json({ vehicles });
+    const vehicules = await dbAll(db, 'SELECT * FROM Vehicules');
+    res.json({ vehicules });
   } catch (error) {
     logger.error('Erreur lors de la récupération des véhicules:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des véhicules.' });
   }
 });
 
-// POST /admin/vehicles - Create a new vehicle
-router.post('/vehicles', isAuthenticated, isAdmin, async (req, res) => {
+// POST /admin/vehicules - Create a new vehicule
+router.post('/vehicules', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   const {
     license_plate,
@@ -387,10 +387,10 @@ router.post('/vehicles', isAuthenticated, isAdmin, async (req, res) => {
   }
 
   try {
-    const vehicleId = uuidv4();
+    const vehiculeId = uuidv4();
     await dbRun(db, `
       INSERT INTO Vehicules (
-        vehicle_id, 
+        vehicule_id, 
         license_plate, 
         owner_name, 
         contact_info,
@@ -403,7 +403,7 @@ router.post('/vehicles', isAuthenticated, isAdmin, async (req, res) => {
         brake_disc_thickness_rear
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        vehicleId,
+        vehiculeId,
         license_plate.toUpperCase(),
         owner_name,
         contact_info,
@@ -423,8 +423,8 @@ router.post('/vehicles', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
-// PUT /admin/vehicles/:id - Update an existing vehicle
-router.put('/vehicles/:id', isAuthenticated, isAdmin, async (req, res) => {
+// PUT /admin/vehicules/:id - Update an existing vehicule
+router.put('/vehicules/:id', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   const { id } = req.params;
   const {
@@ -441,28 +441,28 @@ router.put('/vehicles/:id', isAuthenticated, isAdmin, async (req, res) => {
   } = req.body;
 
   try {
-    const vehicle = await dbGet(db, 'SELECT * FROM Vehicules WHERE vehicle_id = ?', [id]);
-    if (!vehicle) {
+    const vehicule = await dbGet(db, 'SELECT * FROM Vehicules WHERE vehicule_id = ?', [id]);
+    if (!vehicule) {
       return res.status(404).json({ error: 'Véhicule non trouvé.' });
     }
 
-    const updatedLicensePlate = license_plate ? license_plate.toUpperCase() : vehicle.license_plate;
-    const updatedOwnerName = owner_name || vehicle.owner_name;
-    const updatedContactInfo = contact_info || vehicle.contact_info;
-    const updatedBrand = brand || vehicle.brand;
-    const updatedModel = model || vehicle.model;
-    const updatedEngineCode = engine_code || vehicle.engine_code;
-    const updatedRevisionOilType = revision_oil_type || vehicle.revision_oil_type;
-    const updatedRevisionOilVolume = revision_oil_volume || vehicle.revision_oil_volume;
-    const updatedBrakeDiscThicknessFront = brake_disc_thickness_front || vehicle.brake_disc_thickness_front;
-    const updatedBrakeDiscThicknessRear = brake_disc_thickness_rear || vehicle.brake_disc_thickness_rear;
+    const updatedLicensePlate = license_plate ? license_plate.toUpperCase() : vehicule.license_plate;
+    const updatedOwnerName = owner_name || vehicule.owner_name;
+    const updatedContactInfo = contact_info || vehicule.contact_info;
+    const updatedBrand = brand || vehicule.brand;
+    const updatedModel = model || vehicule.model;
+    const updatedEngineCode = engine_code || vehicule.engine_code;
+    const updatedRevisionOilType = revision_oil_type || vehicule.revision_oil_type;
+    const updatedRevisionOilVolume = revision_oil_volume || vehicule.revision_oil_volume;
+    const updatedBrakeDiscThicknessFront = brake_disc_thickness_front || vehicule.brake_disc_thickness_front;
+    const updatedBrakeDiscThicknessRear = brake_disc_thickness_rear || vehicule.brake_disc_thickness_rear;
 
     await dbRun(db, `
       UPDATE Vehicules 
       SET license_plate = ?, owner_name = ?, contact_info = ?, brand = ?, model = ?, engine_code = ?, 
           revision_oil_type = ?, revision_oil_volume = ?, brake_disc_thickness_front = ?, 
           brake_disc_thickness_rear = ?
-      WHERE vehicle_id = ?`,
+      WHERE vehicule_id = ?`,
       [
         updatedLicensePlate,
         updatedOwnerName,
@@ -485,13 +485,13 @@ router.put('/vehicles/:id', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /admin/vehicles/:id - Delete a vehicle
-router.delete('/vehicles/:id', isAuthenticated, isAdmin, async (req, res) => {
+// DELETE /admin/vehicules/:id - Delete a vehicule
+router.delete('/vehicules/:id', isAuthenticated, isAdmin, async (req, res) => {
   const db = getDatabase();
   const { id } = req.params;
 
   try {
-    const result = await dbRun(db, 'DELETE FROM Vehicules WHERE vehicle_id = ?', [id]);
+    const result = await dbRun(db, 'DELETE FROM Vehicules WHERE vehicule_id = ?', [id]);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Véhicule non trouvé.' });
     }
@@ -631,7 +631,7 @@ router.get('/reports', isAuthenticated, isAdmin, async (req, res) => {
       SELECT ir.report_id, ir.created_at, ir.created_at, v.license_plate, v.brand, v.model, 
              c.name as client_name, c.customer_id
       FROM InspectionReports ir
-      LEFT JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
+      LEFT JOIN Vehicules v ON ir.vehicule_id = v.vehicule_id
       LEFT JOIN Customers c ON v.customer_id = c.customer_id
       ORDER BY ir.created_at DESC
     `);

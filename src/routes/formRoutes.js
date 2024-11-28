@@ -2,9 +2,103 @@ const express = require('express');
 const router = express.Router();
 const { isAuthenticated } = require('../middleware/auth');
 const { submitForm } = require('../controllers/formController');
-const { getInspectionItems } = require('../config/database');
+const { 
+  getInspectionItems, 
+  getAllVehicules, 
+  getVehiculeById, 
+  getCustomerById, 
+  updateInspectionReports 
+} = require('../config/database');
+const logger = require('../utils/logger');
+
+// Add route to get all vehicules
+router.get('/api-vehicules', isAuthenticated, async (req, res) => {
+  try {
+    const vehicules = await getAllVehicules();
+    const formattedVehicules = vehicules.map(vehicule => ({
+      vehicule_id: vehicule.vehicule_id,
+      license_plate: vehicule.license_plate,
+      brand: vehicule.brand,
+      model: vehicule.model
+    }));
+
+    res.json({
+      success: true,
+      data: formattedVehicules
+    });
+  } catch (error) {
+    logger.error('Error fetching vehicules:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Une erreur est survenue lors de la récupération des véhicules'
+    });
+  }
+});
+
+// Get the vehicule and client information from license plate
+router.get('/api-vehicule-details/:id', isAuthenticated, async (req, res) => {
+  try {
+    const vehicule_id = req.params.id;
+    
+    if (vehicule_id && vehicule_id.length > 0) {
+      logger.debug(`Searching for vehicule with id: [${vehicule_id}]`);
+      const vehicule = await getVehiculeById(vehicule_id);
+
+      logger.debug(`Searching for customer with id: [${vehicule.customer_id}]`);
+      const customer = await getCustomerById(vehicule.customer_id);
+
+      const formattedCustomer = {
+        customer_id: customer.customer_id,
+        client_name: customer.name,
+        client_phone: customer.phone,
+        client_email: customer.email,
+        client_address: customer.address,
+        is_company: customer.is_company
+      };
+
+      logger.debug(`Vehicule and customer found`);
+
+      res.json({
+        success: true,
+        vehicule: vehicule,
+        customer: formattedCustomer
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'Aucune informations trouvées avec cette immatriculation'
+      });
+    }
+  } catch (error) {
+    logger.error('Error searching for vehicule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Une erreur est survenue lors de la recherche'
+    });
+  }
+});
 
 router.get('/', isAuthenticated, async (req, res) => {
+  try {
+    const inspectionItems = await getInspectionItems();
+    res.render('form', { 
+      errors: null, 
+      data: {}, 
+      inspectionItems,
+      user: req.session.user
+    });
+  } catch (error) {
+    res.status(500).render('error', { 
+      message: 'Error loading form',
+      error: error
+    });
+  }
+});
+
+router.get('/:id', isAuthenticated, async (req, res) => {
+  // const report = await getInspectionReport(req.params.id);
+  // res.json(report);
+
   try {
     const inspectionItems = await getInspectionItems();
     res.render('form', { 
@@ -26,11 +120,53 @@ router.post('/submit', isAuthenticated, async (req, res) => {
     const inspectionItems = await getInspectionItems();
     req.inspectionItems = inspectionItems;
     const userId = req.user.id;
+   
     await submitForm(req, res, userId);
   } catch (error) {
     res.status(500).render('form', {
       data: req.body,
       errors: [{ msg: 'Une erreur est survenue lors de l\'enregistrement.' }],
+      inspectionItems: req.inspectionItems || []
+    });
+  }
+});
+
+router.post('/submit-preview', isAuthenticated, async (req, res) => {
+  try {
+    const inspectionItems = await getInspectionItems();
+    req.inspectionItems = inspectionItems;
+    const userId = req.user.id;
+   
+    const reportId = await submitForm(req, res, userId, true);
+    return res.redirect(`/report/preview/${reportId}`);
+  
+  } catch (error) {
+    res.status(500).render('form', {
+      data: req.body,
+      errors: [{ msg: 'Une erreur est survenue lors de l\'enregistrement.' }],
+      inspectionItems: req.inspectionItems || []
+    });
+  }
+});
+
+router.post('/update/:id', isAuthenticated, async (req, res) => {
+  try {
+    logger.debug(`Received update request for report ID: ${req.params.id}`);
+    
+    const inspectionItems = await getInspectionItems();
+    req.inspectionItems = inspectionItems;
+    const userId = req.user.id;
+
+    const reportId = await updateInspectionReports(req.params.id, req.body, userId);
+    
+    logger.debug(`Report updated successfully with ID: ${reportId}`);
+    
+    return res.redirect(`/report/${reportId}`);
+  } catch (error) {
+    logger.error('Error updating form:', error);
+    res.status(500).render('form', {
+      data: req.body,
+      errors: [{ msg: 'Une erreur est survenue lors de la mise à jour.' }],
       inspectionItems: req.inspectionItems || []
     });
   }

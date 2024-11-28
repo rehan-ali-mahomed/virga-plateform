@@ -14,12 +14,13 @@ const INSPECTION_ICONS = {
   3: { path: 'img/icon_to_plan.svg', label: 'À planifier' }
 };
 
-const getInspectionLabeledIcon = (value) => {
+const getInspectionLabeledIcon = (value, includeIconAbsolutePath = true) => {
   const iconConfig = INSPECTION_ICONS[value] || INSPECTION_ICONS[2]; // Default to unverified
   return {
     icon_relative_path: `/static/${iconConfig.path}`,
-    icon_absolute_path: path.join(process.cwd(), 'public', iconConfig.path),
-    label: iconConfig.label
+    icon_absolute_path: includeIconAbsolutePath ? path.join(process.cwd(), 'public', iconConfig.path) : null,
+    label: iconConfig.label,
+    value: value
   };
 };
 
@@ -41,7 +42,7 @@ const getReportQuery = `
       'type', ii.type
     )) as inspection_items
   FROM InspectionReports ir
-  JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
+  JOIN Vehicules v ON ir.vehicule_id = v.vehicule_id
   JOIN Customers c ON v.customer_id = c.customer_id
   LEFT JOIN Users u ON ir.created_by = u.user_id
   LEFT JOIN InspectionItems ii ON ii.is_active = true 
@@ -50,7 +51,7 @@ const getReportQuery = `
   GROUP BY ir.report_id`;
 
 // Helper Functions
-const parseInspectionResults = (row) => {
+const parseInspectionResults = (row, includeIconAbsolutePath = true) => {
   if (!row) {
     logger.warn('parseInspectionResults: No row data provided');
     return null;
@@ -69,7 +70,7 @@ const parseInspectionResults = (row) => {
     // Map items with their values from inspection_results
     row.inspection_results = items.map(item => {
       const item_value = inspectionResults[item.item_id];
-      const labeledIcon = getInspectionLabeledIcon(item_value);
+      const labeledIcon = getInspectionLabeledIcon(item_value, includeIconAbsolutePath);
 
       // Log each item mapping with structured data
       logger.debug(`Mapping inspection item ${item.name} : ${labeledIcon.label} [${labeledIcon.icon_absolute_path}]`);
@@ -108,12 +109,12 @@ const formatDates = (report) => {
   return report;
 };
 
-const getReport = async (reportId) => {
+const getReport = async (reportId, includeIconAbsolutePath = true) => {
   const db = getDatabase();
   return new Promise((resolve, reject) => {
     db.get(getReportQuery, [reportId], (err, row) => {
       if (err) reject(err);
-      else resolve(parseInspectionResults(row));
+      else resolve(parseInspectionResults(row, includeIconAbsolutePath));
     });
   });
 };
@@ -237,6 +238,21 @@ router.get('/:id', isAuthenticated, async (req, res) => {
       errors: [error.message],
       user: req.session.user
     });
+  }
+});
+
+// API to get an inspection item
+router.get('/api-inspection-report/:id', isAuthenticated, async (req, res) => {
+  try {
+    const report = await getReport(req.params.id, false);
+    if (!report) {
+      return res.status(404).json({ error: `Report ${req.params.id} not found` });
+    }
+    
+    res.json(report);
+  } catch (error) {
+    logger.error('Error fetching inspection item:', error);
+    res.status(500).json({ error: 'Error fetching inspection item' });
   }
 });
 

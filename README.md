@@ -1,11 +1,11 @@
 # Vehicle Inspection Report Application
 
-This application is designed to streamline the process of creating and managing vehicle inspection reports for auto repair shops.
+This application is designed to streamline the process of creating and managing vehicule inspection reports for auto repair shops.
 
 ## Features
 
 - User authentication
-- Create and submit vehicle inspection reports
+- Create and submit vehicule inspection reports
 - View and download inspection reports as PDFs
 - Dashboard to manage and preview reports
 
@@ -50,7 +50,7 @@ This application is designed to streamline the process of creating and managing 
 
 2. Use the dashboard to create new inspection reports or view existing ones.
 
-3. Fill out the inspection form with vehicle and client details.
+3. Fill out the inspection form with vehicule and client details.
 
 4. Submit the form to generate a PDF report.
 

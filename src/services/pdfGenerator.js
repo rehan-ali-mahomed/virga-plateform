@@ -121,7 +121,7 @@ const drawHeader = (doc, report) => {
   doc.font(textStyles.mainTitle.font)
      .fontSize(textStyles.mainTitle.size)
      .fillColor(colors.primary.main)
-     .text('AUTO PRESTO', 97, 15);
+     .text(process.env.COMPANY_NAME, 97, 15);
 
   // Separator line
   doc.moveTo(95, 35)
@@ -132,9 +132,9 @@ const drawHeader = (doc, report) => {
 
   // Company info
   const companyInfo = [
-    { label: 'Adresse', value: '3b rue de la Guadeloupe, 97400 Saint-Denis' },
-    { label: 'Téléphone', value: '+262 693 01 25 39' },
-    { label: 'Email', value: 'habibe97490@gmail.com' }
+    { label: 'Adresse', value: process.env.COMPANY_ADDRESS },
+    { label: 'Téléphone', value: process.env.COMPANY_PHONE },
+    { label: 'Email', value: process.env.COMPANY_EMAIL }
   ];
 
   let infoY = 42;
@@ -191,10 +191,32 @@ const drawHeader = (doc, report) => {
 
 const drawInfoSection = (doc, report, startY) => {
   const sectionWidth = 545;
-  const vehicleHeight = 140;
+  const infoHeight = 16;
   const columnWidth = (sectionWidth - 60) / 2;
+
+  const leftColumnInfo = [
+    { label: 'Immatriculation', value: report.license_plate, bold: true },
+    { label: 'Marque', value: report.brand || 'N/A' },
+    { label: 'Modèle', value: report.model || 'N/A' },
+    { label: 'Kilométrage', value: report.mileage ? `${report.mileage} km` : 'N/A' },
+    { label: 'Mise en circulation', value: report.first_registration_date ? 
+      new Date(report.first_registration_date).toLocaleDateString('fr-FR') : 'N/A' },
+    { label: 'Prochain C.T', value: report.next_technical_inspection ? 
+      new Date(report.next_technical_inspection).toLocaleDateString('fr-FR') : 'N/A' },
+  ];
+
+  const rightColumnInfo = [
+    { label: 'Code moteur', value: report.engine_code || 'N/A' },
+    { label: 'Type d\'huile', value: report.revision_oil_type || 'N/A' },
+    { label: 'Quantité / Serrage', value: `${report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A'} / ${report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A'}` },
+    { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : 'N/A' },
+    { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : 'N/A' },
+    { label: 'Filtres révision', value: report.filters || 'N/A' }
+  ];
+
+  const vehiculeHeight = Math.max(infoHeight * leftColumnInfo.length, infoHeight * rightColumnInfo.length) + infoHeight + spacing.lg;
   
-  doc.roundedRect(25, startY, sectionWidth, vehicleHeight, 4)
+  doc.roundedRect(25, startY, sectionWidth, vehiculeHeight, 4)
      .fillColor(colors.primary.light)
      .fill();
 
@@ -210,28 +232,7 @@ const drawInfoSection = (doc, report, startY) => {
        align: 'center'
      });
 
-  const leftColumnInfo = [
-    { label: 'Immatriculation', value: report.license_plate, bold: true },
-    { label: 'Marque', value: report.brand || 'N/A' },
-    { label: 'Modèle', value: report.model || 'N/A' },
-    { label: 'Kilométrage', value: report.mileage ? `${report.mileage} km` : 'N/A' },
-    { label: 'Mise en circulation', value: report.first_registration_date ? 
-      new Date(report.first_registration_date).toLocaleDateString('fr-FR') : 'N/A' },
-    { label: 'Prochain C.T', value: report.next_technical_inspection ? 
-      new Date(report.next_technical_inspection).toLocaleDateString('fr-FR') : 'N/A' },
-    { label: 'Couple de serrage', value: report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A' }
-  ];
-
-  const rightColumnInfo = [
-    { label: 'Code moteur', value: report.engine_code || 'N/A' },
-    { label: 'Type d\'huile', value: report.revision_oil_type || 'N/A' },
-    { label: 'Quantité / Serrage', value: report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' + ' / ' + report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A' },
-    { label: 'Disque avant', value: report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : 'N/A' },
-    { label: 'Disque arrière', value: report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : 'N/A' },
-    { label: 'Filtres révision', value: report.filters || 'N/A' }
-  ];
-
-  let infoY = startY + 30;
+  let infoY = startY + 27;
   
   // Draw left column
   leftColumnInfo.forEach(info => {
@@ -245,11 +246,11 @@ const drawInfoSection = (doc, report, startY) => {
          width: columnWidth - 20,
          align: 'right'
        });
-    infoY += 16;
+    infoY += infoHeight;
   });
 
   // Draw right column
-  infoY = startY + 30;
+  infoY = startY + 27;
   rightColumnInfo.forEach(info => {
     doc.font(fonts.medium)
        .fontSize(9)
@@ -257,16 +258,18 @@ const drawInfoSection = (doc, report, startY) => {
        .text(info.label, sectionWidth/2 + 15, infoY);
 
     doc.font(info.bold ? fonts.bold : fonts.regular)
-       .text(info.value, sectionWidth/2 + 15, infoY, {
+       .text(info.value, sectionWidth/2 + 50, infoY, {
          width: columnWidth - 10,
          align: 'right'
        });
-    infoY += 16;
+    infoY += infoHeight;
   });
+
+  infoY += spacing.lg;
 
   // Draw comments section if present
   if (report.comments?.trim()) {
-    const commentsY = startY + vehicleHeight + spacing.lg;
+    const commentsY = startY + vehiculeHeight + spacing.lg;
     const commentsHeight = 100;
 
     doc.roundedRect(25, commentsY, sectionWidth, commentsHeight, 4)
@@ -302,7 +305,7 @@ const drawInfoSection = (doc, report, startY) => {
     return commentsY + commentsHeight + spacing.lg;
   }
 
-  return startY + vehicleHeight + spacing.lg;
+  return startY + vehiculeHeight + spacing.lg;
 };
 
 const drawInspectionGrid = (doc, x, y, results, options) => {
