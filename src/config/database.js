@@ -60,15 +60,15 @@ const createTables = () => {
       db.run(`CREATE TABLE IF NOT EXISTS Customers (
         customer_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        phone TEXT,
-        email TEXT,
+        phone TEXT UNIQUE,
+        email TEXT UNIQUE,
         address TEXT,
         is_company BOOLEAN DEFAULT false
       )`);
 
       // Vehicules table with license_plate as the main identifier
       db.run(`CREATE TABLE IF NOT EXISTS Vehicules (
-        vehicle_id TEXT PRIMARY KEY,
+        vehicule_id TEXT PRIMARY KEY,
         license_plate TEXT UNIQUE NOT NULL,
         customer_id TEXT,
         brand TEXT,
@@ -97,7 +97,7 @@ const createTables = () => {
       // InspectionReports without license_plate
       db.run(`CREATE TABLE IF NOT EXISTS InspectionReports (
         report_id TEXT PRIMARY KEY,
-        vehicle_id TEXT NOT NULL,
+        vehicule_id TEXT NOT NULL,
         mileage INTEGER,
         comments TEXT,
         next_technical_inspection DATE,
@@ -105,7 +105,7 @@ const createTables = () => {
         inspection_results JSON NOT NULL DEFAULT '{}',
         created_by TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (vehicle_id) REFERENCES Vehicules(vehicle_id),
+        FOREIGN KEY (vehicule_id) REFERENCES Vehicules(vehicule_id),
         FOREIGN KEY (created_by) REFERENCES Users(user_id)
       )`, (err) => {
         if (err) {
@@ -163,11 +163,11 @@ const getDatabase = () => {
   return db;
 };
 
-const addVehicle = (licensePlate, ownerName, contactInfo, vehicleDetails = {}) => {
+const addVehicle = (licensePlate, ownerName, contactInfo, vehiculeDetails = {}) => {
   return new Promise((resolve, reject) => {
-    const vehicleId = uuidv4();
+    const vehiculeId = uuidv4();
     db.run(`INSERT INTO Vehicules (
-      vehicle_id, 
+      vehicule_id, 
       license_plate, 
       owner_name, 
       contact_info,
@@ -181,22 +181,22 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehicleDetails = {}) =
       drain_plug_torque
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        vehicleId, 
+        vehiculeId, 
         licensePlate, 
         ownerName, 
         contactInfo,
-        vehicleDetails.brand || null,
-        vehicleDetails.model || null,
-        vehicleDetails.engine_code || null,
-        vehicleDetails.revision_oil_type || null,
-        vehicleDetails.revision_oil_volume || null,
-        vehicleDetails.brake_disc_thickness_front || null,
-        vehicleDetails.brake_disc_thickness_rear || null,
-        vehicleDetails.drain_plug_torque || null
+        vehiculeDetails.brand || null,
+        vehiculeDetails.model || null,
+        vehiculeDetails.engine_code || null,
+        vehiculeDetails.revision_oil_type || null,
+        vehiculeDetails.revision_oil_volume || null,
+        vehiculeDetails.brake_disc_thickness_front || null,
+        vehiculeDetails.brake_disc_thickness_rear || null,
+        vehiculeDetails.drain_plug_torque || null
       ],
       (err) => {
         if (err) reject(err);
-        else resolve(vehicleId);
+        else resolve(vehiculeId);
       }
     );
   });
@@ -230,8 +230,13 @@ const getUser = (userId) => {
   return new Promise((resolve, reject) => {
     db.get('SELECT username FROM Users WHERE user_id = ?', [userId], (err, row) => {
       if (err) reject(err);
-      else if (!row) reject(new Error(`User with ID ${userId} not found`));
-      else resolve(row.username);
+      else if (!row) {
+        logger.error(`User with ID ${userId} not found. Returning N/A`);
+        resolve('N/A');
+      } else {
+        logger.debug(`User with ID ${userId} found: ${row.username}`);
+        resolve(row.username);
+      }
     });
   });
 };
@@ -376,16 +381,44 @@ const getInspectionItems = () => {
 // Add function to save inspection report
 const saveInspectionReport = (reportData, userId) => {
   return new Promise((resolve, reject) => {
-    const db = getDatabase();
-    const reportId = uuidv4();
-    const vehicleId = uuidv4();
-    const customerId = uuidv4();
+    const customerPhone = reportData.client_phone;
+    const customerEmail = reportData.client_email;
 
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION');
+    // Check if customer already exists based on phone or email
+    db.get(`SELECT customer_id FROM Customers WHERE phone = ? OR email = ?`, [customerPhone, customerEmail], (err, row) => {
+      if (err) {
+        return reject(err);
+      }
 
-      try {
-        // 1. Créer le client
+      let customerId;
+      if (row) {
+        customerId = row.customer_id;
+        console.log(`Existing customer found: ${customerId}`);
+        
+        // Update existing customer
+        db.run(`UPDATE Customers SET
+          name = ?,
+          phone = ?,
+          email = ?,
+          address = ?,
+          is_company = ?
+        WHERE customer_id = ?`, [
+          reportData.client_name,
+          reportData.client_phone,
+          reportData.client_email || null,
+          reportData.client_address || null,
+          reportData.is_company || false,
+          customerId
+        ], function(err) {
+          if (err) {
+            return reject(err);
+          }
+          proceedWithReport();
+        });
+      } else {
+        logger.debug('No existing customer found, creating new customer with data:', reportData);
+        // Create new customer
+        customerId = uuidv4();
         db.run(`INSERT INTO Customers (
           customer_id, name, phone, email, address, is_company
         ) VALUES (?, ?, ?, ?, ?, ?)`, [
@@ -396,66 +429,180 @@ const saveInspectionReport = (reportData, userId) => {
           reportData.client_address || null,
           reportData.is_company || false
         ], function(err) {
-          if (err) throw err;
+          if (err) {
+            return reject(err);
+          }
+          proceedWithReport();
+        });
+      }
 
-          // 2. Créer ou mettre à jour le véhicule
-          db.run(`INSERT OR REPLACE INTO Vehicules (
-            vehicle_id, license_plate, customer_id, brand, model, 
-            engine_code, revision_oil_type, revision_oil_volume,
-            brake_disc_thickness_front, brake_disc_thickness_rear,
-            drain_plug_torque,
-            first_registration_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            vehicleId,
-            reportData.license_plate.toUpperCase(),
-            customerId,
-            reportData.brand || null,
-            reportData.model || null,
-            reportData.engine_code || null,
-            reportData.revision_oil_type || null,
-            reportData.revision_oil_volume || null,
-            reportData.brake_disc_thickness_front || null,
-            reportData.brake_disc_thickness_rear || null,
-            reportData.drain_plug_torque || null,
-            reportData.first_registration_date || null
+      const proceedWithReport = () => {
+        const vehiculeId = uuidv4();
+        db.run(`INSERT OR REPLACE INTO Vehicules (
+          vehicule_id, license_plate, customer_id, brand, model, 
+          engine_code, revision_oil_type, revision_oil_volume,
+          brake_disc_thickness_front, brake_disc_thickness_rear,
+          drain_plug_torque,
+          first_registration_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+          vehiculeId,
+          reportData.license_plate.toUpperCase(),
+          customerId,
+          reportData.brand || null,
+          reportData.model || null,
+          reportData.engine_code || null,
+          reportData.revision_oil_type || null,
+          reportData.revision_oil_volume || null,
+          reportData.brake_disc_thickness_front || null,
+          reportData.brake_disc_thickness_rear || null,
+          reportData.drain_plug_torque || null,
+          reportData.first_registration_date || null
+        ], function(err) {
+          if (err) return reject(err);
+
+          const reportId = uuidv4();
+          db.run(`INSERT INTO InspectionReports (
+            report_id,
+            vehicule_id,
+            mileage,
+            comments,
+            next_technical_inspection,
+            filters,
+            inspection_results,
+            created_by,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`, [
+            reportId,
+            vehiculeId,
+            reportData.mileage || null,
+            reportData.comments || null,
+            reportData.next_technical_inspection || null,
+            reportData.filters || null,
+            JSON.stringify(reportData.inspection || '{}'),
+            userId
           ], function(err) {
-            if (err) throw err;
-            // 3. Créer le rapport d'inspection
-            db.run(`INSERT INTO InspectionReports (
-              report_id,
-              vehicle_id,
-              mileage,
-              comments,
-              next_technical_inspection,
-              filters,
-              inspection_results,
-              created_by,
-              created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`, [
-              reportId,
-              vehicleId,
-              reportData.mileage || null,
-              reportData.comments || null,
-              reportData.next_technical_inspection || null,
-              reportData.filters || null,
-              JSON.stringify(reportData.inspection || '{}'),
-              userId
-            ], function(err) {
-              if (err) throw err;
+            if (err) {
+              return reject(err);
+            }
 
-              db.run('COMMIT', (err) => {
-                if (err) reject(err);
-                else resolve(reportId);
-              });
+            db.run('COMMIT', (err) => {
+              if (err) reject(err);
+              else resolve(reportId);
             });
           });
         });
+      };
+    });
 
-      } catch (error) {
-        db.run('ROLLBACK', () => {
-          reject(error);
-        });
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) return reject(err);
+      // Transaction started
+    });
+  });
+};
+
+const updateInspectionReports = (reportId, reportData, userId) => {
+  return new Promise((resolve, reject) => {
+    const db = getDatabase();
+
+    // First get the existing report to get vehicule_id and customer_id
+    db.get(`
+      SELECT 
+        ir.vehicule_id,
+        v.customer_id
+      FROM InspectionReports ir
+      LEFT JOIN Vehicules v ON ir.vehicule_id = v.vehicule_id
+      WHERE ir.report_id = ?
+    `, [reportId], (err, existingReport) => {
+      if (err) {
+        return reject(err);
       }
+      
+      if (!existingReport) {
+        return reject(new Error('Report not found'));
+      }
+
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        try {
+          // 1. Update the customer
+          db.run(`UPDATE Customers SET
+            name = ?,
+            phone = ?,
+            email = ?,
+            address = ?,
+            is_company = ?
+          WHERE customer_id = ?`, [
+            reportData.client_name,
+            reportData.client_phone,
+            reportData.client_email || null,
+            reportData.client_address || null,
+            reportData.is_company || false,
+            existingReport.customer_id
+          ], function(err) {
+            if (err) throw err;
+
+            // 2. Update the vehicule
+            db.run(`UPDATE Vehicules SET
+              license_plate = ?,
+              brand = ?,
+              model = ?,
+              engine_code = ?,
+              revision_oil_type = ?,
+              revision_oil_volume = ?,
+              brake_disc_thickness_front = ?,
+              brake_disc_thickness_rear = ?,
+              drain_plug_torque = ?,
+              first_registration_date = ?
+            WHERE vehicule_id = ?`, [
+              reportData.license_plate.toUpperCase(),
+              reportData.brand || null,
+              reportData.model || null,
+              reportData.engine_code || null,
+              reportData.revision_oil_type || null,
+              reportData.revision_oil_volume || null,
+              reportData.brake_disc_thickness_front || null,
+              reportData.brake_disc_thickness_rear || null,
+              reportData.drain_plug_torque || null,
+              reportData.first_registration_date || null,
+              existingReport.vehicule_id
+            ], function(err) {
+              if (err) throw err;
+
+              // 3. Update the inspection report
+              db.run(`UPDATE InspectionReports SET
+                mileage = ?,
+                comments = ?,
+                next_technical_inspection = ?,
+                filters = ?,
+                inspection_results = ?,
+                created_by = ?
+              WHERE report_id = ?`, [
+                reportData.mileage || null,
+                reportData.comments || null,
+                reportData.next_technical_inspection || null,
+                reportData.filters || null,
+                JSON.stringify(reportData.inspection || '{}'),
+                userId,
+                reportId
+              ], function(err) {
+                if (err) throw err;
+
+                db.run('COMMIT', (err) => {
+                  if (err) reject(err);
+                  else resolve(reportId);
+                });
+              });
+            });
+          });
+
+        } catch (error) {
+          db.run('ROLLBACK', () => {
+            reject(error);
+          });
+        }
+      });
     });
   });
 };
@@ -477,7 +624,7 @@ const getInspectionReport = (reportId) => {
         c.address as client_address,
         c.is_company
       FROM InspectionReports ir
-      LEFT JOIN Vehicules v ON ir.vehicle_id = v.vehicle_id
+      LEFT JOIN Vehicules v ON ir.vehicule_id = v.vehicule_id
       LEFT JOIN Users u ON ir.created_by = u.user_id
       LEFT JOIN Customers c ON v.customer_id = c.customer_id
       WHERE ir.report_id = ?
@@ -537,6 +684,69 @@ const getInspectionReport = (reportId) => {
   });
 };
 
+// Add function to get all inspection reports
+const getAllVehicules = async () => {
+  return new Promise((resolve, reject) => {
+    const db = getDatabase();
+    db.all('SELECT * FROM Vehicules', [], (err, vehicules) => {
+      if (err) reject(err);
+      else {
+        resolve(vehicules);
+      }
+    });
+  });
+};
+
+// Get the vehicule by license plate
+const getVehiculeByLicensePlate = async (license_plate) => {
+  const db = getDatabase();
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM Vehicules WHERE license_plate = ?`, [license_plate], (err, vehicule) => {
+      if (err) reject(err);
+      else resolve(vehicule);
+    });
+  });
+};
+
+// Get the vehicule by id
+const getVehiculeById = async (vehicule_id) => {
+  const db = getDatabase();
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM Vehicules WHERE vehicule_id = ?`, [vehicule_id], (err, vehicule) => {
+      if (err) reject(err);
+      else resolve(vehicule);
+    });
+  });
+};
+
+// Get the customer by vehicule id
+const getCustomerById = async (customer_id) => {
+  const db = getDatabase();
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM Customers WHERE customer_id = ?`, [customer_id], (err, customer) => {
+      if (err) reject(err);
+      else resolve(customer);
+    });
+  });
+};
+
+// Map inspection results to inspection items
+const mapInspectionResults = async (inspectionResults) => {
+  const items = await getInspectionItems();
+
+  return items.map(item => {
+    const result = inspectionResults[item.item_id] || {};
+    return {
+      item_id: item.item_id,
+      name: item.name,
+      category: item.category,
+      type: item.type,
+      value: parseInt(result.value, 10) || 0,
+      options: JSON.parse(item.options || '[]'),
+      unit: result.unit
+    };
+  });
+};
 
 module.exports = {
   initializeDatabase,
@@ -545,6 +755,11 @@ module.exports = {
   addUser,
   getInspectionItems,
   saveInspectionReport,
+  updateInspectionReports,
   getInspectionReport,
+  getVehiculeByLicensePlate,
+  getVehiculeById,
+  getCustomerById,
+  getAllVehicules,
   getUser
 };

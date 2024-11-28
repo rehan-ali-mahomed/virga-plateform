@@ -2,14 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let reportToDelete = null;
   const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-  // Handle delete button clicks
   document.querySelectorAll('button.action-btn.delete').forEach(button => {
     button.addEventListener('click', function() {
       reportToDelete = this.dataset.reportId;
       deleteConfirmModal.show();
     });
   });
-
+  
   // Handle delete confirmation
   document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
     if (!reportToDelete) return;
@@ -103,6 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
                class="action-btn download" 
                title="Télécharger">
               <i class="fas fa-download"></i>
+            </a>  
+            <a href="/form/${report.report_id}"
+               class="action-btn edit"
+               title="Modifier">
+              <i class="fa-regular fa-pen-to-square"></i>
             </a>
             <button class="action-btn delete"
                     data-report-id="${report.report_id}"

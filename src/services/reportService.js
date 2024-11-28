@@ -6,13 +6,13 @@ function insertReport(data) {
 
   return new Promise((resolve, reject) => {
     const {
-      date, client_name, client_phone, comments, technician_id, vehicle_id
+      date, client_name, client_phone, comments, technician_id, vehicule_id
     } = data;
 
     const query = `
       INSERT INTO InspectionReports (
         report_id,
-        vehicle_id,
+        vehicule_id,
         date,
         client_name,
         client_phone,
@@ -22,7 +22,7 @@ function insertReport(data) {
     `;
 
     const params = [
-      date, vehicle_id, client_name, client_phone,
+      date, vehicule_id, client_name, client_phone,
       comments, technician_id
     ];
 

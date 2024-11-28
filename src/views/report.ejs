@@ -13,7 +13,24 @@
         <div>
           <h2 class="h5 mb-0"><i class="fas fa-file-alt"></i> DÉTAILS DU RAPPORT</h2>
           <div class="text-white-50 small font-italic mt-2" style="font-family: 'Open Sans', sans-serif;">
-            <i class="far fa-calendar-alt me-1"></i> Créé le <%= report.created_at %>    <br> <i class="far fa-user-circle ms-1"></i> Par : <%= username %>
+            <i class="far fa-calendar-alt me-1"></i> Créé le <%= 
+              (() => {
+                const date = new Date(report.created_at);
+                // Add 4 hours for GMT+4 adjustment
+                date.setHours(date.getHours() + 4);
+                const formattedDate = date.toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+                });
+                const formattedTime = date.toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false
+                });
+                return `${formattedDate} à ${formattedTime}`;
+              })()
+            %> <br> <i class="far fa-user-circle ms-1"></i> Par : <%= username %>
           </div>
         </div>
         <div class="report-actions">
@@ -22,6 +39,10 @@
                class="btn btn-light btn-sm mr-2"
                target="_blank">
               <i class="fas fa-eye"></i> Aperçu
+            </a>
+            <a href="/form/<%= report.report_id %>" 
+              class="btn btn-light btn-sm mr-2">
+              <i class="fas fa-edit"></i> Modifier
             </a>
             <a href="/report/download/<%= report.report_id %>" 
                class="btn btn-light btn-sm">
@@ -111,7 +132,7 @@
               </div>
               <div class="col-md-6">
                 <div class="info-item">
-                  <label><i class="fas fa-tint"></i> Volume d'huile / Couple de serrage :</label>
+                  <label><i class="fas fa-tint"></i> Volume d'huile / Serrage :</label>
                   <div class="form-control-static"><%= report.revision_oil_volume ? `${report.revision_oil_volume} L` : 'N/A' %> / <%= report.drain_plug_torque ? `${report.drain_plug_torque} Nm` : 'N/A' %></div>
                 </div>
               </div>
@@ -246,7 +267,9 @@
       </div>
       <div class="card-body">
         <% if (report.comments) { %>
-          <div class="form-control-static"><%= report.comments %></div>
+          <div class="form-control-static m-0">
+            <textarea class="form-control" readonly><%= report.comments %></textarea>
+          </div>
         <% } else { %>
           <div class="alert alert-info">
             <i class="fas fa-info-circle"></i> Aucun commentaire.
@@ -260,4 +283,4 @@
 <%- include('partials/footer', {
   showScripts: false,
   customScripts: []
-}) %> 
+}) %>

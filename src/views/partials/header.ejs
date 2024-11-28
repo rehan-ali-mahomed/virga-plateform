@@ -15,9 +15,9 @@
       <div class="header-brand">
         <a href="/dashboard"><img src="/static/img/company_logo.png" alt="Logo de l'entreprise" class="header-logo" /></a>
         <div class="header-info">
-          <h1>AUTO PRESTO</h1>
-          <p>123 Rue Principale, Ville, Pays</p>
-          <p>Téléphone : 0123456789</p>
+          <h1><%= process.env.COMPANY_NAME %></h1>
+          <p><%= process.env.COMPANY_ADDRESS %></p>
+          <p><%= process.env.COMPANY_PHONE %></p>
         </div>
       </div>
       <% if (showNav) { %>

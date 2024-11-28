@@ -20,71 +20,8 @@
 
     <!-- Form Sections -->
     <div class="form-sections">
-      <!-- Hidden date field -->
-      <input type="hidden" id="date" name="date" 
-             value="<%= new Date().toISOString().split('T')[0] %>">
-
-      <!-- 1. Client Information -->
-      <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
-          <h2 class="h5 mb-0"><i class="fas fa-user-circle"></i> INFORMATIONS CLIENT</h2>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="form-group">
-                <label for="client_name">
-                  <i class="far fa-user"></i> Nom :
-                </label>
-                <input type="text" id="client_name" name="client_name" 
-                       class="form-control" value="<%= data.client_name || '' %>" required>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="form-group">
-                <label for="client_phone">
-                  <i class="fas fa-phone"></i> Téléphone :
-                </label>
-                <input type="tel" id="client_phone" name="client_phone" 
-                       class="form-control" value="<%= data.client_phone || '' %>" required>
-              </div>
-            </div>
-          </div>
-          <div class="row mt-2">
-            <div class="col-md-6">
-              <div class="form-group">
-                <label for="client_email">
-                  <i class="fas fa-envelope"></i> Email :
-                </label>
-                <input type="email" id="client_email" name="client_email" 
-                       class="form-control" value="<%= data.client_email || '' %>">
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="form-group">
-                <label for="client_address">
-                  <i class="fas fa-map-marker-alt"></i> Adresse :
-                </label>
-                <input type="text" id="client_address" name="client_address" 
-                       class="form-control" value="<%= data.client_address || '' %>">
-              </div>
-            </div>
-          </div>
-          <div class="row mt-2">
-            <div class="col-md-6">
-              <div class="form-check">
-                <input type="checkbox" id="is_company" name="is_company" 
-                       class="form-check-input" <%= data.is_company ? 'checked' : '' %>>
-                <label class="form-check-label" for="is_company">
-                  <i class="fas fa-building"></i> Société
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. Vehicle Details -->
+      
+      <!-- 1. Vehicle Details -->
       <div class="card mb-3">
         <div class="card-header bg-primary text-white">
           <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
@@ -93,13 +30,22 @@
           <!-- Première ligne -->
           <div class="row">
             <div class="col-md-3">
-              <div class="form-group">
+              <div class="form-group position-relative">
                 <label for="license_plate">
                   <i class="fas fa-id-card"></i> Immatriculation :
                 </label>
                 <input type="text" id="license_plate" name="license_plate" 
-                       class="form-control text-uppercase" required 
-                       value="<%= data.license_plate || '' %>">
+                      class="form-control text-uppercase" required 
+                      placeholder="AB-123-CD"
+                      value="<%= data.license_plate || '' %>"
+                      autocomplete="off">
+                      <div id="search_result"></div>
+                <!-- Add dropdown container -->
+                <div id="search_dropdown" class="search-dropdown d-none">
+                  <div class="search-dropdown-content">
+                    <!-- Results will be populated here -->
+                  </div>
+                </div>
               </div>
             </div>
             <div class="col-md-3">
@@ -108,7 +54,7 @@
                   <i class="fas fa-car"></i> Marque :
                 </label>
                 <input type="text" id="brand" name="brand" class="form-control" 
-                       value="<%= data.brand || '' %>" placeholder="ex: Renault">
+                      value="<%= data.brand || '' %>" placeholder="ex: Renault" required>
               </div>
             </div>
             <div class="col-md-3">
@@ -117,7 +63,7 @@
                   <i class="fas fa-car-side"></i> Modèle :
                 </label>
                 <input type="text" id="model" name="model" class="form-control" 
-                       value="<%= data.model || '' %>" placeholder="ex: Clio">
+                      value="<%= data.model || '' %>" placeholder="ex: Clio">
               </div>
             </div>
             <div class="col-md-3">
@@ -126,8 +72,8 @@
                   <i class="fas fa-cogs"></i> Code moteur :
                 </label>
                 <input type="text" id="engine_code" name="engine_code" 
-                       class="form-control" value="<%= data.engine_code || '' %>" 
-                       placeholder="ex: K9K">
+                      class="form-control" value="<%= data.engine_code || '' %>" 
+                      placeholder="ex: K9K">
               </div>
             </div>
           </div>
@@ -140,29 +86,31 @@
                   <i class="fas fa-calendar-alt"></i> Mise en circulation :
                 </label>
                 <input type="date" id="first_registration_date" 
-                       name="first_registration_date" class="form-control" 
-                       value="<%= data.first_registration_date || '' %>"
-                       placeholder="ex: 24/11/2016">
+                      name="first_registration_date" class="form-control" 
+                      value="<%= data.first_registration_date || '' %>"
+                      placeholder="ex: 24/11/2016">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
-                <label for="next_technical_inspection">
-                  <i class="fas fa-calendar-check"></i> Prochain C.T. :
+                <label for="brake_disc_thickness_front">
+                  <i class="fa-solid fa-cookie-bite"></i> Disques AV (mm) :
                 </label>
-                <input type="date" id="next_technical_inspection" 
-                       name="next_technical_inspection" class="form-control" 
-                       value="<%= data.next_technical_inspection || '' %>">
+                <input type="text" id="brake_disc_thickness_front" 
+                      name="brake_disc_thickness_front" class="form-control" 
+                      step="5" value="<%= data.brake_disc_thickness_front || '' %>" 
+                      placeholder="ex: 230 / 245 / 260">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
-                <label for="revision_oil_type">
-                  <i class="fas fa-oil-can"></i> Type d'huile / Classe huile :
+                <label for="brake_disc_thickness_rear">
+                  <i class="fa-solid fa-cookie"></i> Disques AR (mm) :
                 </label>
-                <input type="text" id="revision_oil_type" name="revision_oil_type" 
-                       class="form-control" value="<%= data.revision_oil_type || '' %>" 
-                       placeholder="ex: 5W30">
+                <input type="text" id="brake_disc_thickness_rear" 
+                      name="brake_disc_thickness_rear" class="form-control" 
+                      step="5" value="<%= data.brake_disc_thickness_rear || '' %>" 
+                      placeholder="ex: 10 / 24 / 36">
               </div>
             </div>
             <div class="col-md-3">
@@ -173,9 +121,9 @@
                   <i class="fas fa-fill-drip"></i> Volume (L) :
                 </label>
                 <input type="number" id="revision_oil_volume" 
-                       name="revision_oil_volume" class="form-control" 
-                       step="0.1" value="<%= data.revision_oil_volume || '' %>" 
-                       placeholder="ex: 5.5">
+                      name="revision_oil_volume" class="form-control" 
+                      step="0.1" value="<%= data.revision_oil_volume || '' %>" 
+                      placeholder="ex: 5.5">
                   </div>
                 </div>
                 <div class="col-md">
@@ -184,9 +132,9 @@
                       <i class="fas fa-fill-drip"></i> Serrage (Nm) :
                     </label>
                     <input type="number" id="drain_plug_torque" 
-                       name="drain_plug_torque" class="form-control" 
-                       step="0.1" value="<%= data.drain_plug_torque || '' %>" 
-                       placeholder="ex: 25">
+                      name="drain_plug_torque" class="form-control" 
+                      step="0.1" value="<%= data.drain_plug_torque || '' %>" 
+                      placeholder="ex: 25">
                   </div>
                 </div>
               </div>
@@ -197,24 +145,22 @@
           <div class="row mt-2">
             <div class="col-md-3">
               <div class="form-group">
-                <label for="brake_disc_thickness_front">
-                  <i class="fas fa-disc-drive"></i> Disques AV (mm) :
+                <label for="revision_oil_type">
+                  <i class="fas fa-oil-can"></i> Type d'huile / Classe huile :
                 </label>
-                <input type="text" id="brake_disc_thickness_front" 
-                       name="brake_disc_thickness_front" class="form-control" 
-                       step="5" value="<%= data.brake_disc_thickness_front || '' %>" 
-                       placeholder="ex: 230 / 245 / 260">
+                <input type="text" id="revision_oil_type" name="revision_oil_type" 
+                      class="form-control" value="<%= data.revision_oil_type || '' %>" 
+                      placeholder="ex: 5W30">
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
-                <label for="brake_disc_thickness_rear">
-                  <i class="fas fa-disc-drive"></i> Disques AR (mm) :
-                </label>
-                <input type="text" id="brake_disc_thickness_rear" 
-                       name="brake_disc_thickness_rear" class="form-control" 
-                       step="5" value="<%= data.brake_disc_thickness_rear || '' %>" 
-                       placeholder="ex: 10 / 24 / 36">
+                  <label for="next_technical_inspection">
+                    <i class="fas fa-calendar-check"></i> Prochain C.T. :
+                  </label>
+                  <input type="date" id="next_technical_inspection" 
+                        name="next_technical_inspection" class="form-control" 
+                        value="<%= data.next_technical_inspection || '' %>">
               </div>
             </div>
             <div class="col-md-3">
@@ -223,8 +169,8 @@
                   <i class="fas fa-tachometer-alt"></i> Kilométrage :
                 </label>
                 <input type="number" id="mileage" name="mileage" 
-                       class="form-control" value="<%= data.mileage || '' %>" 
-                       placeholder="ex: 100000">
+                      class="form-control" value="<%= data.mileage || '' %>" 
+                      placeholder="ex: 100000">
               </div>
             </div>
             <div class="col-md-3">
@@ -233,22 +179,90 @@
                   <i class="fas fa-filter"></i> Filtres :
                 </label>
                 <input type="text" id="filters" name="filters" 
-                       class="form-control" required 
-                       value="<%= data.filters || '' %>"
-                       placeholder="ex: 3F ou FH / FA / FC">
+                      class="form-control" 
+                      value="<%= data.filters || '' %>"
+                      placeholder="ex: 3F ou FH / FA / FC">
               </div>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- 2. Client Information -->
+      <div class="card mb-3">
+      <div class="card-header bg-primary text-white">
+        <h2 class="h5 mb-0"><i class="fas fa-user-circle"></i> INFORMATIONS CLIENT</h2>
+      </div>
+      <% if (data.customer_id) { %>
+        <input type="hidden" id="customer_id" name="customer_id" value="<%= data.customer_id %>">
+      <% } %>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="client_name">
+                <i class="far fa-user"></i> Nom :
+              </label>
+              <input type="text" id="client_name" name="client_name" 
+                      class="form-control" value="<%= data.client_name || '' %>" required>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="client_phone">
+                <i class="fas fa-phone"></i> Téléphone :
+              </label>
+              <input type="tel" id="client_phone" name="client_phone" 
+                      class="form-control" value="<%= data.client_phone || '' %>">
+            </div>
+          </div>
+        </div>
+        <div class="row mt-2">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="client_email">
+                <i class="fas fa-envelope"></i> Email :
+              </label>
+              <input type="email" id="client_email" name="client_email" 
+                      class="form-control" value="<%= data.client_email || '' %>">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="client_address">
+                <i class="fas fa-map-marker-alt"></i> Adresse :
+              </label>
+              <input type="text" id="client_address" name="client_address" 
+                      class="form-control" value="<%= data.client_address || '' %>">
+            </div>
+          </div>
+        </div>
+        <div class="row mt-2">
+          <div class="col-md-6">
+            <div class="form-check">
+              <input type="checkbox" id="is_company" name="is_company" 
+                      class="form-check-input" <%= data.is_company ? 'checked' : '' %>>
+              <label class="form-check-label" for="is_company">
+                <i class="fas fa-building"></i> Société
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
       <!-- 3. Control Points -->
       <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
           <h2 class="h5 mb-0">
             <i class="fas fa-clipboard-check"></i> POINTS DE CONTRÔLE
           </h2>
+          <button id="preview-pdf-template-btn" type="button" aria-label="Prévisualiser le PDF vierge"
+            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+            <i class="fas fa-file-pdf mr-2"></i> Prévisualiser le PDF vierge
+          </button>
         </div>
+        
         <div class="card-body p-0">
           <% 
           const groupedItems = {};
@@ -337,5 +351,5 @@
 
 <%- include('partials/footer', {
   showScripts: true,
-  customScripts: ['/static/js/script.js']
+  customScripts: ['/static/js/form.js']
 }) %>
