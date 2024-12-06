@@ -5,6 +5,12 @@ const submitForm = async (req, res, userId, returnReportId = false) => {
   try {
     logger.debug('Submitting form:', req.body);
 
+    if (req.body.is_company === 'on') {
+      req.body.is_company = true;
+    } else {
+      req.body.is_company = false;
+    }
+
     const reportId = await saveInspectionReport(req.body, userId);
     
     if (!reportId) {

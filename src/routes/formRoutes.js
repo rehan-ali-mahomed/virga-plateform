@@ -7,7 +7,9 @@ const {
   getAllVehicules, 
   getVehiculeById, 
   getCustomerById, 
-  updateInspectionReports 
+  updateInspectionReports, 
+  getAllActiveUsers,
+  getUserById
 } = require('../config/database');
 const logger = require('../utils/logger');
 
@@ -43,6 +45,8 @@ router.get('/api-vehicule-details/:id', isAuthenticated, async (req, res) => {
     if (vehicule_id && vehicule_id.length > 0) {
       logger.debug(`Searching for vehicule with id: [${vehicule_id}]`);
       const vehicule = await getVehiculeById(vehicule_id);
+      const users = await getAllActiveUsers();
+      const mechanicsList = users.filter(user => user.role === 'mechanic');
 
       logger.debug(`Searching for customer with id: [${vehicule.customer_id}]`);
       const customer = await getCustomerById(vehicule.customer_id);
@@ -61,7 +65,8 @@ router.get('/api-vehicule-details/:id', isAuthenticated, async (req, res) => {
       res.json({
         success: true,
         vehicule: vehicule,
-        customer: formattedCustomer
+        customer: formattedCustomer,
+        mechanics: mechanicsList
       });
     } else {
       res.json({
@@ -78,13 +83,36 @@ router.get('/api-vehicule-details/:id', isAuthenticated, async (req, res) => {
   }
 });
 
+// Get user details with id
+router.get('/api-user-details/:id', isAuthenticated, async (req, res) => {
+  try {
+    const user_id = req.params.id;
+    const user = await getUserById(user_id);
+
+    res.json({
+      success: true,
+      user: user
+    });
+  } catch (error) {
+    logger.error('Error searching for user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Une erreur est survenue lors de la recherche'
+    });
+  }
+});
+
 router.get('/', isAuthenticated, async (req, res) => {
   try {
     const inspectionItems = await getInspectionItems();
+    const users = await getAllActiveUsers();
+    const mechanicsList = users.filter(user => user.role === 'mechanic');
+    
     res.render('form', { 
       errors: null, 
       data: {}, 
       inspectionItems,
+      mechanicsList,
       user: req.session.user
     });
   } catch (error) {
@@ -96,18 +124,20 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 router.get('/:id', isAuthenticated, async (req, res) => {
-  // const report = await getInspectionReport(req.params.id);
-  // res.json(report);
-
   try {
     const inspectionItems = await getInspectionItems();
+    const users = await getAllActiveUsers();
+    const mechanicsList = users.filter(user => user.role === 'mechanic');
+
     res.render('form', { 
       errors: null, 
       data: {}, 
       inspectionItems,
+      mechanicsList,
       user: req.session.user
     });
   } catch (error) {
+    logger.error('Error loading form:', error);
     res.status(500).render('error', { 
       message: 'Error loading form',
       error: error

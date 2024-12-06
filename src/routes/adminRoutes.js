@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { isAuthenticated } = require('../middleware/auth');
-const { getDatabase, addUser } = require('../config/database');
+const { getDatabase, addUser, deactivateUser } = require('../config/database');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
@@ -147,11 +147,10 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
 
 // ==================== Users Management ====================
 
-// GET /admin/users - List all users
+// GET /admin/users - List all active users
 router.get('/users', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   try {
-    const users = await dbAll(db, 'SELECT user_id, username, email, role FROM Users');
+    const users = await getAllActiveUsers();
     res.json({ users });
   } catch (error) {
     logger.error('Erreur lors de la récupération des utilisateurs:', error);
@@ -168,7 +167,7 @@ router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
   }
 
   try {
-    addUser(username, email, role, password);
+    await addUser(username, email, role, password);
     res.status(201).json({ message: `Utilisateur ${username} créé avec succès.`});
   } catch (error) {
     logger.error('Erreur lors de la création de l\'utilisateur:', error);
@@ -213,28 +212,23 @@ router.put('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
 
 // DELETE /admin/users/:id - Delete a user
 router.delete('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { id } = req.params;
 
   try {
-    const result = await dbRun(db, 'DELETE FROM Users WHERE user_id = ?', [id]);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
-    }
-    res.json({ message: 'Utilisateur supprimé avec succès.' });
+    await deactivateUser(id);
+    res.json({ message: 'Utilisateur désactivé avec succès.' });
   } catch (error) {
-    logger.error('Erreur lors de la suppression de l\'utilisateur:', error);
-    res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur.' });
+    logger.error('Erreur lors de la désactivation de l\'utilisateur:', error);
+    res.status(500).json({ error: 'Erreur lors de la désactivation de l\'utilisateur.' });
   }
 });
 
 // Check if username exists
 router.get('/users/check-username', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { username } = req.query;
   
   try {
-    const user = await dbGet(db, 'SELECT username FROM Users WHERE username = ?', [username]);
+    const user = await getUserByUsername(username);
     res.json({ exists: !!user });
   } catch (error) {
     logger.error('Error checking username:', error);

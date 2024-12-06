@@ -1,7 +1,7 @@
 ﻿const express = require('express');
 const router = express.Router();
 const { isAuthenticated } = require('../middleware/auth');
-const { getDatabase, getUser } = require('../config/database');
+const { getDatabase, getUserById } = require('../config/database');
 const { generatePDF } = require('../services/pdfGenerator');
 const fs = require('fs');
 const path = require('path');
@@ -221,15 +221,24 @@ router.get('/:id', isAuthenticated, async (req, res) => {
       });
     }
 
-    const username = await getUser(report.created_by);
+    const created_by = (await getUserById(report.created_by)).username;
+    logger.debug(`Created by: ${created_by} with id: ${report.created_by}`);
 
-    logger.debug(`Username: ${username} with id: ${report.created_by}`);
+    let mechanicsParsed = JSON.parse(report.mechanics);
+    let mechanics = [];
+
+    for (let mechanic in mechanicsParsed) {
+      const mechanic_id = mechanicsParsed[mechanic];
+      const mechanic_user = await getUserById(mechanic_id);
+      mechanics.push(mechanic_user.username);
+    }
 
     res.render('report', { 
       report, 
       errors: [],
       user: req.session.user,
-      username: username
+      created_by: created_by,
+      mechanics: mechanics
     });
   } catch (error) {
     logger.error('Error fetching report:', error);

@@ -12,8 +12,8 @@
   <div class="col-md-6">
     <div class="card shadow">
       <div class="card-header bg-primary text-white text-center">
-        <img src="/static/img/company_logo.png" alt="Auto Presto Logo" class="mb-3" style="max-width: 150px;">
-        <h1 class="h4 mb-0">Connexion</h1>
+        <img src="/static/img/company_logo.png" alt="Auto Presto Logo" class="mb-3 header-logo" style="max-width: 150px;">
+        <h1 class="h4 py-1">Connexion</h1>
       </div>
       <div class="card-body">
         <% if (error) { %>
@@ -32,11 +32,24 @@
             <label for="password">
               <i class="fas fa-lock"></i> Mot de passe
             </label>
-            <input type="password" class="form-control" id="password" name="password" required>
+            <div class="input-group">
+              <input type="password" class="form-control" id="password" name="password" required>
+              <div class="input-group-append" style="cursor: pointer;">
+                <span class="input-group-text"><i class="fas fa-eye" id="togglePassword"></i></span>
+              </div>
+            </div>
+            <script>
+              document.getElementById('togglePassword').addEventListener('click', function() {
+                const passwordInput = document.getElementById('password');
+                passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+              });
+            </script>
           </div>
-          <button type="submit" class="btn btn-primary btn-block">
-            <i class="fas fa-sign-in-alt"></i> Se connecter
-          </button>
+          <div class="my-3">
+            <button type="submit" class="btn btn-primary btn-block">
+              <i class="fas fa-sign-in-alt"></i> Se connecter
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -34,7 +34,8 @@ const initializeDatabase = () => {
       } else {
         logger.debug(`Connected to the database at ${dbPath}`);
         createTables()
-          .then(() => createDefaultUser())
+          // .then(() => temporaryDatabaseUpdate())
+          .then(() => createDefaultAdminUser())
           .then(() => seedInspectionItems())
           .then(resolve)
           .catch(reject);
@@ -46,17 +47,18 @@ const initializeDatabase = () => {
 const createTables = () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      // Users table remains unchanged
+      // Users
       db.run(`CREATE TABLE IF NOT EXISTS Users (
         user_id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE,
         role TEXT NOT NULL,
         password TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT true,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
-      // Customers table
+      // Customers
       db.run(`CREATE TABLE IF NOT EXISTS Customers (
         customer_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -66,7 +68,7 @@ const createTables = () => {
         is_company BOOLEAN DEFAULT false
       )`);
 
-      // Vehicules table with license_plate as the main identifier
+      // Vehicules
       db.run(`CREATE TABLE IF NOT EXISTS Vehicules (
         vehicule_id TEXT PRIMARY KEY,
         license_plate TEXT UNIQUE NOT NULL,
@@ -83,7 +85,7 @@ const createTables = () => {
         FOREIGN KEY (customer_id) REFERENCES Customers(customer_id)
       )`);
 
-      // InspectionItems unchanged
+      // InspectionItems
       db.run(`CREATE TABLE IF NOT EXISTS InspectionItems (
         item_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -94,7 +96,7 @@ const createTables = () => {
         display_order INTEGER
       )`);
 
-      // InspectionReports without license_plate
+      // InspectionReports
       db.run(`CREATE TABLE IF NOT EXISTS InspectionReports (
         report_id TEXT PRIMARY KEY,
         vehicule_id TEXT NOT NULL,
@@ -105,6 +107,7 @@ const createTables = () => {
         inspection_results JSON NOT NULL DEFAULT '{}',
         created_by TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        mechanics TEXT[] DEFAULT '{}',
         FOREIGN KEY (vehicule_id) REFERENCES Vehicules(vehicule_id),
         FOREIGN KEY (created_by) REFERENCES Users(user_id)
       )`, (err) => {
@@ -115,43 +118,6 @@ const createTables = () => {
           resolve();
         }
       });
-    });
-  });
-};
-
-const createDefaultUser = async () => {
-  const defaultUsername = 'admin';
-  const defaultPassword = 'password123';
-  const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
-  return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM Users WHERE username = ?', [defaultUsername], (err, row) => {
-      if (err) {
-        reject(err);
-      } else if (row) {
-        logger.debug(`Default user ${defaultUsername} already exists`);
-        resolve();
-      } else {
-        const userId = uuidv4();
-        db.run(`
-          INSERT INTO Users (
-            user_id, 
-            username, 
-            email, 
-            role, 
-            password
-          ) VALUES (?, ?, ?, ?, ?)`, 
-          [userId, defaultUsername, 'admin@example.com', 'admin', hashedPassword], 
-          (err) => {
-            if (err) {
-              reject(err);
-            } else {
-              logger.debug(`Default user ${defaultUsername} created`);
-              resolve();
-            }
-          }
-        );
-      }
     });
   });
 };
@@ -202,10 +168,30 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehiculeDetails = {}) 
   });
 };
 
-const addUser = (userName, email, role, password) => {
+// ==================== Users ====================
+const createDefaultAdminUser = async () => {
+  const defaultUsername = 'admin';
+  const defaultPassword = 'password123';
+  const defaultEmail = 'admin@example.com';
+
+  if (await getUserByUsername(defaultUsername) !== 'N/A') {
+    logger.debug('Default admin user already exists. Skipping creation.');
+    return;
+  }
+
+  await addUser(defaultUsername, defaultEmail, 'admin', defaultPassword);
+};
+
+const addUser = (username, email, role, password) => {
   return new Promise(async (resolve, reject) => {
     const userId = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Check if email or username already exists
+    db.get('SELECT * FROM Users WHERE email = ? OR username = ?', [email, username], (err, row) => {
+      if (err) reject(err);
+      if (row) reject(new Error('Email or username already exists'));
+    });
     
     db.run(`
       INSERT INTO Users (
@@ -215,7 +201,7 @@ const addUser = (userName, email, role, password) => {
         role, 
         password
       ) VALUES (?, ?, ?, ?, ?)`,
-      [userId, userName, email, role, hashedPassword],
+      [userId, username, email, role, hashedPassword],
       (err) => {
         if (err) reject(err);
         else resolve(userId);
@@ -224,23 +210,71 @@ const addUser = (userName, email, role, password) => {
   });
 };
 
-const getUser = (userId) => {
+const deactivateUser = (userId) => {
+  return new Promise((resolve, reject) => {
+    db.run(`UPDATE Users SET is_active = false WHERE user_id = ?`, [userId], (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+};
+
+const getUserById = (userId) => {
   // log all things from here to debugger
   logger.debug(`Getting user with ID: ${userId}`);
   return new Promise((resolve, reject) => {
-    db.get('SELECT username FROM Users WHERE user_id = ?', [userId], (err, row) => {
+    db.get('SELECT user_id, username, email, role, is_active FROM Users WHERE user_id = ?', [userId], (err, row) => {
       if (err) reject(err);
       else if (!row) {
         logger.error(`User with ID ${userId} not found. Returning N/A`);
         resolve('N/A');
+      } else if (!row.is_active) {
+        logger.warn(`User ${userId} status is ${row.is_active}. Adding Deactivated label to username`);
+        row.username += ' (D)';
+        resolve(row);
       } else {
         logger.debug(`User with ID ${userId} found: ${row.username}`);
-        resolve(row.username);
+        resolve(row);
       }
     });
   });
 };
 
+const getUserByUsername = (username) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT user_id, username, email, role, is_active FROM Users WHERE username = ?', [username], (err, row) => {
+      if (err) reject(err);
+      else if (!row) {
+        logger.error(`Username ${username} not found. Returning N/A`);
+        resolve('N/A');
+      } else if (!row.is_active) {
+        logger.warn(`User ${username} status is ${row.is_active}. Adding Deactivated label to username`);
+        row.username += ' (D)';
+        resolve(row);
+      } else {
+        logger.debug(`User ${username} found: ${row.user_id}`);
+        resolve(row);
+      }
+    });
+  });
+};
+
+const getUserWithPasswordByUsername = (username) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT user_id, username, email, role, is_active, password FROM Users WHERE username = ?', [username], (err, row) => {
+      if (err) reject(err); else resolve(row);
+    });
+  });
+};
+
+const getAllActiveUsers = () => {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT user_id, username, email, role FROM Users WHERE is_active = true', (err, rows) => {
+      if (err) reject(err); else resolve(rows);
+    });
+  });
+};
+
+// ==================== Inspection Items ====================
 // Add function to seed default inspection items
 const seedInspectionItems = () => {
   const defaultOptions = JSON.stringify([
@@ -319,7 +353,7 @@ const seedInspectionItems = () => {
 
         // Work completed items
         { category: 'Travaux terminés', name: 'Mise à zéro vidange', type: 'options', options: defaultOptions, display_order: 1 },
-        { category: 'Travaux terminés', name: 'Serrage des roues au couple', type: 'options', options: defaultOptions, display_order: 2 },
+        { category: 'Travaux terminés', name: 'Serrage des roues (Nm)', type: 'options', options: defaultOptions, display_order: 2 },
         { category: 'Travaux terminés', name: 'Etiquette de vidange', type: 'options', options: defaultOptions, display_order: 3 },
         { category: 'Travaux terminés', name: 'Etiquette distribution', type: 'options', options: defaultOptions, display_order: 4 },
         { category: 'Travaux terminés', name: 'Etiquette plaquettes', type: 'options', options: defaultOptions, display_order: 5 },
@@ -470,8 +504,9 @@ const saveInspectionReport = (reportData, userId) => {
             filters,
             inspection_results,
             created_by,
-            created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`, [
+            created_at,
+            mechanics
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)`, [
             reportId,
             vehiculeId,
             reportData.mileage || null,
@@ -479,7 +514,8 @@ const saveInspectionReport = (reportData, userId) => {
             reportData.next_technical_inspection || null,
             reportData.filters || null,
             JSON.stringify(reportData.inspection || '{}'),
-            userId
+            userId,
+            JSON.stringify(reportData.mechanics || '{}'),
           ], function(err) {
             if (err) {
               return reject(err);
@@ -577,7 +613,8 @@ const updateInspectionReports = (reportId, reportData, userId) => {
                 next_technical_inspection = ?,
                 filters = ?,
                 inspection_results = ?,
-                created_by = ?
+                created_by = ?,
+                mechanics = ?
               WHERE report_id = ?`, [
                 reportData.mileage || null,
                 reportData.comments || null,
@@ -585,6 +622,7 @@ const updateInspectionReports = (reportId, reportData, userId) => {
                 reportData.filters || null,
                 JSON.stringify(reportData.inspection || '{}'),
                 userId,
+                JSON.stringify(reportData.mechanics || '{}'),
                 reportId
               ], function(err) {
                 if (err) throw err;
@@ -748,11 +786,43 @@ const mapInspectionResults = async (inspectionResults) => {
   });
 };
 
+const temporaryDatabaseUpdate = async () => {
+  // Backup using Vacuum into database_vacuum.sqlite
+  // db.run('VACUUM INTO ?', ['database_vacuum.sqlite']);
+  // console.log("Database vacuumed.");
+
+  // Drop table InspectionReports
+  // await db.run('DROP TABLE InspectionReports');
+  // console.log("Table InspectionReports dropped.");
+
+  console.log("Updating the database...");
+  // Hash the password
+  // const hashedPassword = await bcrypt.hash('30122010', 10);
+  // Update the user with id 0c4297ff-78a5-4b56-b2d8-9a0a9a156188 and set the password and email.
+  // db.run(`UPDATE Users SET password = ?, username = ?, email = ? WHERE user_id = ?`, [hashedPassword, 'd.celine', 'toto@toto.com', '0c4297ff-78a5-4b56-b2d8-9a0a9a156188']);
+  
+  // Update the InspectionItems with id efd99bd5-1967-4720-8655-3edd1fe45c62 and set the name to "Serrage des roues (Nm)".
+  // db.run(`UPDATE InspectionItems SET name = ? WHERE item_id = ?`, ['Serrage des roues (Nm)', 'efd99bd5-1967-4720-8655-3edd1fe45c62']);
+  
+  // Add column mechanics to InspectionReports
+  const query = `ALTER TABLE InspectionReports 
+  ADD COLUMN mechanics TEXT[] DEFAULT '{}';`;
+  await db.run(query);
+  console.log("Column mechanics added to InspectionReports.");
+
+  // Add column is_active to Users
+  const query2 = `ALTER TABLE Users 
+  ADD COLUMN is_active BOOLEAN DEFAULT TRUE;`;
+  await db.run(query2);
+  console.log("Column is_active added to Users.");
+  
+  console.log("Database updated.");
+};
+
 module.exports = {
   initializeDatabase,
   getDatabase,
   addVehicle,
-  addUser,
   getInspectionItems,
   saveInspectionReport,
   updateInspectionReports,
@@ -761,5 +831,11 @@ module.exports = {
   getVehiculeById,
   getCustomerById,
   getAllVehicules,
-  getUser
+  // Users
+  addUser,
+  getUserById,
+  deactivateUser,
+  getAllActiveUsers,
+  getUserByUsername,
+  getUserWithPasswordByUsername
 };

@@ -51,12 +51,12 @@ const textStyles = {
   },
   sectionHeader: {
     font: fonts.bold,
-    size: 9,
+    size: 11,
     color: colors.primary.contrast
   },
   itemText: {
     font: fonts.regular,
-    size: 10,
+    size: 11,
     color: colors.primary.main
   }
 };
@@ -334,7 +334,7 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
       
       // Draw category header with smaller height and new color
       doc.roundedRect(xPos, yPos, sectionWidth, 18, 4)
-         .fillColor('#334155')
+         .fillColor('#2596be')
          .fill();
 
       // Center the text vertically and horizontally

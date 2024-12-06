@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" width="100%" height="100%">
-  <circle cx="12" cy="12" r="10" stroke="#B0BEC5" stroke-width="2" fill="none"/> <!-- Cercle gris clair pour indiquer le caractère neutre/inconnu -->
-  <path d="M12 8c0 1.66-2 1.66-2 3 0 1.1.9 2 2 2s2-.9 2-2h-2" stroke="#455A64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> <!-- Point d'interrogation -->
-  <circle cx="12" cy="17" r="1" fill="#455A64"/> <!-- Point en dessous du point d'interrogation -->
-</svg>

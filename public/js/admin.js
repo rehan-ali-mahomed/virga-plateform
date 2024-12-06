@@ -2,6 +2,8 @@
 
 // Modal handling
 const openModal = (type, id = null) => {
+  console.log("Fetching data form entity ", type, id);
+
     const modalContainer = document.getElementById('modalContainer');
     const modal = document.getElementById(`${type}Modal`);
     
@@ -26,6 +28,7 @@ const openModal = (type, id = null) => {
     modal.classList.remove('hidden');
     
     if (id) {
+      
       fetchEntityData(type, id);
     }
   };
@@ -59,6 +62,22 @@ const openModal = (type, id = null) => {
         document.getElementById('itemCategory').value = data.inspectionItem.category;
         document.getElementById('itemActive').checked = data.inspectionItem.is_active;
         document.getElementById('itemDisplayOrder').value = data.inspectionItem.display_order;
+      }
+
+      if (type === 'vehicule') {
+        document.getElementById('vehiculeId').value = data.vehicule_id;
+        document.getElementById('license_plate').value = data.license_plate;
+        document.getElementById('brand').value = data.brand;
+        document.getElementById('model').value = data.model;
+        document.getElementById('engine_code').value = data.engine_code;
+        document.getElementById('revision_oil_type').value = data.revision_oil_type;
+        document.getElementById('revision_oil_volume').value = data.revision_oil_volume;
+        document.getElementById('brake_disc_thickness_front').value = data.brake_disc_thickness_front;
+        document.getElementById('brake_disc_thickness_rear').value = data.brake_disc_thickness_rear;
+        document.getElementById('first_registration_date').value = data.first_registration_date;
+        document.getElementById('next_technical_inspection').value = data.next_technical_inspection;
+        document.getElementById('mileage').value = data.mileage;
+        document.getElementById('filters').value = data.filters;
       }
       // Handle other entity types...
     } catch (error) {
@@ -152,6 +171,12 @@ const openModal = (type, id = null) => {
   
   // Capitalize first letter
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+  // Toggle password visibility
+  const togglePasswordVisibility = (event) => {
+    const passwordField = event.target.parentElement.querySelector('input[type="password"]');
+    passwordField.type = passwordField.type === 'password' ? 'text' : 'password';
+  };
   
   // Initialize Event Listeners
   const initEventListeners = () => {
@@ -162,13 +187,24 @@ const openModal = (type, id = null) => {
       newUserBtn.addEventListener('click', () => openModal('user'));
     }
 
+    // Password Toggle
+    const passwordToggle = document.getElementById('passwordToggle');
+    if (passwordToggle) {
+      passwordToggle.addEventListener('click', togglePasswordVisibility);
+    }
+
+    const confirmPasswordToggle = document.getElementById('confirmPasswordToggle');
+    if (confirmPasswordToggle) {
+      confirmPasswordToggle.addEventListener('click', togglePasswordVisibility);
+    }
+
     // New Inspection Item Button
     const newInspectionItemBtn = document.getElementById('new-inspection-item-btn');
     if (newInspectionItemBtn) {
       newInspectionItemBtn.addEventListener('click', () => openModal('inspectionItem'));
     }
 
-    // New Add Option Button
+    // Add Option Button
     const newOptionBtn = document.getElementById('new-option-btn');
     if (newOptionBtn) {
       newOptionBtn.addEventListener('click', () => addOption());
@@ -205,6 +241,14 @@ const openModal = (type, id = null) => {
       button.addEventListener('click', () => {
         const vehiculeId = button.getAttribute('data-id');
         deleteEntity('vehicule', vehiculeId);
+      });
+    });
+
+    const editDynamicVehicleButtons = document.querySelectorAll('.edit-dynamic-vehicule-btn');
+    editDynamicVehicleButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const vehiculeId = button.getAttribute('data-id');
+        openModal('dynamicVehicule', vehiculeId);
       });
     });
   
@@ -256,11 +300,16 @@ const openModal = (type, id = null) => {
         }
       });
     }
-  };
-  
-  // View Report Function (Assuming it's defined elsewhere)
-  const viewReport = (reportId) => {
-    // Implement viewReport functionality
+
+    const vehiculeForm = document.getElementById('vehiculeForm');
+    if (vehiculeForm) {
+      vehiculeForm.addEventListener('submit', (event) => handleSubmit(event, 'vehicule'));
+    }
+
+    const cancelVehiculeModalBtn = document.getElementById('cancelVehiculeModalBtn');
+    if (cancelVehiculeModalBtn) {
+      cancelVehiculeModalBtn.addEventListener('click', closeModal);
+    }
   };
   
   // Initialize after DOM is fully loaded
@@ -343,8 +392,18 @@ const openModal = (type, id = null) => {
     if (password.length < 4) {
       showToast('Password must be at least 4 characters long', 'error');
       return;
+    } 
+    
+    if(formData.get('confirmPassword') !== password) {
+      showToast('Passwords do not match', 'error');
+      return;
     }
     
+    if (formData.get('email') instanceof EmailAddress) {
+      showToast('Email is required', 'error');
+      return;
+    }
+
     try {
       // Check for duplicate username
       const username = formData.get('username');
@@ -438,3 +497,29 @@ const openModal = (type, id = null) => {
   // Add event listeners for select changes
   document.getElementById('itemCategory').addEventListener('change', handleCategoryChange);
   document.getElementById('itemType').addEventListener('change', handleTypeChange);
+
+  // Add form submission handler for vehicles
+  document.getElementById('vehiculeForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const vehiculeId = formData.get('vehicule_id');
+    
+    try {
+      const response = await fetch(`/admin/vehicules${vehiculeId ? `/${vehiculeId}` : ''}`, {
+        method: vehiculeId ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(Object.fromEntries(formData)),
+      });
+      
+      if (!response.ok) throw new Error('Failed to save vehicle');
+      
+      showToast(`Vehicle ${vehiculeId ? 'updated' : 'created'} successfully`, 'success');
+      closeModal();
+      location.reload();
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  });

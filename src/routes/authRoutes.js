@@ -1,6 +1,6 @@
 ﻿const express = require('express');
 const bcrypt = require('bcrypt');
-const { getDatabase } = require('../config/database');
+const { getUserWithPasswordByUsername } = require('../config/database');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -18,28 +18,30 @@ router.get('/login', (req, res) => {
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const db = getDatabase();
 
   try {
-    const user = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM Users WHERE username = ?', [username.toLowerCase()], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    const user = await getUserWithPasswordByUsername(username);
 
     if (!user) {
       return res.render('login', { 
-        error: 'Invalid username or password',
+        error: 'Invalid username',
         errors: [],
         user: null
       });
     }
 
+    if (!user.is_active) {
+      return res.render('login', { 
+        error: 'User is desactivated, contact your administrator',
+        errors: [],
+        user: null
+      });
+    }
+    
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.render('login', { 
-        error: 'Invalid username or password',
+        error: 'Invalid password',
         errors: [],
         user: null
       });

@@ -80,15 +80,40 @@
 
           <!-- Deuxième ligne -->
           <div class="row mt-2">
-            <div class="col-md-3">
+           <div class="col-md-3">
               <div class="form-group">
-                <label for="first_registration_date">
-                  <i class="fas fa-calendar-alt"></i> Mise en circulation :
+                <label for="revision_oil_type">
+                  <i class="fas fa-oil-can"></i> Type d'huile / Classe huile :
                 </label>
-                <input type="date" id="first_registration_date" 
-                      name="first_registration_date" class="form-control" 
-                      value="<%= data.first_registration_date || '' %>"
-                      placeholder="ex: 24/11/2016">
+                <input type="text" id="revision_oil_type" name="revision_oil_type" 
+                      class="form-control" value="<%= data.revision_oil_type || '' %>" 
+                      placeholder="ex: 5W30">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="row">
+                <div class="col-md">
+                  <div class="form-group">
+                    <label for="revision_oil_volume">
+                  <i class="fas fa-fill-drip"></i> Volume (L) :
+                </label>
+                <input type="number" id="revision_oil_volume" 
+                      name="revision_oil_volume" class="form-control" 
+                      step="0.01" value="<%= data.revision_oil_volume || '' %>" 
+                      placeholder="ex: 5.5">
+                  </div>
+                </div>
+                <div class="col-md">
+                  <div class="form-group">
+                    <label for="drain_plug_torque">
+                      <i class="fas fa-fill-drip"></i> Serrage (Nm) :
+                    </label>
+                    <input type="number" id="drain_plug_torque" 
+                      name="drain_plug_torque" class="form-control" 
+                      step="0.1" value="<%= data.drain_plug_torque || '' %>" 
+                      placeholder="ex: 25">
+                  </div>
+                </div>
               </div>
             </div>
             <div class="col-md-3">
@@ -113,44 +138,19 @@
                       placeholder="ex: 10 / 24 / 36">
               </div>
             </div>
-            <div class="col-md-3">
-              <div class="row">
-                <div class="col-md">
-                  <div class="form-group">
-                    <label for="revision_oil_volume">
-                  <i class="fas fa-fill-drip"></i> Volume (L) :
-                </label>
-                <input type="number" id="revision_oil_volume" 
-                      name="revision_oil_volume" class="form-control" 
-                      step="0.1" value="<%= data.revision_oil_volume || '' %>" 
-                      placeholder="ex: 5.5">
-                  </div>
-                </div>
-                <div class="col-md">
-                  <div class="form-group">
-                    <label for="drain_plug_torque">
-                      <i class="fas fa-fill-drip"></i> Serrage (Nm) :
-                    </label>
-                    <input type="number" id="drain_plug_torque" 
-                      name="drain_plug_torque" class="form-control" 
-                      step="0.1" value="<%= data.drain_plug_torque || '' %>" 
-                      placeholder="ex: 25">
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- Troisième ligne -->
           <div class="row mt-2">
             <div class="col-md-3">
               <div class="form-group">
-                <label for="revision_oil_type">
-                  <i class="fas fa-oil-can"></i> Type d'huile / Classe huile :
+                <label for="first_registration_date">
+                  <i class="fas fa-calendar-alt"></i> Mise en circulation :
                 </label>
-                <input type="text" id="revision_oil_type" name="revision_oil_type" 
-                      class="form-control" value="<%= data.revision_oil_type || '' %>" 
-                      placeholder="ex: 5W30">
+                <input type="date" id="first_registration_date" 
+                      name="first_registration_date" class="form-control" 
+                      value="<%= data.first_registration_date || '' %>"
+                      placeholder="ex: 24/11/2016">
               </div>
             </div>
             <div class="col-md-3">
@@ -240,7 +240,8 @@
         <div class="row mt-2">
           <div class="col-md-6">
             <div class="form-check">
-              <input type="checkbox" id="is_company" name="is_company" 
+              <input type="hidden" name="is_company" value="false">
+              <input type="checkbox" id="is_company" name="is_company"
                       class="form-check-input" <%= data.is_company ? 'checked' : '' %>>
               <label class="form-check-label" for="is_company">
                 <i class="fas fa-building"></i> Société
@@ -257,10 +258,12 @@
           <h2 class="h5 mb-0">
             <i class="fas fa-clipboard-check"></i> POINTS DE CONTRÔLE
           </h2>
-          <button id="preview-pdf-template-btn" type="button" aria-label="Prévisualiser le PDF vierge"
-            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
-            <i class="fas fa-file-pdf mr-2"></i> Prévisualiser le PDF vierge
-          </button>
+          <div class="d-flex align-items-center">
+            <button id="preview-pdf-template-btn" type="button" aria-label="Prévisualiser le PDF vierge"
+              class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+              <i class="fas fa-file-pdf mr-2"></i> Prévisualiser le PDF vierge
+            </button>
+          </div>
         </div>
         
         <div class="card-body p-0">
@@ -328,14 +331,45 @@
         </div>
       </div>
 
-      <!-- 4. Comments -->
-      <div class="card mb-3">
-        <div class="card-header bg-primary text-white">
-          <h2 class="h5 mb-0"><i class="fas fa-comment"></i> COMMENTAIRES</h2>
+      <!-- 4. Comments and Technicians Row -->
+      <div class="row">
+        <!-- Comments Section (5/6 width) -->
+        <div class="col-md-10">
+          <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+              <h2 class="h5 mb-0"><i class="fas fa-comment"></i> COMMENTAIRES</h2>
+            </div>
+            <div class="card-body">
+              <textarea id="comments" name="comments" class="form-control" rows="4" 
+                        placeholder="Observations supplémentaires..."><%= data.comments || '' %></textarea>
+            </div>
+          </div>
         </div>
-        <div class="card-body">
-          <textarea id="comments" name="comments" class="form-control" rows="4" 
-                    placeholder="Observations supplémentaires..."><%= data.comments || '' %></textarea>
+
+        <!-- Technicians Section (1/6 width) -->
+        <div class="col-md-2">
+          <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+              <h2 class="h5 mb-0"><i class="fas fa-users"></i> MÉCANICIENS</h2>
+            </div>
+            <div class="card-body">
+              <div class="form-group mb-0" id="mechanicList">
+                <% mechanicsList.forEach(function(user) { %>
+                  <div class="custom-control custom-checkbox">
+                    <input type="checkbox" 
+                           id="mechanicList_<%= user.user_id %>" 
+                           name="mechanics[]" 
+                           value="<%= user.user_id %>" 
+                           class="custom-control-input mechanic-checkbox">
+                    <label class="custom-control-label" 
+                           for="mechanicList_<%= user.user_id %>">
+                      <%= user.username %>
+                    </label>
+                  </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

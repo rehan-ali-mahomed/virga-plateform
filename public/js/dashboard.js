@@ -61,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('searchReports');
   let searchTimeout;
 
+  let paramSearch = new URL(window.location.href);
+  searchInput.value = paramSearch.searchParams.get('search') || '';
+
   const updateTable = (reports) => {
     const tbody = document.querySelector('.reports-table tbody');
     if (!reports.length) {

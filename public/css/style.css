@@ -504,12 +504,12 @@ label i {
 
 /* Add visual feedback on required fields */
 .form-control:required {
-  background-image: radial-gradient(circle at right 0.7rem top 0.7rem, #dc3545 0.25rem, transparent 0.3rem);
+  background-image: radial-gradient(circle at right 0.7rem top 0.7rem, #ff0019 0.25rem, transparent 0.3rem);
   background-repeat: no-repeat;
 }
 
 .form-control:required:valid {
-  background-image: radial-gradient(circle at right 0.7rem top 0.7rem, #28a745 0.25rem, transparent 0.3rem);
+  background-image: radial-gradient(circle at right 0.7rem top 0.7rem, #2ed255 0.25rem, transparent 0.3rem);
 }
 
 /* Update card spacing */
@@ -1918,4 +1918,88 @@ label i {
 .search-item-report:hover {
   background-color: #e9ecef;
   border-radius: 0 4px 4px 0;
+}
+
+/* Add these styles for the technicians select */
+select#technicians {
+  width: 100%;
+  height: 106px; /* Match the height of the comments textarea */
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  background-color: #fff;
+  font-size: 0.9rem;
+  color: #495057;
+  resize: none;
+}
+
+select#technicians option {
+  padding: 0.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+select#technicians option:last-child {
+  border-bottom: none;
+}
+
+select#technicians option:hover,
+select#technicians option:focus {
+  background-color: #e9ecef;
+}
+
+select#technicians option:checked {
+  background-color: #1a4b8c;
+  color: #fff;
+}
+
+/* Style for multiple select when focused */
+select#technicians:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+  outline: none;
+}
+
+/* Add some spacing between options */
+select#technicians option + option {
+  margin-top: 2px;
+}
+
+/* Ensure cards in the row have equal height */
+.row .card {
+  height: 100%;
+  margin-bottom: 0 !important;
+}
+
+/* Ensure the card body fills the available space */
+.row .card-body {
+  height: calc(100% - 48px); /* Subtract header height */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make form controls fill the available space */
+.row .card-body .form-group,
+.row .card-body textarea,
+.row .card-body select {
+  flex: 1;
+  margin: 0;
+}
+
+/* Adjust textarea height to fill space */
+.row textarea#comments {
+  resize: none;
+  height: 100%;
+}
+
+.mechanic-option {
+  border-radius: inherit;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-left: 5px;
+
+  margin-right: 7px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+
+  cursor: pointer;
 }
