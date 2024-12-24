@@ -9,6 +9,18 @@
   next();
 };
 
+const isAdmin = (req, res, next) => { 
+  if (req.user && req.user.role.toLowerCase() === 'admin') {
+    return next();
+  }
+  return res.status(403).render('error', {
+    message: 'Accès interdit. Vous n\'êtes pas autorisé à accéder à cette section.',
+    errors: [],
+    user: req.session.user
+  });
+};
+
 module.exports = {
-  isAuthenticated
+  isAuthenticated,
+  isAdmin
 };

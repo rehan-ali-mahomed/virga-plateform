@@ -21,7 +21,7 @@
     <!-- Form Sections -->
     <div class="form-sections">
       
-      <!-- 1. Vehicle Details -->
+      <!-- 1. Vehicule Details -->
       <div class="card mb-3">
         <div class="card-header bg-primary text-white">
           <h2 class="h5 mb-0"><i class="fas fa-car"></i> INFORMATIONS VÉHICULE</h2>
@@ -199,12 +199,20 @@
       <div class="card-body">
         <div class="row">
           <div class="col-md-6">
-            <div class="form-group">
+            <div class="form-group position-relative">
+              <input type="hidden" id="customer_id" name="customer_id" value="<%= data.customer_id %>">
               <label for="client_name">
                 <i class="far fa-user"></i> Nom :
               </label>
               <input type="text" id="client_name" name="client_name" 
-                      class="form-control" value="<%= data.client_name || '' %>" required>
+                      class="form-control" value="<%= data.client_name || '' %>" required autocomplete="off">
+              <div id="customer_search_result"></div>
+              <!-- Add customer search dropdown -->
+              <div id="customer_search_dropdown" class="search-dropdown d-none">
+                <div class="customer-search-dropdown-content">
+                  <!-- Results will be populated here -->
+                </div>
+              </div>
             </div>
           </div>
           <div class="col-md-6">

@@ -1,4 +1,4 @@
-const { saveInspectionReport, updateInspectionReports } = require('../config/database');
+const { addInspectionReport, updateInspectionReports } = require('../config/database');
 const logger = require('../utils/logger');
 
 const submitForm = async (req, res, userId, returnReportId = false) => {
@@ -11,7 +11,7 @@ const submitForm = async (req, res, userId, returnReportId = false) => {
       req.body.is_company = false;
     }
 
-    const reportId = await saveInspectionReport(req.body, userId);
+    const reportId = await addInspectionReport(req.body, userId);
     
     if (!reportId) {
       throw new Error('Report ID not returned after save');

@@ -81,12 +81,23 @@ input[type='email'],
 input[type='date'],
 input[type='number'],
 input[type='password'],
+input[type='tel'],
 select,
 textarea {
   width: 100%;
-  padding: 3px;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+}
+
+.select-input {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
 }
 
 textarea {
@@ -981,7 +992,8 @@ label i {
 
 .search-box input {
   width: auto;
-  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  min-width: 400px;
+  padding: 0.5rem 1rem 0.5rem 2rem;
   border: 1px solid #dee2e6;
   border-radius: 6px;
   font-size: 0.9rem;
@@ -2002,4 +2014,59 @@ select#technicians option + option {
   margin-bottom: 2px;
 
   cursor: pointer;
+}
+
+/* Optimize overall grid spacing */
+.grid.gap-6 {
+  gap: 1.25rem; /* Slightly reduced gap between rows */
+}
+
+/* Optimize card spacing */
+.bg-white.shadow.rounded-lg {
+  margin-bottom: 0;
+  overflow: hidden; /* Ensure no content bleeds */
+}
+
+/* Optimize header spacing */
+.p-4.border-b {
+  padding: 0.75rem 1rem;
+  border-bottom-width: 1px;
+}
+
+/* Optimize table spacing */
+.min-w-full thead th {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+.min-w-full td {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Optimize button spacing */
+.px-4.py-2 {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Optimize table row spacing */
+.min-w-full.divide-y.divide-gray-200 {
+  border-spacing: 0 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .grid.gap-6 {
+    gap: 1rem;
+  }
+  
+  .p-4.border-b {
+    padding: 0.625rem 0.875rem;
+  }
+  
+  .min-w-full td,
+  .min-w-full th {
+    padding: 0.625rem 0.875rem;
+  }
 }

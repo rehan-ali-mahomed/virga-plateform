@@ -9,547 +9,690 @@
 
   <div class="content-wrapper">
 
-    <div class="header-actions mb-4">
-           
-        <div class="search-box flex items-center bg-gray-100 p-2 rounded-lg shadow-sm">
-          <i class="fas fa-search text-gray-500 mr-2"></i>
-          <input type="text" id="searchTerm" placeholder="Rechercher un rapport..." value="<%= searchTerm %>" class="flex-grow bg-transparent outline-none text-gray-700" aria-label="Search reports">
-          <button id="clearSearch" class="ml-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 h-6 w-6 flex items-center justify-center text-sm" aria-label="Clear search" tabindex="0">×</button>
-        </div>
-        <script>
-            const searchInput = document.getElementById('searchTerm');
-            const clearSearchButton = document.getElementById('clearSearch');
-            let searchTimeout;
-
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    clearTimeout(searchTimeout);
-                    const searchValue = searchInput.value.trim();
-                    
-                    if (searchValue.length === 0) {
-                        window.location.href = '/admin';
-                        return;
-                    }
-
-                    if (searchValue.length >= 2) {
-                        searchTimeout = setTimeout(() => {
-                            window.location.href = '/admin?searchTerm=' + encodeURIComponent(searchValue);
-                        }, 550);
-                    }
-                });
-            }
-
-            if (clearSearchButton) {
-                clearSearchButton.addEventListener('click', function() {
-                    searchInput.value = '';
-                    window.location.href = '/admin';
-                });
-            }
-        </script>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-    <!-- Inspection Reports Card -->
-    <div class="bg-white shadow rounded-lg">
-      <div class="p-4 border-b">
-        <h2 class="text-xl font-semibold">Inspection Reports</h2>
-      </div>
-      <div class="p-4 overflow-x-auto">
-        <% if (inspectionReports && inspectionReports.length > 0) { %>
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mileage</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Inspection</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% inspectionReports.forEach(report => { %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= report.report_id %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= report.vehicule_id %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= report.mileage %> km</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= report.next_technical_inspection %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="text-gray-600">No inspection reports found.</p>
-        <% } %>
-      </div>
-    </div>
-
-    <!-- Users Card -->
-    <div class="bg-white shadow rounded-lg">
-      <div class="p-4 border-b flex justify-between items-center">
-        <h2 class="text-xl font-semibold">Users</h2>
-        <button id="new-user-btn"
-                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-          New User
+    <div class="header-actions mb-4 flex items-center justify-between">
+      <!-- Search Box -->
+      <div class="search-box flex items-center bg-white p-2 rounded-lg shadow-sm">
+        <i class="fas fa-search text-gray-500 mr-2"></i>
+        <input type="text" id="searchTerm" placeholder="Rechercher un rapport..." value="<%= searchTerm %>" 
+          class="flex-grow bg-transparent outline-none text-gray-700" aria-label="Search reports">
+        <button id="clearSearch" 
+          class="ml-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 focus:ring-2 focus:ring-red-400 h-6 w-6 flex items-center justify-center text-md" 
+          aria-label="Clear search" tabindex="0">
+          x
         </button>
       </div>
-      <div class="p-4 overflow-x-auto">
-        <% if (users && users.length > 0) { %>
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% users.forEach(user => { %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.username %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.email %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= user.role %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="text-gray-600">No users found.</p>
-        <% } %>
-      </div>
     </div>
 
-    <!-- Customers Card -->
-    <div class="bg-white shadow rounded-lg">
-      <div class="p-4 border-b">
-        <h2 class="text-xl font-semibold">Customers</h2>
-      </div>
-      <div class="p-4 overflow-x-auto">
-        <% if (customers && customers.length > 0) { %>
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% customers.forEach(customer => { %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= customer.name %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= customer.email %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= customer.phone %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= customer.address %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= customer.is_company ? "Yes" : "No" %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="text-gray-600">No customers found.</p>
-        <% } %>
-      </div>
-    </div>
+    <div class="grid grid-cols-1 gap-6">
 
-    <!-- Vehicles Card
-    <div class="bg-white shadow rounded-lg">
-      <div class="p-4 border-b">
-        <h2 class="text-xl font-semibold">Vehicles</h2>
-      </div>
-      <div class="p-4 overflow-x-auto">
-        <% if (vehicules && vehicules.length > 0) { %>
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">License Plate</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engine Code</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% vehicules.forEach(vehicule => { %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= vehicule.license_plate %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= vehicule.brand %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= vehicule.model %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= vehicule.engine_code %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 flex justify-start gap-4">
-                    <a class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 edit-vehicule-btn" 
-                      data-id="<%= vehicule.vehicule_id %>">Edit</a>
-                    <a class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 delete-vehicule-btn" 
-                      data-id="<%= vehicule.vehicule_id %>">Delete</a>
-                  </td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="text-gray-600">No vehicules found.</p>
-        <% } %>
-      </div>
-    </div> -->
-
-    <!-- Dynamic Vehicles Card -->
-    <div class="bg-white shadow rounded-lg">
-      <div class="p-4 border-b">
-        <h2 class="text-xl font-semibold">Vehicles</h2>
-      </div>
-      <div class="p-4 overflow-x-auto">
-        <% if (vehicules && vehicules.length > 0) { %>
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <% Object.keys(vehicules[0]).forEach(key => { %>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><%= key %></th>
-                <% }) %>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% vehicules.forEach(vehicule => { %>
-                <tr>
-                  <% Object.keys(vehicule).forEach(key => { %>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= vehicule[key] %></td>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Users Table -->
+        <div class="bg-white shadow rounded-lg">
+          <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Users</h2>
+            <button id="new-user-btn"
+                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
+                    aria-label="Ajouter un utilisateur" tabindex="0">
+              <i class="fas fa-user-plus mr-1"></i> Ajouter un utilisateur
+            </button>
+          </div>
+          <div class="p-3 overflow-x-auto">
+            <% if (users && users.length > 0) { %>
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <% 
+                    const sortedUsers = [...users].sort((a, b) => {
+                      if (a.is_active === b.is_active) return 0;
+                      return a.is_active ? -1 : 1;
+                    });
+                    sortedUsers.forEach(user => { 
+                  %>
+                    <tr class="<%= user.is_active ? '' : 'bg-red-50' %>">
+                      <td class="px-4 py-2 whitespace-nowrap text-sm <%= user.is_active ? 'text-gray-900' : 'text-red-700' %>">
+                        <%= user.username %>
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm <%= user.is_active ? 'text-gray-900' : 'text-red-700' %>">
+                        <%= user.email %>
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm <%= user.is_active ? 'text-gray-900' : 'text-red-700' %>">
+                        <%= user.role %>
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <%= user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-200 text-red-800' %>">
+                          <%= user.is_active ? 'Active' : 'Inactive' %>
+                        </span>
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900 flex gap-2">
+                        <button type="button" class="edit-user-btn px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400" 
+                          data-id="<%= user.user_id %>" aria-label="Modifier" tabindex="0">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <% if(user.is_active) { %>
+                          <button type="button" class="deactivate-user-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:ring-2 focus:ring-red-400" 
+                          data-id="<%= user.user_id %>" <%= user.is_active ? '' : 'disabled' %> aria-label="Désactiver" tabindex="0">
+                          <i class="fas fa-user-slash"></i>
+                          </button>
+                        <% } else { %>
+                          <button type="button" class="delete-user-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:ring-2 focus:ring-red-400" 
+                          data-id="<%= user.user_id %>" aria-label="Supprimer" tabindex="0">
+                          <i class="fas fa-trash-alt"></i>
+                          </button>
+                        <% } %>
+                      </td>
+                    </tr>
                   <% }) %>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 flex justify-start gap-4">
-                    <a class="edit-dynamic-vehicule-btn px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400" 
-                      data-id="<%= vehicule.vehicule_id %>">Edit</a>
-                    <a class="delete-dynamic-vehicule-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400" 
-                      data-id="<%= vehicule.vehicule_id %>">Delete</a>
-                  </td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="text-gray-600">No vehicules found.</p>
-        <% } %>
-      </div>
-    </div>
+                </tbody>
+              </table>
+            <% } else { %>
+              <p class="text-gray-600">No users found.</p>
+            <% } %>
+          </div>
+        </div>
 
-    <!-- Inspection Items Card -->
-    <div class="bg-white shadow rounded-lg md:col-span-2">
-      <div class="p-4 border-b flex justify-between items-center">
-        <h2 class="text-xl font-semibold">Inspection Items</h2>
-        <button id="new-inspection-item-btn"
-                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-          New Item
-        </button>
+        <!-- Customers Table -->
+        <div class="bg-white shadow rounded-lg">
+          <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Customers</h2>
+            <button name="new-customer-btn"
+                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
+                    aria-label="Ajouter un client" tabindex="0">
+              <i class="fas fa-user-plus mr-1"></i> Ajouter un client
+            </button>
+          </div>
+          <div class="p-3 overflow-x-auto">
+            <% if (customers && customers.length > 0) { %>
+              <table class="min-w-full divide-y divide-gray-200 relative">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase sticky right-0 bg-gray-50 z-10">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <% customers.forEach(customer => { %>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= customer.name %></td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= customer.phone %></td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= customer.address %></td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900 sticky right-0 bg-white z-10">
+                        <div class="flex gap-2">
+                          <button type="button" class="edit-customer-btn px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400" 
+                            data-id="<%= customer.customer_id %>" aria-label="Modifier" tabindex="0">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button type="button" class="delete-customer-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:ring-2 focus:ring-red-400" 
+                            data-id="<%= customer.customer_id %>" aria-label="Supprimer" tabindex="0">
+                            <i class="fas fa-trash-alt"></i>
+                          </button>
+                          <button type="button" 
+                                  class="view-customer-cars-btn px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:ring-2 focus:ring-green-400" 
+                                  data-id="<%= customer.customer_id %>" 
+                                  aria-label="Voir les véhicules et rapports" 
+                                  tabindex="0">
+                            <i class="fas fa-car"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            <% } else { %>
+              <p class="text-gray-600">No customers found.</p>
+            <% } %>
+          </div>
+        </div>
       </div>
-      <div class="p-4 overflow-x-auto">
-        <% if (inspectionItems && inspectionItems.length > 0) { %>
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Order</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% inspectionItems.forEach(item => { %>
+
+      <!-- Inspection Reports Table -->
+      <div class="bg-white shadow rounded-lg">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h2 class="text-xl font-semibold">Inspection Reports</h2>
+        </div>
+        <div class="p-3 overflow-x-auto">
+          <% if (inspectionReports && inspectionReports.length > 0) { %>
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
                 <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.name %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.type %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.category %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.is_active ? "Oui" : "Non" %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><%= item.display_order %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 flex justify-start gap-4">
-                    <a class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 edit-inspection-item-btn" data-id="<%= item.item_id %>">Edit</a>
-                    <a class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 delete-inspection-item-btn" data-id="<%= item.item_id %>">Delete</a>
-                  </td>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Report ID</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vehicule ID</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mileage</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Next Inspection</th>
                 </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="text-gray-600">No inspection items found.</p>
-        <% } %>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <% inspectionReports.forEach(report => {
+                  let vehicule = {};
+                  vehicules.find(v => {
+                    if (v.vehicule_id === report.vehicule_id) {
+                      vehicule = v;
+                    }
+                  });
+                  // console.log(`Found license plate: ${licensePlate} for vehicule_id: ${report.vehicule_id} and report_id: ${report.report_id}`);
+                  // console.log(`Found vehicule id : ${vehicule.license_plate} for vehicule_id: ${report.vehicule_id}`);
+                  %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      <a href="/report/<%= report.report_id %>" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline flex items-center">
+                        <i class="fas fa-external-link-alt mr-1 text-xs"></i>
+                        <%= report.report_id %>
+                      </a>
+                    </td>
+                    
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      <div class="flex items-center">
+                        <div class="w-16">
+                          <span class="font-medium"><%= vehicule.license_plate %></span>
+                        </div>
+                        <div class="pl-4">
+                          <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded"><%= vehicule.vehicule_id %></span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= report.mileage ? `${report.mileage} km` : '-' %></td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= report.next_technical_inspection && report.next_technical_inspection !== '1970-01-01' ? new Date(report.next_technical_inspection).toLocaleDateString('fr-FR') : '-' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } else { %>
+            <p class="text-gray-600">No inspection reports found.</p>
+          <% } %>
+        </div>
       </div>
+
+      <!-- Vehicules Table -->
+      <div class="bg-white shadow rounded-lg">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h2 class="text-xl font-semibold">Vehicules</h2>
+          <button id="new-vehicule-btn"
+                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
+                  aria-label="Ajouter un véhicule" tabindex="0">
+            <i class="fas fa-car mr-1"></i> Ajouter un véhicule
+          </button>
+        </div>
+        <div class="p-3 overflow-x-auto">
+          <% if (vehicules && vehicules.length > 0) { %>
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <% Object.keys(vehicules[0]).forEach(key => { %>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase"><%= key %></th>
+                  <% }) %>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <% vehicules.forEach(vehicule => { %>
+                  <% let customer = {};
+                    customers.find(c => {
+                      if (c.customer_id === vehicule.customer_id) {
+                        customer = c;
+                      }
+                    });
+                  %>
+                  <tr class="hover:bg-gray-50">
+                    <% Object.keys(vehicule).forEach(key => { %>
+                      <% if(key === 'customer_id') { %>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          <div class="flex items-center">
+                            <div class="flex-grow">
+                              <span class="font-medium"><%= customer.name %></span>
+                            </div>
+                            <div class="pl-4">
+                              <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded"><%= customer.customer_id %></span>
+                            </div>
+                          </div>
+                        </td>
+                      <% } else if (key === 'first_registration_date') { %>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= vehicule[key] ? new Date(vehicule[key]).toLocaleDateString('fr-FR') : '-' %></td>
+                      <% } else { %>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= vehicule[key] ? vehicule[key] : '-' %></td>
+                      <% } %>
+                    <% }) %>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900 flex gap-2">
+                      <button type="button" class="edit-vehicule-btn px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400" 
+                        data-id="<%= vehicule.vehicule_id %>" aria-label="Modifier" tabindex="0">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button type="button" class="delete-vehicule-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:ring-2 focus:ring-red-400" 
+                        data-id="<%= vehicule.vehicule_id %>" aria-label="Supprimer" tabindex="0">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } else { %>
+            <p class="text-gray-600">No vehicules found.</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Inspection Items Table
+      <div class="bg-white shadow rounded-lg">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h2 class="text-xl font-semibold">Inspection Items</h2>
+          <button id="new-inspection-item-btn"
+                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
+                  aria-label="Ajouter un item d'inspection" tabindex="0">
+            <i class="fas fa-plus-circle mr-1"></i> New Item
+          </button>
+        </div>
+        <div class="p-3 overflow-x-auto">
+          <% if (inspectionItems && inspectionItems.length > 0) { %>
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Active</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <% inspectionItems.forEach(item => { %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= item.name %></td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= item.type %></td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= item.category %></td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= item.is_active ? "Oui" : "Non" %></td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900"><%= item.display_order %></td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900 flex gap-2">
+                      <button type="button" class="edit-inspection-item-btn px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400" 
+                        data-id="<%= item.item_id %>" aria-label="Modifier" tabindex="0">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button type="button" class="delete-inspection-item-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:ring-2 focus:ring-red-400" 
+                        data-id="<%= item.item_id %>" aria-label="Supprimer" tabindex="0">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } else { %>
+            <p class="text-gray-600">No inspection items found.</p>
+          <% } %>
+        </div>
+      </div> -->
     </div>
 
   </div>
 
-  <!-- After the content-wrapper div -->
-  <div id="modalContainer" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-
-    <!-- User Creation Modal -->
-    <div id="userModal" class="bg-white rounded-lg p-6 w-full max-w-md hidden">
-      <h3 class="text-xl font-semibold mb-4">New User</h3>
-      <form id="userForm" class="space-y-4">
-        <input type="hidden" id="userId" name="user_id">
-        
-        <div>
-          <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-          <input type="text" id="username" name="username" required
-                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-        </div>
-        
-        <div>
-          <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-          <input type="email" id="email" name="email" required
-                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-        </div>
-        
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-          <div class="flex items-center gap-2">
-            <input type="password" id="password" name="password" required minlength="4"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-            <i class="fas fa-eye text-gray-500 cursor-pointer hover:text-gray-700 mt-1" 
-               id="passwordToggle" 
-               role="button" 
-               tabindex="0" 
-               aria-label="Toggle password visibility"></i>
+  <!-- All Modals -->
+  <div id="modalContainer" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-start justify-center z-50 pt-20">
+    <!-- User Modal -->
+    <div id="userModal" class="bg-white rounded-lg shadow-xl w-full max-w-md hidden">
+      <div class="p-6">
+        <h3 class="text-xl font-semibold mb-4">New User</h3>
+        <form id="userForm" class="space-y-4">
+          <input type="hidden" id="userId" name="user_id">
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+            <input type="text" id="username" name="username" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
           </div>
-        </div>
-
-        <div>
-          <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
-          <div class="flex items-center gap-2">
-            <input type="password" id="confirmPassword" name="confirmPassword" required minlength="4"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-            <i class="fas fa-eye text-gray-500 cursor-pointer hover:text-gray-700 mt-1" 
-               id="confirmPasswordToggle" 
-               role="button" 
-               tabindex="0" 
-               aria-label="Toggle confirm password visibility"></i>
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+            <input type="email" id="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
           </div>
-        </div>
-        
-        <div>
-          <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
-          <select id="role" name="role" required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1 pl-2">
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="mechanic">Mechanic</option>
-            <option value="secretary">Secretary</option>
-          </select>
-        </div>
-        
-        <div class="flex justify-end space-x-3 mt-6">
-          <button type="button" id="cancelModalBtn"
-                  class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-            Create
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Inspection Item Creation Modal -->
-    <div id="inspectionItemModal" class="bg-white rounded-lg p-6 w-full max-w-md hidden">
-      <h3 class="text-xl font-semibold mb-4">New Inspection Item</h3>
-      <form id="inspectionItemForm" class="space-y-4">
-        <input type="hidden" id="itemId" name="item_id">
-        
-        <div>
-          <label for="itemName" class="block text-sm font-medium text-gray-700">Name</label>
-          <input type="text" id="itemName" name="name" required
-                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-        </div>
-        
-        <div>
-          <label for="itemCategory" class="block text-sm font-medium text-gray-700">Category</label>
-          <div class="flex space-x-2">
-            <select id="itemCategory" name="category"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2">
-              <% const categories = [...new Set(inspectionItems.map(item => item.category))]; %>
-              <% let CountItemsByCategories = {}; %>
-              <% categories.forEach(category => { %>
-                <% CountItemsByCategories[category] = inspectionItems.filter(item => item.category === category).length; %>
-                <option value="<%= category %>" count="<%= CountItemsByCategories[category] %>"><%= category %> (<%= CountItemsByCategories[category] %>)</option>
-              <% }); %>
-              <option value="new">Add New Category</option>
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <div class="relative">
+              <input type="password" id="password" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+              <button type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <div class="relative">
+              <input type="password" id="confirmPassword" name="confirmPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+              <button type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+            <select id="role" name="role" required class="select-input block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
+              <option value="user">Utilisateur</option>
+              <option value="admin">Administrateur</option>
+              <option value="mechanic">Mécanicien</option>
+              <option value="secretary">Secrétaire</option>
             </select>
           </div>
-        </div>
-        
-        <div id="newCategoryInput" class="hidden">
-          <label for="newCategory" class="block text-sm font-medium text-gray-700">New Category Name</label>
-          <input type="text" id="newCategory" name="newCategory"
-                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-        </div>
-        
-        <div>
-          <label for="itemType" class="block text-sm font-medium text-gray-700">Type</label>
-          <select id="itemType" name="type" required
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1 pl-2">
-            <option value="text">Text</option>
-            <option value="number">Number</option>
-            <option value="options">Options</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="itemActive" class="block text-sm font-medium text-gray-700">Active</label>
-          <input type="checkbox" id="itemActive" name="is_active" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-        </div>
-        
-        <div id="optionsSection" class="hidden">
-          <label class="block text-sm font-medium text-gray-700">Options</label>
-          <div class="space-y-2" id="optionsList">
-            <!-- Options will be added here dynamically -->
+          <div class="flex items-center">
+            <input type="checkbox" id="is_active" name="is_active" class="rounded border-gray-300 text-blue-600">
+            <label for="is_active" class="ml-2 block text-sm text-gray-700">Active</label>
           </div>
-          <button type="button" id="new-option-btn"
-                  class="mt-2 px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400">
-            Add Option
-          </button>
-        </div>
-        
-        <div class="flex justify-end space-x-3 mt-6">
-          <button type="button" id="cancelInspectionItemModalBtn"
-                  class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-            Create
-          </button>
-        </div>
-      </form>
+          <div class="flex justify-end space-x-3">
+            <button type="button" data-dismiss="modal" class="px-4 py-2 border rounded-md hover:bg-gray-100">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Save</button>
+          </div>
+        </form>
+      </div>
     </div>
 
-    <!-- Vehicle Modal -->
-    <div id="vehiculeModal" class="bg-white rounded-lg p-6 w-full max-w-4xl hidden">
-      <h3 class="text-xl font-semibold mb-4">Vehicle Information</h3>
-      <form id="vehiculeForm" class="space-y-4">
-        <input type="hidden" id="vehiculeId" name="vehicule_id">
+    <!-- Customer Modal -->
+    <div id="customerModal" class="bg-white rounded-lg shadow-xl w-full max-w-md hidden">
+      <div class="p-6">
+        <h3 class="text-xl font-semibold mb-4">New Customer</h3>
+        <form id="customerForm" class="space-y-4">
+          <input type="hidden" id="customerId" name="customer_id">
+          <div>
+            <label for="customerName" class="block text-sm font-medium text-gray-700">
+              <i class="far fa-user"></i> Nom
+            </label>
+            <input type="text" id="customerName" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div>
+            <label for="customerPhone" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-phone"></i> Téléphone
+            </label>
+            <input type="tel" id="customerPhone" name="phone" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div>
+            <label for="customerEmail" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-envelope"></i> Email
+            </label>
+            <input type="email" id="customerEmail" name="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div>
+            <label for="customerAddress" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-map-marker-alt"></i> Adresse
+            </label>
+            <input type="text" id="customerAddress" name="address" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div class="flex items-center">
+            <input type="checkbox" id="isCompany" name="is_company" class="rounded border-gray-300 text-blue-600">
+            <label for="isCompany" class="ml-2 block text-sm text-gray-700">
+              <i class="fas fa-building"></i> Société
+            </label>
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button type="button" data-dismiss="modal" class="px-4 py-2 border rounded-md hover:bg-gray-100">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Vehicule Modal -->
+    <div id="vehiculeModal" class="bg-white rounded-lg shadow-xl w-3/4 hidden">
+      <div class="p-4">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">
+            <i class="fas fa-car mr-2"></i>New Vehicule
+          </h3>
+          <!-- <button data-dismiss="modal"  
+                  class="ml-2 p-1.5 bg-gray-500 text-white rounded-full hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 h-6 w-6 flex items-center justify-center text-sm" 
+                  aria-label="Clear search" 
+                  tabindex="0">
+            <i class="fas fa-times"></i>
+          </button> -->
+        </div>
+
+        <form id="vehiculeForm" class="space-y-4">
+          <input type="hidden" id="vehiculeId" name="vehicule_id">
+          
+          <!-- Customer Search -->
+          <div class="bg-blue-50 p-3 rounded">
+            <div class="relative">
+              <div class="relative flex items-center gap-2">
+                <div class="relative flex-grow">
+                  <input type="text" 
+                         id="customer_search"
+                         name="customer_search"
+                         class="w-full py-2 pl-3 pr-10 rounded border-gray-300 shadow-sm text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition duration-150 ease-in-out"
+                         placeholder="Rechercher un client (nom, téléphone, email, adresse) ..."
+                         autocomplete="off"
+                         aria-label="Rechercher un client"
+                         role="combobox"
+                         aria-expanded="false"
+                         aria-controls="customer_search_results"
+                         aria-haspopup="listbox">
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <i class="fas fa-search text-gray-400"></i>
+                      <button type="button" 
+                              id="clear_customer_search"
+                              class="ml-1 hidden text-gray-400 hover:text-gray-600"
+                              aria-label="Effacer la recherche">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </input>
+                </div>
+                <button type="button"
+                        name="new-customer-btn"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400 whitespace-nowrap flex-shrink-0"
+                        aria-label="Ajouter un client">
+                  <i class="fas fa-user-plus mr-1"></i> Nouveau client
+                </button>
+              </div>
+              
+              <input type="hidden" id="vehicule_customer_id" name="customer_id">
+              
+              <div id="customer_search_results" 
+                   class="absolute z-10 w-full bg-white shadow-lg rounded-md mt-1 hidden max-h-60 overflow-y-auto border border-gray-200"
+                   role="listbox">
+              </div>
+              
+              <div id="selected_customer_info" 
+                   class="mt-2 p-3 text-sm bg-white rounded-md border border-blue-200 hidden">
+                <div class="flex items-center justify-between">
+                  <div class="font-medium text-blue-800" id="selected_customer_name"></div>
+                  <button type="button"
+                          name="clear_selected_customer"
+                          class="text-gray-400 hover:text-gray-600"
+                          aria-label="Retirer le client sélectionné">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                <div class="mt-1 text-gray-600 space-y-1">
+                  <div id="selected_customer_phone"></div>
+                  <div id="selected_customer_email"></div>
+                  <div id="selected_customer_address"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Info Grid -->
+          <div class="grid grid-cols-5 gap-3">
+            <div>
+              <label for="license_plate" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-id-card mr-1"></i>Immatriculation*
+              </label>
+              <input type="text" id="license_plate" name="license_plate" required 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm uppercase"
+                     placeholder="AB-123-CD">
+            </div>
+            <div>
+              <label for="brand" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-car mr-1"></i>Marque*
+              </label>
+              <input type="text" id="brand" name="brand" required 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     placeholder="ex: Renault">
+            </div>
+            <div>
+              <label for="model" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-car-side mr-1"></i>Modèle*
+              </label>
+              <input type="text" id="model" name="model" required 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     placeholder="ex: Clio">
+            </div>
+            <div>
+              <label for="first_registration_date" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-calendar-alt mr-1"></i>Mise en circulation
+              </label>
+              <input type="date" id="first_registration_date" name="first_registration_date" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm">
+            </div>
+            <div>
+              <label for="engine_code" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-microchip mr-1"></i>Code moteur
+              </label>
+              <input type="text" id="engine_code" name="engine_code" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     placeholder="ex: K9K">
+            </div>
+          </div>
+
+          <!-- Technical Info Grid -->
+          <div class="grid grid-cols-5 gap-3">
+            <div>
+              <label for="revision_oil_type" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-oil-can mr-1"></i>Type huile
+              </label>
+              <input type="text" id="revision_oil_type" name="revision_oil_type" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     placeholder="ex: 5W30">
+            </div>
+            <div>
+              <label for="revision_oil_volume" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-fill-drip mr-1"></i>Volume (L)
+              </label>
+              <input type="number" id="revision_oil_volume" name="revision_oil_volume" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     step="0.01" placeholder="5.5">
+            </div>
+            <div>
+              <label for="drain_plug_torque" class="block text-xs font-medium text-gray-700">
+                <i class="fas fa-wrench mr-1"></i>Couple de serrage (Nm)
+              </label>
+              <input type="number" id="drain_plug_torque" name="drain_plug_torque" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     step="0.1" placeholder="25">
+            </div>
+            <div>
+              <label for="brake_disc_thickness_front" class="block text-xs font-medium text-gray-700">
+                <i class="fa-solid fa-cookie-bite mr-1"></i>Disques AV
+              </label>
+              <input type="text" id="brake_disc_thickness_front" name="brake_disc_thickness_front" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     placeholder="230/245/260">
+            </div>
+            <div>
+              <label for="brake_disc_thickness_rear" class="block text-xs font-medium text-gray-700">
+                <i class="fa-solid fa-cookie mr-1"></i>Disques AR
+              </label>
+              <input type="text" id="brake_disc_thickness_rear" name="brake_disc_thickness_rear" 
+                     class="mt-1 w-full rounded border-gray-300 shadow-sm text-sm"
+                     placeholder="10/24/36">
+            </div>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="flex justify-end space-x-2 pt-4 border-t">
+            <button type="button" data-dismiss="modal" 
+                    class="px-3 py-1.5 border rounded text-sm hover:bg-gray-100 focus:ring-2 focus:ring-gray-400">
+              <i class="fas fa-times mr-1"></i>Annuler
+            </button>
+            <button type="submit" 
+                    class="px-3 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 focus:ring-2 focus:ring-blue-400">
+              <i class="fas fa-save mr-1"></i>Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Inspection Item Modal -->
+    <div id="inspectionItemModal" class="bg-white rounded-lg shadow-xl w-full max-w-md hidden">
+      <div class="p-6">
+        <h3 class="text-xl font-semibold mb-4">New Inspection Item</h3>
+        <form id="inspectionItemForm" class="space-y-4">
+          <input type="hidden" id="itemId" name="item_id">
+          <div>
+            <label for="itemName" class="block text-sm font-medium text-gray-700">Name</label>
+            <input type="text" id="itemName" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div>
+            <label for="itemType" class="block text-sm font-medium text-gray-700">Type</label>
+            <select id="itemType" name="type" required class="select-input block w-full rounded-md border-gray-300 shadow-sm">
+              <option value="checkbox">Checkbox</option>
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+            </select>
+          </div>
+          <div>
+            <label for="itemCategory" class="block text-sm font-medium text-gray-700">Category</label>
+            <select id="itemCategory" name="category" required class="select-input block w-full rounded-md border-gray-300 shadow-sm">
+              <option value="new">New Category</option>
+              <% if (locals.categories) { %>
+                <% categories.forEach(category => { %>
+                  <option value="<%= category.name %>" count="<%= category.count %>"><%= category.name %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div id="newCategoryContainer" class="hidden">
+            <label for="newCategory" class="block text-sm font-medium text-gray-700">New Category Name</label>
+            <input type="text" id="newCategory" name="newCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div>
+            <label for="itemDisplayOrder" class="block text-sm font-medium text-gray-700">Display Order</label>
+            <input type="number" id="itemDisplayOrder" name="display_order" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          </div>
+          <div class="flex items-center">
+            <input type="checkbox" id="itemActive" name="is_active" class="rounded border-gray-300 text-blue-600">
+            <label for="itemActive" class="ml-2 block text-sm text-gray-700">Active</label>
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button type="button" data-dismiss="modal" class="px-4 py-2 border rounded-md hover:bg-gray-100">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Cars and Reports Modal -->
+    <div id="carsReportsModal" class="bg-white rounded-lg shadow-xl w-full md:w-3/4 max-w-7xl mx-auto hidden max-h-[90vh] md:max-h-[85vh] flex flex-col">
+      <div class="p-4 md:p-6 flex-none">
+        <div class="flex justify-between items-center pb-3 border-b">
+          <h3 class="text-lg md:text-xl font-semibold text-gray-900 pr-4">
+            <i class="fas fa-car mr-2 text-green-500"></i>
+            <span id="modalCustomerName" class="break-words"></span>
+          </h3>
+          <button type="button"
+                  class="text-red-500 hover:text-red-600 transition-colors duration-200 p-2 rounded-full w-8 h-8 flex items-center justify-center bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-300 flex-shrink-0"
+                  data-dismiss="modal"
+                  aria-label="Fermer le modal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
         
-        <!-- First Row -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label for="license_plate" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-id-card"></i> License Plate
-            </label>
-            <input type="text" id="license_plate" name="license_plate" required
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="AB-123-CD">
-          </div>
-          <div>
-            <label for="brand" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-car"></i> Brand
-            </label>
-            <input type="text" id="brand" name="brand" required
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: Renault">
-          </div>
-          <div>
-            <label for="model" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-car-side"></i> Model
-            </label>
-            <input type="text" id="model" name="model"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: Clio">
-          </div>
-          <div>
-            <label for="engine_code" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-cogs"></i> Engine Code
-            </label>
-            <input type="text" id="engine_code" name="engine_code"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: K9K">
+        <div class="mt-4 overflow-y-auto flex-grow" id="carsReportsList" style="max-height: calc(90vh - 8rem);">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <!-- Content will be dynamically populated -->
           </div>
         </div>
-
-        <!-- Second Row -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label for="revision_oil_type" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-oil-can"></i> Oil Type
-            </label>
-            <input type="text" id="revision_oil_type" name="revision_oil_type"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: 5W30">
-          </div>
-          <div>
-            <label for="revision_oil_volume" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-fill-drip"></i> Oil Volume (L)
-            </label>
-            <input type="number" id="revision_oil_volume" name="revision_oil_volume"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   step="0.01" placeholder="ex: 5.5">
-          </div>
-          <div>
-            <label for="brake_disc_thickness_front" class="block text-sm font-medium text-gray-700">
-              <i class="fa-solid fa-cookie-bite"></i> Front Brake Discs (mm)
-            </label>
-            <input type="text" id="brake_disc_thickness_front" name="brake_disc_thickness_front"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: 230 / 245 / 260">
-          </div>
-          <div>
-            <label for="brake_disc_thickness_rear" class="block text-sm font-medium text-gray-700">
-              <i class="fa-solid fa-cookie"></i> Rear Brake Discs (mm)
-            </label>
-            <input type="text" id="brake_disc_thickness_rear" name="brake_disc_thickness_rear"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: 10 / 24 / 36">
-          </div>
-        </div>
-
-        <!-- Third Row -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label for="first_registration_date" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-calendar-alt"></i> First Registration
-            </label>
-            <input type="date" id="first_registration_date" name="first_registration_date"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-          </div>
-          <div>
-            <label for="next_technical_inspection" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-calendar-check"></i> Next Technical Inspection
-            </label>
-            <input type="date" id="next_technical_inspection" name="next_technical_inspection"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-          </div>
-          <div>
-            <label for="mileage" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-tachometer-alt"></i> Mileage
-            </label>
-            <input type="number" id="mileage" name="mileage"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: 100000">
-          </div>
-          <div>
-            <label for="filters" class="block text-sm font-medium text-gray-700">
-              <i class="fas fa-filter"></i> Filters
-            </label>
-            <input type="text" id="filters" name="filters"
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="ex: 3F ou FH / FA / FC">
-          </div>
-        </div>
-
-        <div class="flex justify-end space-x-3 mt-6">
-          <button type="button" id="cancelVehiculeModalBtn"
-                  class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-            Save
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 
-    <!-- Toast notifications -->
-    <div id="toast-container" class="fixed top-2 right-2 flex flex-col items-end space-y-2 z-50" aria-live="assertive" aria-atomic="true">
-    </div>
+  <!-- Toast notifications -->
+  <div id="toast-container" class="fixed top-2 right-2 flex flex-col items-end space-y-2 z-50" aria-live="assertive" aria-atomic="true">
+  </div>
 
   <script src="/static/js/admin.js"></script>
 </body>

@@ -51,7 +51,7 @@ const createTables = () => {
       db.run(`CREATE TABLE IF NOT EXISTS Users (
         user_id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE,
+        email TEXT,
         role TEXT NOT NULL,
         password TEXT NOT NULL,
         is_active BOOLEAN DEFAULT true,
@@ -62,8 +62,8 @@ const createTables = () => {
       db.run(`CREATE TABLE IF NOT EXISTS Customers (
         customer_id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        phone TEXT UNIQUE,
-        email TEXT UNIQUE,
+        phone TEXT,
+        email TEXT,
         address TEXT,
         is_company BOOLEAN DEFAULT false
       )`);
@@ -129,14 +129,14 @@ const getDatabase = () => {
   return db;
 };
 
-const addVehicle = (licensePlate, ownerName, contactInfo, vehiculeDetails = {}) => {
+// ==================== Vehicules ====================
+const addVehicule = (licensePlate, customerId, vehiculeDetails = {}) => {
   return new Promise((resolve, reject) => {
     const vehiculeId = uuidv4();
     db.run(`INSERT INTO Vehicules (
       vehicule_id, 
       license_plate, 
-      owner_name, 
-      contact_info,
+      customer_id, 
       brand,
       model,
       engine_code,
@@ -144,13 +144,13 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehiculeDetails = {}) 
       revision_oil_volume,
       brake_disc_thickness_front,
       brake_disc_thickness_rear,
+      first_registration_date,
       drain_plug_torque
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         vehiculeId, 
         licensePlate, 
-        ownerName, 
-        contactInfo,
+        customerId,
         vehiculeDetails.brand || null,
         vehiculeDetails.model || null,
         vehiculeDetails.engine_code || null,
@@ -158,6 +158,7 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehiculeDetails = {}) 
         vehiculeDetails.revision_oil_volume || null,
         vehiculeDetails.brake_disc_thickness_front || null,
         vehiculeDetails.brake_disc_thickness_rear || null,
+        vehiculeDetails.first_registration_date || null,
         vehiculeDetails.drain_plug_torque || null
       ],
       (err) => {
@@ -168,15 +169,88 @@ const addVehicle = (licensePlate, ownerName, contactInfo, vehiculeDetails = {}) 
   });
 };
 
+const updateVehicule = (vehiculeId, licensePlate, customerId, vehiculeDetails = {}) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const fields = [];
+      const values = [];
+
+      if (licensePlate !== undefined) {
+        fields.push('license_plate = ?');
+        values.push(licensePlate);
+      }
+
+      if (customerId !== undefined) {
+        fields.push('customer_id = ?');
+        values.push(customerId);
+      }
+
+      for (const key in vehiculeDetails) {
+        if (vehiculeDetails[key] !== undefined) {
+          fields.push(`${key} = ?`);
+          values.push(vehiculeDetails[key]);
+        }
+      }
+
+      if (fields.length === 0) {
+        return resolve(); // No updates to perform
+      }
+
+      values.push(vehiculeId);
+
+      logger.debug(`Updating vehicle ${vehiculeId} with fields: ${fields.join(', ')} and values: ${values.join(', ')}`);
+
+      const query = `UPDATE Vehicules SET ${fields.join(', ')} WHERE vehicule_id = ?`;
+      db.run(query, values, (err) => {
+        if (err) reject(err); else resolve();
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getVehiculeById = (vehiculeId) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM Vehicules WHERE vehicule_id = ?', [vehiculeId], (err, row) => {
+      if (err) reject(err); else resolve(row);
+    });
+  });
+};
+
+const getAllVehicules = async () => {
+  return new Promise((resolve, reject) => {
+    const db = getDatabase();
+    db.all('SELECT * FROM Vehicules', [], (err, vehicules) => {
+      if (err) reject(err);
+      else {
+        resolve(vehicules);
+      }
+    });
+  });
+};
+
+const getVehiculeByLicensePlate = async (license_plate) => {
+  const db = getDatabase();
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM Vehicules WHERE license_plate = ?`, [license_plate], (err, vehicule) => {
+      if (err) reject(err);
+      else resolve(vehicule);
+    });
+  });
+};
+
+
 // ==================== Users ====================
 const createDefaultAdminUser = async () => {
   const defaultUsername = 'admin';
   const defaultPassword = 'password123';
   const defaultEmail = 'admin@example.com';
 
-  if (await getUserByUsername(defaultUsername) !== 'N/A') {
+  const user = await getUserByUsername(defaultUsername);
+  if (user !== 'N/A') {
     logger.debug('Default admin user already exists. Skipping creation.');
-    return;
+    return user.user_id;
   }
 
   await addUser(defaultUsername, defaultEmail, 'admin', defaultPassword);
@@ -210,11 +284,76 @@ const addUser = (username, email, role, password) => {
   });
 };
 
+const updateUser = (userId, updates) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const fields = [];
+      const values = [];
+
+      if (updates.email !== undefined) {
+        fields.push('email = ?');
+        values.push(updates.email);
+      }
+
+      if (updates.role !== undefined) {
+        fields.push('role = ?');
+        values.push(updates.role);
+      }
+
+      if (updates.password !== undefined) {
+        fields.push('password = ?');
+        const hashedPassword = await bcrypt.hash(updates.password, 10);
+        values.push(hashedPassword);
+      }
+
+      if (updates.is_active !== undefined) {
+        fields.push('is_active = ?');
+        values.push(updates.is_active);
+      }
+
+      if (fields.length === 0) {
+        return resolve(); // No updates to perform
+      }
+
+      values.push(userId);
+
+      logger.debug(`Updating user ${userId} with fields: ${fields.join(', ')} and values: ${values.join(', ')}`);
+
+      const query = `UPDATE Users SET ${fields.join(', ')} WHERE user_id = ?`;
+      db.run(query, values, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const deactivateUser = (userId) => {
   return new Promise((resolve, reject) => {
     db.run(`UPDATE Users SET is_active = false WHERE user_id = ?`, [userId], (err) => {
       if (err) reject(err); else resolve();
     });
+  });
+};
+
+const deleteUser = async (userId) => {
+  const user = await getUserById(userId);
+  const admin = await createDefaultAdminUser();
+
+  return new Promise((resolve, reject) => {
+
+    if(user.role === 'admin' && admin === user.user_id) {
+      logger.error('Impossible de supprimer l\'administrateur par défaut.');
+      return reject(new Error('Impossible de supprimer l\'administrateur par défaut.'));
+    
+    } else {
+      db.run(`DELETE FROM Users WHERE user_id = ?`, [userId], (err) => {
+        if (err) reject(err); else resolve();
+      });
+
+    }
   });
 };
 
@@ -228,7 +367,7 @@ const getUserById = (userId) => {
         logger.error(`User with ID ${userId} not found. Returning N/A`);
         resolve('N/A');
       } else if (!row.is_active) {
-        logger.warn(`User ${userId} status is ${row.is_active}. Adding Deactivated label to username`);
+        logger.warn(`User ${userId} status is disabled. Adding Deactivated label to username`);
         row.username += ' (D)';
         resolve(row);
       } else {
@@ -270,6 +409,124 @@ const getAllActiveUsers = () => {
   return new Promise((resolve, reject) => {
     db.all('SELECT user_id, username, email, role FROM Users WHERE is_active = true', (err, rows) => {
       if (err) reject(err); else resolve(rows);
+    });
+  });
+};
+
+// ==================== Customers ====================
+const getCustomerById = async (customer_id) => {
+  const db = getDatabase();
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM Customers WHERE customer_id = ?`, [customer_id], (err, customer) => {
+      if (err) reject(err);
+      else resolve(customer);
+    });
+  });
+};
+
+const getCustomerByPhone = (phone) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM Customers WHERE phone = ?', [phone], (err, customer) => {
+      if (err) reject(err); else resolve(customer);
+    });
+  });
+};
+
+const getAllCustomers = () => {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM Customers', (err, rows) => {
+      if (err) reject(err); else resolve(rows);
+    });
+  });
+};
+
+const getCustomerCarsAndReports = (customerId) => {
+  return new Promise((resolve, reject) => {
+    const db = getDatabase();
+    
+    db.serialize(() => {
+      db.get(
+        'SELECT customer_id, name, phone, address FROM Customers WHERE customer_id = ?',
+        [customerId],
+        (err, customer) => {
+          if (err) return reject(err);
+          if (!customer) return resolve(null);
+
+          db.all(`
+            SELECT 
+              v.vehicule_id,
+              v.license_plate,
+              v.brand,
+              v.model,
+              v.engine_code,
+              v.first_registration_date,
+              (
+                SELECT json_group_array(
+                  json_object(
+                    'report_id', r.report_id,
+                    'created_at', r.created_at,
+                    'status', CASE 
+                      WHEN r.inspection_results = '{}' THEN 'pending'
+                      ELSE 'completed'
+                    END,
+                    'mileage', r.mileage,
+                    'next_technical_inspection', r.next_technical_inspection,
+                    'comments', r.comments
+                  )
+                )
+                FROM InspectionReports r
+                WHERE r.vehicule_id = v.vehicule_id
+              ) as reports
+            FROM Vehicules v
+            WHERE v.customer_id = ?
+            ORDER BY v.license_plate ASC
+          `, [customerId], (err, cars) => {
+            if (err) return reject(err);
+
+            const processedCars = cars.map(car => ({
+              ...car,
+              reports: JSON.parse(car.reports || '[]')
+                .filter(Boolean)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            }));
+
+            resolve({
+              customer,
+              cars: processedCars
+            });
+          });
+        }
+      );
+    });
+  });
+};
+
+const addCustomer = (name, phone, email, address, is_company) => {
+  return new Promise((resolve, reject) => {
+    const customerId = uuidv4();
+    db.run(`INSERT INTO Customers (customer_id, name, email, phone, address, is_company) VALUES (?, ?, ?, ?, ?, ?)`, 
+      [customerId, name, email, phone, address, is_company ? 1 : 0], 
+      (err) => {
+        if (err) reject(err); else resolve(customerId);
+      }
+    );
+  });
+};
+
+const updateCustomer = (customer_id, name, phone, email, address, is_company) => {
+  return new Promise((resolve, reject) => {
+    db.run(`UPDATE Customers SET name = ?, phone = ?, email = ?, address = ?, is_company = ? WHERE customer_id = ?`, 
+      [name, phone, email, address, is_company ? 1 : 0, customer_id], (err) => {
+        if (err) reject(err); else resolve();
+      }
+    );
+  });
+};
+
+const deleteCustomer = (customer_id) => {
+  return new Promise((resolve, reject) => {
+    db.run(`DELETE FROM Customers WHERE customer_id = ?`, [customer_id], (err) => {
+      if (err) reject(err); else resolve();
     });
   });
 };
@@ -413,7 +670,7 @@ const getInspectionItems = () => {
 };
 
 // Add function to save inspection report
-const saveInspectionReport = (reportData, userId) => {
+const addInspectionReport = (reportData, userId) => {
   return new Promise((resolve, reject) => {
     const customerPhone = reportData.client_phone;
     const customerEmail = reportData.client_email;
@@ -471,62 +728,95 @@ const saveInspectionReport = (reportData, userId) => {
       }
 
       const proceedWithReport = () => {
-        const vehiculeId = uuidv4();
-        db.run(`INSERT OR REPLACE INTO Vehicules (
-          vehicule_id, license_plate, customer_id, brand, model, 
-          engine_code, revision_oil_type, revision_oil_volume,
-          brake_disc_thickness_front, brake_disc_thickness_rear,
-          drain_plug_torque,
-          first_registration_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-          vehiculeId,
-          reportData.license_plate.toUpperCase(),
-          customerId,
-          reportData.brand || null,
-          reportData.model || null,
-          reportData.engine_code || null,
-          reportData.revision_oil_type || null,
-          reportData.revision_oil_volume || null,
-          reportData.brake_disc_thickness_front || null,
-          reportData.brake_disc_thickness_rear || null,
-          reportData.drain_plug_torque || null,
-          reportData.first_registration_date || null
-        ], function(err) {
-          if (err) return reject(err);
+        // First check if vehicle exists
+        db.get('SELECT vehicule_id FROM Vehicules WHERE license_plate = ?', 
+          [reportData.license_plate.toUpperCase()], 
+          (err, existingVehicle) => {
+            if (err) return reject(err);
 
-          const reportId = uuidv4();
-          db.run(`INSERT INTO InspectionReports (
-            report_id,
-            vehicule_id,
-            mileage,
-            comments,
-            next_technical_inspection,
-            filters,
-            inspection_results,
-            created_by,
-            created_at,
-            mechanics
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)`, [
-            reportId,
-            vehiculeId,
-            reportData.mileage || null,
-            reportData.comments || null,
-            reportData.next_technical_inspection || null,
-            reportData.filters || null,
-            JSON.stringify(reportData.inspection || '{}'),
-            userId,
-            JSON.stringify(reportData.mechanics || '{}'),
-          ], function(err) {
-            if (err) {
-              return reject(err);
-            }
+            const vehiculeId = existingVehicle ? existingVehicle.vehicule_id : uuidv4();
+            
+            // Update or insert vehicle
+            const query = existingVehicle ? 
+              `UPDATE Vehicules SET 
+                customer_id = ?, brand = ?, model = ?, 
+                engine_code = ?, revision_oil_type = ?, revision_oil_volume = ?,
+                brake_disc_thickness_front = ?, brake_disc_thickness_rear = ?,
+                drain_plug_torque = ?, first_registration_date = ?
+                WHERE vehicule_id = ?` :
+              `INSERT INTO Vehicules (
+                vehicule_id, license_plate, customer_id, brand, model, 
+                engine_code, revision_oil_type, revision_oil_volume,
+                brake_disc_thickness_front, brake_disc_thickness_rear,
+                drain_plug_torque, first_registration_date
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-            db.run('COMMIT', (err) => {
-              if (err) reject(err);
-              else resolve(reportId);
+            const params = existingVehicle ? [
+              customerId,
+              reportData.brand || null,
+              reportData.model || null,
+              reportData.engine_code || null,
+              reportData.revision_oil_type || null,
+              reportData.revision_oil_volume || null,
+              reportData.brake_disc_thickness_front || null,
+              reportData.brake_disc_thickness_rear || null,
+              reportData.drain_plug_torque || null,
+              reportData.first_registration_date || null,
+              vehiculeId
+            ] : [
+              vehiculeId,
+              reportData.license_plate.toUpperCase(),
+              customerId,
+              reportData.brand || null,
+              reportData.model || null,
+              reportData.engine_code || null,
+              reportData.revision_oil_type || null,
+              reportData.revision_oil_volume || null,
+              reportData.brake_disc_thickness_front || null,
+              reportData.brake_disc_thickness_rear || null,
+              reportData.drain_plug_torque || null,
+              reportData.first_registration_date || null
+            ];
+
+            db.run(query, params, function(err) {
+              if (err) return reject(err);
+
+              // Continue with report creation...
+              const reportId = uuidv4();
+              db.run(`INSERT INTO InspectionReports (
+                report_id,
+                vehicule_id,
+                mileage,
+                comments,
+                next_technical_inspection,
+                filters,
+                inspection_results,
+                created_by,
+                created_at,
+                mechanics
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)`, [
+                reportId,
+                vehiculeId,
+                reportData.mileage || null,
+                reportData.comments || null,
+                reportData.next_technical_inspection || null,
+                reportData.filters || null,
+                JSON.stringify(reportData.inspection || '{}'),
+                userId,
+                JSON.stringify(reportData.mechanics || '{}'),
+              ], function(err) {
+                if (err) {
+                  return reject(err);
+                }
+
+                db.run('COMMIT', (err) => {
+                  if (err) reject(err);
+                  else resolve(reportId);
+                });
+              });
             });
-          });
-        });
+          }
+        );
       };
     });
 
@@ -722,52 +1012,6 @@ const getInspectionReport = (reportId) => {
   });
 };
 
-// Add function to get all inspection reports
-const getAllVehicules = async () => {
-  return new Promise((resolve, reject) => {
-    const db = getDatabase();
-    db.all('SELECT * FROM Vehicules', [], (err, vehicules) => {
-      if (err) reject(err);
-      else {
-        resolve(vehicules);
-      }
-    });
-  });
-};
-
-// Get the vehicule by license plate
-const getVehiculeByLicensePlate = async (license_plate) => {
-  const db = getDatabase();
-  return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM Vehicules WHERE license_plate = ?`, [license_plate], (err, vehicule) => {
-      if (err) reject(err);
-      else resolve(vehicule);
-    });
-  });
-};
-
-// Get the vehicule by id
-const getVehiculeById = async (vehicule_id) => {
-  const db = getDatabase();
-  return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM Vehicules WHERE vehicule_id = ?`, [vehicule_id], (err, vehicule) => {
-      if (err) reject(err);
-      else resolve(vehicule);
-    });
-  });
-};
-
-// Get the customer by vehicule id
-const getCustomerById = async (customer_id) => {
-  const db = getDatabase();
-  return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM Customers WHERE customer_id = ?`, [customer_id], (err, customer) => {
-      if (err) reject(err);
-      else resolve(customer);
-    });
-  });
-};
-
 // Map inspection results to inspection items
 const mapInspectionResults = async (inspectionResults) => {
   const items = await getInspectionItems();
@@ -804,38 +1048,45 @@ const temporaryDatabaseUpdate = async () => {
   // Update the InspectionItems with id efd99bd5-1967-4720-8655-3edd1fe45c62 and set the name to "Serrage des roues (Nm)".
   // db.run(`UPDATE InspectionItems SET name = ? WHERE item_id = ?`, ['Serrage des roues (Nm)', 'efd99bd5-1967-4720-8655-3edd1fe45c62']);
   
-  // Add column mechanics to InspectionReports
-  const query = `ALTER TABLE InspectionReports 
-  ADD COLUMN mechanics TEXT[] DEFAULT '{}';`;
+  // Email of customer can be duplicate
+  const query = `ALTER TABLE Customers DROP CONSTRAINT email;`;
   await db.run(query);
-  console.log("Column mechanics added to InspectionReports.");
-
-  // Add column is_active to Users
-  const query2 = `ALTER TABLE Users 
-  ADD COLUMN is_active BOOLEAN DEFAULT TRUE;`;
-  await db.run(query2);
-  console.log("Column is_active added to Users.");
+  console.log("Unique email removed from Customers.");
   
   console.log("Database updated.");
 };
 
+
 module.exports = {
   initializeDatabase,
   getDatabase,
-  addVehicle,
+  // InspectionItems
   getInspectionItems,
-  saveInspectionReport,
-  updateInspectionReports,
+  // InspectionReports
+  addInspectionReport,
   getInspectionReport,
+  updateInspectionReports,
+  // Vehicules
+  addVehicule,
   getVehiculeByLicensePlate,
   getVehiculeById,
-  getCustomerById,
   getAllVehicules,
+  updateVehicule,
   // Users
   addUser,
   getUserById,
-  deactivateUser,
   getAllActiveUsers,
   getUserByUsername,
-  getUserWithPasswordByUsername
+  getUserWithPasswordByUsername,
+  updateUser,
+  deactivateUser,
+  deleteUser,
+  // Customers
+  addCustomer,
+  getAllCustomers,
+  getCustomerByPhone,
+  getCustomerById,
+  updateCustomer,
+  deleteCustomer,
+  getCustomerCarsAndReports
 };

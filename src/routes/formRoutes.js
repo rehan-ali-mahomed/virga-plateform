@@ -9,7 +9,8 @@ const {
   getCustomerById, 
   updateInspectionReports, 
   getAllActiveUsers,
-  getUserById
+  getUserById,
+  getAllCustomers
 } = require('../config/database');
 const logger = require('../utils/logger');
 
@@ -98,6 +99,38 @@ router.get('/api-user-details/:id', isAuthenticated, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Une erreur est survenue lors de la recherche'
+    });
+  }
+});
+
+// Add route to search customers by name
+router.get('/api-customers-search', isAuthenticated, async (req, res) => {
+  try {
+    const searchQuery = req.query.query;
+    const customers = await getAllCustomers();
+    
+    const filteredCustomers = customers.filter(customer => 
+      customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const formattedCustomers = filteredCustomers.map(customer => ({
+      customer_id: customer.customer_id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      address: customer.address,
+      is_company: customer.is_company
+    }));
+
+    res.json({
+      success: true,
+      data: formattedCustomers
+    });
+  } catch (error) {
+    logger.error('Error searching customers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Une erreur est survenue lors de la recherche des clients'
     });
   }
 });

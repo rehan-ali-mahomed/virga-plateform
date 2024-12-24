@@ -1,7 +1,7 @@
 {
     "name": "vehicule-inspection-app",
     "version": "1.0.0",
-    "description": "Vehicle Inspection Report Application",
+    "description": "Vehicule Inspection Report Application",
     "main": "src/app.js",
     "scripts": {
         "start": "node src/app.js",

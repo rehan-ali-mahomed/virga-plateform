@@ -1,4 +1,4 @@
-# Vehicle Inspection Report Application
+# Vehicule Inspection Report Application
 
 This application is designed to streamline the process of creating and managing vehicule inspection reports for auto repair shops.
 

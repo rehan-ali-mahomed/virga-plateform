@@ -145,7 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setUnsetRadioInputs();
     
     form.action = '/form/submit-preview';
+    form.target = '_blank';
+
     await form.submit();
+    
+    window.location.replace('/dashboard');
     
   });
 
@@ -497,4 +501,175 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fetch vehicules on page load
   fetchVehicles();
+
+  // Customer Search Functionality
+  let searchTimeout = null;
+  const clientNameInput = document.getElementById('client_name');
+  const customerDropdown = document.getElementById('customer_search_dropdown');
+  let filteredCustomers = [];
+
+  // Input focus event for customer search
+  clientNameInput.addEventListener('focus', () => {
+    if (clientNameInput.value.trim().length >= 2) {
+      handleCustomerSearch(clientNameInput.value.trim());
+    }
+  });
+
+  // Input keyup event for customer filtering
+  clientNameInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const searchTerm = e.target.value.trim();
+    
+    if (searchTerm.length < 2) {
+      document.getElementById('customer_search_dropdown').classList.add('d-none');
+      return;
+    }
+    
+    searchTimeout = setTimeout(() => handleCustomerSearch(searchTerm), 600);
+  });
+
+  // Click events for customer dropdown items
+  document.addEventListener('click', (e) => {
+    const customerResult = e.target.closest('.customer-result');
+    if (customerResult) {
+      const customerId = customerResult.dataset.id;
+      selectCustomerFromID(customerId);
+    } else if (!e.target.closest('#client_name')) {
+      customerDropdown.classList.add('d-none');
+    }
+  });
+
+  // Handle customer search
+  const handleCustomerSearch = async (searchTerm) => {
+    try {
+      const response = await fetch(`/form/api-customers-search?query=${encodeURIComponent(searchTerm)}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Search failed');
+      }
+      
+      filteredCustomers = data.data;
+      const resultsContainer = document.querySelector('.customer-search-dropdown-content');
+      
+      if (filteredCustomers.length === 0) {
+        resultsContainer.innerHTML = '<div class="p-2 text-gray-500">Aucun client trouvé</div>';
+        return;
+      }
+      
+      resultsContainer.innerHTML = filteredCustomers.map(customer => `
+        <div class="customer-result p-2 hover:bg-gray-100 cursor-pointer" 
+             data-id="${customer.customer_id}"
+             data-name="${customer.name}"
+             data-phone="${customer.phone || ''}"
+             data-address="${customer.address || ''}">
+          <div class="font-medium"><i class="fas fa-user mr-2"></i>${customer.name}</div>
+          <div class="text-sm text-gray-600">
+            ${customer.phone ? `<i class="fas fa-phone mr-2"></i>${customer.phone}` : ''}
+            ${customer.email ? `<br><i class="fas fa-envelope mr-2"></i>${customer.email}` : ''}
+            ${customer.address ? `<br><i class="fas fa-map-marker-alt mr-2"></i>${customer.address}` : ''}
+          </div>
+        </div>
+        <div class="border-b border-gray-200"></div>
+      `).join('');
+      
+      customerDropdown.classList.remove('d-none');
+    } catch (error) {
+      console.error('Search error:', error);
+      const searchResult = document.getElementById('customer_search_result');
+      searchResult.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-circle"></i> Une erreur est survenue lors de la recherche
+        </div>
+      `;
+      setTimeout(() => {
+        searchResult.innerHTML = '';
+      }, 2500);
+    }
+  };
+
+  // Select customer from ID
+  const selectCustomerFromID = async (customerId) => {
+    const searchResult = document.getElementById('customer_search_result');
+    
+    try {
+      searchResult.innerHTML = `
+        <div class="alert alert-info">
+          <i class="fas fa-spinner fa-spin pr-1"></i> Chargement des informations...
+        </div>
+      `;
+
+      const customer = filteredCustomers.find(c => c.customer_id === customerId);
+      
+      if (customer) {
+        // Update form fields
+        document.getElementById('customer_id').value = customer.customer_id;
+        document.getElementById('client_name').value = customer.name;
+        document.getElementById('client_phone').value = customer.phone || '';
+        document.getElementById('client_email').value = customer.email || '';
+        document.getElementById('client_address').value = customer.address || '';
+        document.getElementById('is_company').checked = customer.is_company;
+
+        searchResult.innerHTML = `
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle pr-1"></i> Informations client chargées avec succès.
+          </div>
+        `;
+        
+        customerDropdown.classList.add('d-none');
+      }
+
+      setTimeout(() => {
+        searchResult.innerHTML = '';
+      }, 2500);
+
+    } catch (error) {
+      console.error('Error selecting customer:', error);
+      searchResult.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-circle"></i> Une erreur est survenue
+        </div>
+      `;
+    }
+  };
+
+  // Add CSS styles for customer search
+  const style = document.createElement('style');
+  style.textContent = `
+    .search-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.375rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .customer-result {
+      transition: background-color 0.2s;
+    }
+    
+    .customer-result:hover {
+      background-color: #f3f4f6;
+    }
+    
+    .customer-result .font-medium {
+      color: #1a202c;
+      font-weight: 500;
+    }
+    
+    .customer-result .text-sm {
+      font-size: 0.875rem;
+    }
+    
+    .customer-result i {
+      color: #4a5568;
+    }
+  `;
+  document.head.appendChild(style);
 });

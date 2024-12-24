@@ -1,23 +1,29 @@
 const express = require('express');
 const router = express.Router();
-const { isAuthenticated } = require('../middleware/auth');
-const { getDatabase, addUser, deactivateUser } = require('../config/database');
+const { isAuthenticated, isAdmin } = require('../middleware/auth');
+const { 
+  getDatabase,
+  // Users
+  addUser,
+  getUserById,
+  updateUser,
+  deleteUser,
+  // Customers
+  addCustomer,
+  getAllCustomers,
+  getCustomerByPhone,
+  getCustomerById,
+  deleteCustomer,
+  // Vehicules
+  addVehicule,
+  getVehiculeById,
+  updateVehicule,
+  getCustomerCarsAndReports
+} = require('../config/database');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
-
-// Middleware to check if the user has an Admin role
-const isAdmin = (req, res, next) => {
-  if (req.user && req.user.role.toLowerCase() === 'admin') {
-    return next();
-  }
-  return res.status(403).render('error', {
-    message: 'Accès interdit. Vous n\'êtes pas autorisé à accéder à cette section.',
-    errors: [],
-    user: req.session.user
-  });
-};
 
 // Utility function to promisify db operations
 const dbAll = (db, query, params = []) => {
@@ -158,6 +164,18 @@ router.get('/users', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
+// GET /admin/users/:id - Get a user by id
+router.get('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await getUserById(id);
+    res.json({ user: user });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération de l\'utilisateur:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'utilisateur.' });
+  }
+});
+
 // POST /admin/users - Create a new user
 router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
   const { username, email, role, password } = req.body;
@@ -177,31 +195,16 @@ router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
 
 // PUT /admin/users/:id - Update an existing user
 router.put('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { id } = req.params;
-  const { email, role, password } = req.body;
+  const { email, role, password, is_active } = req.body;
 
   try {
-    const user = await dbGet(db, 'SELECT * FROM Users WHERE user_id = ?', [id]);
+    const user = await getUserById(id);
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur non trouvé.' });
     }
 
-    const updatedEmail = email || user.email;
-    const updatedRole = role || user.role;
-    const updatedPassword = password || user.password;
-
-    await dbRun(db, `
-      UPDATE Users 
-      SET email = ?, role = ?, password = ? 
-      WHERE user_id = ?`,
-      [
-        updatedEmail,
-        updatedRole,
-        updatedPassword,
-        id
-      ]
-    );
+    await updateUser(id, { email: email, role: role, password: password, is_active: is_active });
 
     res.json({ message: 'Utilisateur mis à jour avec succès.' });
   } catch (error) {
@@ -215,8 +218,15 @@ router.delete('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
-    await deactivateUser(id);
-    res.json({ message: 'Utilisateur désactivé avec succès.' });
+    const user = await getUserById(id);
+    if(user.is_active === 1) {
+      return res.status(400).json({ error: 'Impossible de supprimer un utilisateur actif. Veuillez désactiver l\'utilisateur avant de le supprimer.' });
+
+    } else if (user.is_active === 0) {
+      await deleteUser(id);
+      res.json({ message: 'Utilisateur supprimé avec succès.' });
+
+    }
   } catch (error) {
     logger.error('Erreur lors de la désactivation de l\'utilisateur:', error);
     res.status(500).json({ error: 'Erreur lors de la désactivation de l\'utilisateur.' });
@@ -250,9 +260,8 @@ router.post('/upload-icon', isAuthenticated, isAdmin, upload.single('icon'), (re
 
 // GET /admin/customers - List all customers
 router.get('/customers', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   try {
-    const customers = await dbAll(db, 'SELECT * FROM Customers');
+    const customers = await getAllCustomers();
     res.json({ customers });
   } catch (error) {
     logger.error('Erreur lors de la récupération des clients:', error);
@@ -260,29 +269,25 @@ router.get('/customers', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
+// GET /admin/customers/:id - Get a customer by id
+router.get('/customers/:id', isAuthenticated, isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const customer = await getCustomerById(id);
+  res.json({ customer: customer });
+});
+
 // POST /admin/customers - Create a new customer
 router.post('/customers', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { name, email, phone, address, is_company } = req.body;
 
   if (!name || !phone) {
     return res.status(400).json({ error: 'Le nom et le téléphone sont requis.' });
+  } else if (phone && await getCustomerByPhone(phone)) {
+    return res.status(400).json({ error: 'Un client avec ce numéro de téléphone existe déjà.' });
   }
 
   try {
-    const customerId = uuidv4();
-    await dbRun(db, `
-      INSERT INTO Customers (customer_id, name, email, phone, address, is_company)
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        customerId,
-        name,
-        email || null,
-        phone,
-        address || null,
-        is_company ? 1 : 0
-      ]
-    );
+    await addCustomer(name, phone, email, address, is_company);
     res.status(201).json({ message: 'Client créé avec succès.' });
   } catch (error) {
     logger.error('Erreur lors de la création du client:', error);
@@ -308,19 +313,7 @@ router.put('/customers/:id', isAuthenticated, isAdmin, async (req, res) => {
     const updatedAddress = address || customer.address;
     const updatedIsCompany = typeof is_company !== 'undefined' ? (is_company ? 1 : 0) : customer.is_company;
 
-    await dbRun(db, `
-      UPDATE Customers 
-      SET name = ?, email = ?, phone = ?, address = ?, is_company = ?
-      WHERE customer_id = ?`,
-      [
-        updatedName,
-        updatedEmail,
-        updatedPhone,
-        updatedAddress,
-        updatedIsCompany,
-        id
-      ]
-    );
+    await updateCustomer(id, updatedName, updatedEmail, updatedPhone, updatedAddress, updatedIsCompany);
 
     res.json({ message: 'Client mis à jour avec succès.' });
   } catch (error) {
@@ -331,18 +324,33 @@ router.put('/customers/:id', isAuthenticated, isAdmin, async (req, res) => {
 
 // DELETE /admin/customers/:id - Delete a customer
 router.delete('/customers/:id', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { id } = req.params;
 
   try {
-    const result = await dbRun(db, 'DELETE FROM Customers WHERE customer_id = ?', [id]);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Client non trouvé.' });
-    }
+    await deleteCustomer(id);
     res.json({ message: 'Client supprimé avec succès.' });
   } catch (error) {
     logger.error('Erreur lors de la suppression du client:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du client.' });
+  }
+});
+
+// GET /admin/customers/:id/cars-reports - Get customer cars and reports
+router.get('/customers/:id/cars-reports', isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const result = await getCustomerCarsAndReports(req.params.id);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Client non trouvé.' });
+    }
+
+    res.json(result);
+    
+  } catch (error) {
+    logger.error('Erreur lors de la récupération des véhicules et rapports:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération des véhicules et rapports.' 
+    });
   }
 });
 
@@ -360,56 +368,52 @@ router.get('/vehicules', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
+// GET /admin/vehicules/:id - Get a vehicule by id
+router.get('/vehicules/:id', isAuthenticated, isAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const vehicule = await getVehiculeById(id);
+    res.json({ vehicule: vehicule });
+  } catch (error) {
+    logger.error('Erreur lors de la récupération du véhicule:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération du véhicule.' });
+  }
+});
+
 // POST /admin/vehicules - Create a new vehicule
 router.post('/vehicules', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const {
     license_plate,
-    owner_name,
-    contact_info,
+    customer_id,
     brand,
     model,
     engine_code,
     revision_oil_type,
     revision_oil_volume,
     brake_disc_thickness_front,
-    brake_disc_thickness_rear
+    brake_disc_thickness_rear,
+    first_registration_date,
+    drain_plug_torque
   } = req.body;
 
-  if (!license_plate || !owner_name || !contact_info) {
-    return res.status(400).json({ error: 'Immatriculation, nom du propriétaire et contact sont requis.' });
+  if (!license_plate) {
+    return res.status(400).json({ error: 'Immatriculation est requis.' });
   }
 
   try {
-    const vehiculeId = uuidv4();
-    await dbRun(db, `
-      INSERT INTO Vehicules (
-        vehicule_id, 
-        license_plate, 
-        owner_name, 
-        contact_info,
-        brand,
-        model,
-        engine_code,
-        revision_oil_type,
-        revision_oil_volume,
-        brake_disc_thickness_front,
-        brake_disc_thickness_rear
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        vehiculeId,
-        license_plate.toUpperCase(),
-        owner_name,
-        contact_info,
-        brand || null,
-        model || null,
-        engine_code || null,
-        revision_oil_type || null,
-        revision_oil_volume || null,
-        brake_disc_thickness_front || null,
-        brake_disc_thickness_rear || null
-      ]
-    );
+    await addVehicule(license_plate, customer_id || null, {
+      brand,
+      model,
+      engine_code,
+      revision_oil_type,
+      revision_oil_volume,
+      brake_disc_thickness_front,
+      brake_disc_thickness_rear,
+      first_registration_date,
+      drain_plug_torque
+    });
+ 
     res.status(201).json({ message: 'Véhicule créé avec succès.' });
   } catch (error) {
     logger.error('Erreur lors de la création du véhicule:', error);
@@ -419,30 +423,29 @@ router.post('/vehicules', isAuthenticated, isAdmin, async (req, res) => {
 
 // PUT /admin/vehicules/:id - Update an existing vehicule
 router.put('/vehicules/:id', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { id } = req.params;
   const {
     license_plate,
-    owner_name,
-    contact_info,
+    customer_id,
     brand,
     model,
     engine_code,
     revision_oil_type,
     revision_oil_volume,
     brake_disc_thickness_front,
-    brake_disc_thickness_rear
+    brake_disc_thickness_rear,
+    first_registration_date,
+    drain_plug_torque
   } = req.body;
 
   try {
-    const vehicule = await dbGet(db, 'SELECT * FROM Vehicules WHERE vehicule_id = ?', [id]);
+    const vehicule = await getVehiculeById(id);
     if (!vehicule) {
       return res.status(404).json({ error: 'Véhicule non trouvé.' });
     }
 
     const updatedLicensePlate = license_plate ? license_plate.toUpperCase() : vehicule.license_plate;
-    const updatedOwnerName = owner_name || vehicule.owner_name;
-    const updatedContactInfo = contact_info || vehicule.contact_info;
+    const updatedCustomerId = customer_id || vehicule.customer_id;
     const updatedBrand = brand || vehicule.brand;
     const updatedModel = model || vehicule.model;
     const updatedEngineCode = engine_code || vehicule.engine_code;
@@ -450,27 +453,20 @@ router.put('/vehicules/:id', isAuthenticated, isAdmin, async (req, res) => {
     const updatedRevisionOilVolume = revision_oil_volume || vehicule.revision_oil_volume;
     const updatedBrakeDiscThicknessFront = brake_disc_thickness_front || vehicule.brake_disc_thickness_front;
     const updatedBrakeDiscThicknessRear = brake_disc_thickness_rear || vehicule.brake_disc_thickness_rear;
+    const updatedFirstRegistrationDate = first_registration_date || vehicule.first_registration_date;
+    const updatedDrainPlugTorque = drain_plug_torque || vehicule.drain_plug_torque;
 
-    await dbRun(db, `
-      UPDATE Vehicules 
-      SET license_plate = ?, owner_name = ?, contact_info = ?, brand = ?, model = ?, engine_code = ?, 
-          revision_oil_type = ?, revision_oil_volume = ?, brake_disc_thickness_front = ?, 
-          brake_disc_thickness_rear = ?
-      WHERE vehicule_id = ?`,
-      [
-        updatedLicensePlate,
-        updatedOwnerName,
-        updatedContactInfo,
-        updatedBrand,
-        updatedModel,
-        updatedEngineCode,
-        updatedRevisionOilType,
-        updatedRevisionOilVolume,
-        updatedBrakeDiscThicknessFront,
-        updatedBrakeDiscThicknessRear,
-        id
-      ]
-    );
+    await updateVehicule(id, updatedLicensePlate, updatedCustomerId, {
+      brand: updatedBrand,
+      model: updatedModel,
+      engine_code: updatedEngineCode,
+      revision_oil_type: updatedRevisionOilType,
+      revision_oil_volume: updatedRevisionOilVolume,
+      brake_disc_thickness_front: updatedBrakeDiscThicknessFront,
+      brake_disc_thickness_rear: updatedBrakeDiscThicknessRear,
+      first_registration_date: updatedFirstRegistrationDate,
+      drain_plug_torque: updatedDrainPlugTorque
+    });
 
     res.json({ message: 'Véhicule mis à jour avec succès.' });
   } catch (error) {
