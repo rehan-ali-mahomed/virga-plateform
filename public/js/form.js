@@ -150,7 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
     await form.submit();
     
     window.location.replace('/dashboard');
-    
+
+    window.location.reload();
   });
 
     

@@ -4,6 +4,8 @@ const fs = require('fs');
 const logger = require('../utils/logger');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
+const dotenv = require('dotenv');
+dotenv.config();
 
 let db;
 
@@ -50,6 +52,8 @@ const createTables = () => {
       // Users
       db.run(`CREATE TABLE IF NOT EXISTS Users (
         user_id TEXT PRIMARY KEY,
+        first_name TEXT,
+        last_name TEXT,
         username TEXT UNIQUE NOT NULL,
         email TEXT,
         role TEXT NOT NULL,
@@ -128,6 +132,10 @@ const getDatabase = () => {
   }
   return db;
 };
+
+function toCamelCase(str) {
+  return str.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+}
 
 // ==================== Vehicules ====================
 const addVehicule = (licensePlate, customerId, vehiculeDetails = {}) => {
@@ -240,42 +248,54 @@ const getVehiculeByLicensePlate = async (license_plate) => {
   });
 };
 
-
 // ==================== Users ====================
 const createDefaultAdminUser = async () => {
-  const defaultUsername = 'admin';
-  const defaultPassword = 'password123';
-  const defaultEmail = 'admin@example.com';
+  const defaultUsername = process.env.ADMIN_USERNAME;
+  const defaultFirstName = process.env.ADMIN_FIRST_NAME;
+  const defaultLastName = process.env.ADMIN_LAST_NAME;
+  const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
+  const defaultEmail = process.env.ADMIN_EMAIL;
 
-  const user = await getUserByUsername(defaultUsername);
-  if (user !== 'N/A') {
-    logger.debug('Default admin user already exists. Skipping creation.');
-    return user.user_id;
+  try {
+    const user = await getUserByUsername(defaultUsername);
+    if (user !== 'N/A') {
+      logger.debug('Default admin user already exists. Skipping creation.');
+      return user.user_id;
+    }
+  } catch (error) {
+    logger.debug('Default admin user not found. Creating it...');
   }
 
-  await addUser(defaultUsername, defaultEmail, 'admin', defaultPassword);
+  await addUser(defaultFirstName, defaultLastName, defaultUsername, defaultEmail, 'admin', hashedPassword, true);
 };
 
-const addUser = (username, email, role, password) => {
+const addUser = (first_name, last_name, username, email, role, password, password_is_hashed = false) => {
   return new Promise(async (resolve, reject) => {
+    username = username.toLowerCase();
+    email = email.toLowerCase();
+    role = role.toLowerCase();
     const userId = uuidv4();
-    const hashedPassword = await bcrypt.hash(password, 10);
+    first_name = toCamelCase(first_name);
+    last_name = last_name.toUpperCase();
+    const hashedPassword = password_is_hashed ? password : await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
 
     // Check if email or username already exists
-    db.get('SELECT * FROM Users WHERE email = ? OR username = ?', [email, username], (err, row) => {
+    db.get('SELECT * FROM Users WHERE username = ?', [username], (err, row) => {
       if (err) reject(err);
-      if (row) reject(new Error('Email or username already exists'));
+      if (row) reject(new Error('Username already exists'));
     });
     
     db.run(`
       INSERT INTO Users (
         user_id, 
+        first_name,
+        last_name,
         username, 
         email, 
         role, 
         password
-      ) VALUES (?, ?, ?, ?, ?)`,
-      [userId, username, email, role, hashedPassword],
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, first_name, last_name, username, email, role, hashedPassword],
       (err) => {
         if (err) reject(err);
         else resolve(userId);
@@ -287,22 +307,39 @@ const addUser = (username, email, role, password) => {
 const updateUser = (userId, updates) => {
   return new Promise(async (resolve, reject) => {
     try {
+      // Check if the user is the default admin user to avoid editing it
+      const user = await getUserById(userId);
+      if(process.env.ADMIN_USERNAME === user.username) {
+        logger.warn('Cannot edit default admin user.');
+        return reject(new Error('Impossible de modifier l\'administrateur par défaut.'));
+      }
+
       const fields = [];
       const values = [];
 
       if (updates.email !== undefined) {
         fields.push('email = ?');
-        values.push(updates.email);
+        values.push(updates.email.toLowerCase());
+      }
+
+      if (updates.first_name !== undefined) {
+        fields.push('first_name = ?');
+        values.push(toCamelCase(updates.first_name));
+      }
+
+      if (updates.last_name !== undefined) {
+        fields.push('last_name = ?');
+        values.push(updates.last_name.toUpperCase());
       }
 
       if (updates.role !== undefined) {
         fields.push('role = ?');
-        values.push(updates.role);
+        values.push(updates.role.toLowerCase());
       }
 
       if (updates.password !== undefined) {
         fields.push('password = ?');
-        const hashedPassword = await bcrypt.hash(updates.password, 10);
+        const hashedPassword = await bcrypt.hash(updates.password, process.env.BCRYPT_SALT_ROUNDS);
         values.push(hashedPassword);
       }
 
@@ -312,6 +349,7 @@ const updateUser = (userId, updates) => {
       }
 
       if (fields.length === 0) {
+        logger.debug(`No updates to perform for user ${userId}`);
         return resolve(); // No updates to perform
       }
 
@@ -327,14 +365,6 @@ const updateUser = (userId, updates) => {
     } catch (error) {
       reject(error);
     }
-  });
-};
-
-const deactivateUser = (userId) => {
-  return new Promise((resolve, reject) => {
-    db.run(`UPDATE Users SET is_active = false WHERE user_id = ?`, [userId], (err) => {
-      if (err) reject(err); else resolve();
-    });
   });
 };
 
@@ -361,14 +391,14 @@ const getUserById = (userId) => {
   // log all things from here to debugger
   logger.debug(`Getting user with ID: ${userId}`);
   return new Promise((resolve, reject) => {
-    db.get('SELECT user_id, username, email, role, is_active FROM Users WHERE user_id = ?', [userId], (err, row) => {
+    db.get('SELECT user_id, first_name, last_name, username, email, role, is_active FROM Users WHERE user_id = ?', [userId], (err, row) => {
       if (err) reject(err);
       else if (!row) {
         logger.error(`User with ID ${userId} not found. Returning N/A`);
         resolve('N/A');
       } else if (!row.is_active) {
-        logger.warn(`User ${userId} status is disabled. Adding Deactivated label to username`);
-        row.username += ' (D)';
+        logger.warn(`User ${userId} status is disabled. Adding (Désactivé) label to username`);
+        row.username += ' (Désactivé)';
         resolve(row);
       } else {
         logger.debug(`User with ID ${userId} found: ${row.username}`);
@@ -380,14 +410,14 @@ const getUserById = (userId) => {
 
 const getUserByUsername = (username) => {
   return new Promise((resolve, reject) => {
-    db.get('SELECT user_id, username, email, role, is_active FROM Users WHERE username = ?', [username], (err, row) => {
+    db.get('SELECT user_id, first_name, last_name, username, email, role, is_active FROM Users WHERE username = ?', [username], (err, row) => {
       if (err) reject(err);
       else if (!row) {
         logger.error(`Username ${username} not found. Returning N/A`);
         resolve('N/A');
       } else if (!row.is_active) {
-        logger.warn(`User ${username} status is ${row.is_active}. Adding Deactivated label to username`);
-        row.username += ' (D)';
+        logger.warn(`User ${username} status is ${row.is_active}. Adding (Désactivé) label to username`);
+        row.username += ' (Désactivé)';
         resolve(row);
       } else {
         logger.debug(`User ${username} found: ${row.user_id}`);
@@ -399,7 +429,7 @@ const getUserByUsername = (username) => {
 
 const getUserWithPasswordByUsername = (username) => {
   return new Promise((resolve, reject) => {
-    db.get('SELECT user_id, username, email, role, is_active, password FROM Users WHERE username = ?', [username], (err, row) => {
+    db.get('SELECT user_id, username, role, is_active, password FROM Users WHERE username = ?', [username], (err, row) => {
       if (err) reject(err); else resolve(row);
     });
   });
@@ -407,7 +437,7 @@ const getUserWithPasswordByUsername = (username) => {
 
 const getAllActiveUsers = () => {
   return new Promise((resolve, reject) => {
-    db.all('SELECT user_id, username, email, role FROM Users WHERE is_active = true', (err, rows) => {
+    db.all('SELECT user_id, first_name, last_name, username, email, role FROM Users WHERE is_active = true', (err, rows) => {
       if (err) reject(err); else resolve(rows);
     });
   });
@@ -803,7 +833,7 @@ const addInspectionReport = (reportData, userId) => {
                 reportData.filters || null,
                 JSON.stringify(reportData.inspection || '{}'),
                 userId,
-                JSON.stringify(reportData.mechanics || '{}'),
+                JSON.stringify(reportData.mechanics || []),
               ], function(err) {
                 if (err) {
                   return reject(err);
@@ -1056,6 +1086,28 @@ const temporaryDatabaseUpdate = async () => {
   console.log("Database updated.");
 };
 
+// Database backup function
+const backupDatabase = (backupPath) => {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error('Database not initialized'));
+      return;
+    }
+
+    // Ensure the path uses forward slashes for SQLite
+    const normalizedPath = backupPath.replace(/\\/g, '/');
+
+    db.run(`VACUUM INTO '${normalizedPath}'`, (err) => {
+      if (err) {
+        logger.error('Error during VACUUM backup:', err);
+        reject(err);
+      } else {
+        logger.info(`Database backup created successfully at: ${backupPath}`);
+        resolve();
+      }
+    });
+  });
+};
 
 module.exports = {
   initializeDatabase,
@@ -1079,7 +1131,6 @@ module.exports = {
   getUserByUsername,
   getUserWithPasswordByUsername,
   updateUser,
-  deactivateUser,
   deleteUser,
   // Customers
   addCustomer,
@@ -1088,5 +1139,7 @@ module.exports = {
   getCustomerById,
   updateCustomer,
   deleteCustomer,
-  getCustomerCarsAndReports
+  getCustomerCarsAndReports,
+  // Database backup
+  backupDatabase
 };

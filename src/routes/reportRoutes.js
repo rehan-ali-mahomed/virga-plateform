@@ -221,16 +221,20 @@ router.get('/:id', isAuthenticated, async (req, res) => {
       });
     }
 
-    const created_by = (await getUserById(report.created_by)).username;
+    const created_by = (await getUserById(report.created_by));
     logger.debug(`Created by: ${created_by} with id: ${report.created_by}`);
 
-    let mechanicsParsed = JSON.parse(report.mechanics);
     let mechanics = [];
-
-    for (let mechanic in mechanicsParsed) {
-      const mechanic_id = mechanicsParsed[mechanic];
-      const mechanic_user = await getUserById(mechanic_id);
-      mechanics.push(mechanic_user.username);
+    let mechanicsParsed = JSON.parse(report.mechanics);
+    
+    if (mechanicsParsed.length === 0) {
+      mechanics.push("Pas de mécanicien assigné");
+    } else {
+      for (let mechanic in mechanicsParsed) {
+        const mechanic_id = mechanicsParsed[mechanic];
+        const mechanic_user = await getUserById(mechanic_id);
+        mechanics.push(mechanic_user);
+      }
     }
 
     res.render('report', { 

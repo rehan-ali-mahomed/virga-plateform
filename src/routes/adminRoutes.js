@@ -13,6 +13,7 @@ const {
   getAllCustomers,
   getCustomerByPhone,
   getCustomerById,
+  updateCustomer,
   deleteCustomer,
   // Vehicules
   addVehicule,
@@ -24,6 +25,8 @@ const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const { backupDatabase } = require('../config/database');
 
 // Utility function to promisify db operations
 const dbAll = (db, query, params = []) => {
@@ -103,7 +106,7 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
       const likeTerm = `%${searchTerm}%`;
       queries = [
         'SELECT * FROM InspectionReports WHERE report_id LIKE ?',
-        'SELECT * FROM Users WHERE username LIKE ? OR email LIKE ?',
+        'SELECT * FROM Users WHERE username LIKE ? OR email LIKE ? OR first_name LIKE ? OR last_name LIKE ?',
         'SELECT * FROM Customers WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?',
         'SELECT * FROM Vehicules WHERE license_plate LIKE ? OR brand LIKE ? OR model LIKE ?',
         'SELECT * FROM InspectionItems WHERE name LIKE ? OR category LIKE ?'
@@ -111,7 +114,7 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
       // Paramètres ajustés en fonction du terme de recherche
       params = [
         likeTerm,
-        likeTerm, likeTerm,
+        likeTerm, likeTerm, likeTerm, likeTerm,
         likeTerm, likeTerm, likeTerm,
         likeTerm, likeTerm, likeTerm,
         likeTerm, likeTerm
@@ -119,10 +122,10 @@ router.get('/', isAuthenticated, isAdmin, async (req, res) => {
     }
 
     const inspectionReportsPromise = dbAll(db, queries[0], searchTerm ? [params[0]] : []);
-    const usersPromise = dbAll(db, queries[1], searchTerm ? [params[1], params[2]] : []);
-    const customersPromise = dbAll(db, queries[2], searchTerm ? [params[3], params[4], params[5]] : []);
-    const vehiculesPromise = dbAll(db, queries[3], searchTerm ? [params[6], params[7], params[8]] : []);
-    const inspectionItemsPromise = dbAll(db, queries[4], searchTerm ? [params[9], params[10]] : []);
+    const usersPromise = dbAll(db, queries[1], searchTerm ? [params[1], params[2], params[3], params[4]] : []);
+    const customersPromise = dbAll(db, queries[2], searchTerm ? [params[5], params[6], params[7]] : []);
+    const vehiculesPromise = dbAll(db, queries[3], searchTerm ? [params[8], params[9], params[10]] : []);
+    const inspectionItemsPromise = dbAll(db, queries[4], searchTerm ? [params[11], params[12]] : []);
 
     const [inspectionReports, users, customers, vehicules, inspectionItems] = await Promise.all([
       inspectionReportsPromise,
@@ -178,38 +181,45 @@ router.get('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
 
 // POST /admin/users - Create a new user
 router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
-  const { username, email, role, password } = req.body;
+  const { first_name, last_name, username, email, role, password } = req.body;
+  
+  let undefinedFields = [];
+  for (const field of ['first_name', 'last_name', 'username', 'email', 'role', 'password']) {
+    if (!req.body[field]) {
+      undefinedFields.push(field);
+    }
+  }
 
-  if (!username || !password || !role) {
-    return res.status(400).json({ error: 'Nom d\'utilisateur, mot de passe et rôle sont requis.' });
+  if (undefinedFields.length > 0) {
+    return res.status(400).json({ error: `Les champs suivants sont requis: ${undefinedFields.join(', ')}.` });
   }
 
   try {
-    await addUser(username, email, role, password);
+    await addUser(first_name, last_name, username, email, role, password);
     res.status(201).json({ message: `Utilisateur ${username} créé avec succès.`});
   } catch (error) {
-    logger.error('Erreur lors de la création de l\'utilisateur:', error);
-    res.status(500).json({ error: 'Erreur lors de la création de l\'utilisateur.' });
+    logger.error('Error creating user:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
 // PUT /admin/users/:id - Update an existing user
 router.put('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
   const { id } = req.params;
-  const { email, role, password, is_active } = req.body;
+  const { first_name, last_name, email, role, password, is_active } = req.body;
 
   try {
     const user = await getUserById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+      return res.status(404).json({ error: 'User not found.' });
     }
 
-    await updateUser(id, { email: email, role: role, password: password, is_active: is_active });
+    await updateUser(id, { first_name, last_name, email, role, password, is_active });
 
-    res.json({ message: 'Utilisateur mis à jour avec succès.' });
+    res.json({ message: 'User updated successfully.' });
   } catch (error) {
-    logger.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'utilisateur.' });
+    logger.error('Error updating user:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -646,6 +656,62 @@ router.delete('/reports/:id', isAuthenticated, isAdmin, async (req, res) => {
   } catch (error) {
     logger.error('Erreur lors de la suppression du rapport d\'inspection:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du rapport d\'inspection.' });
+  }
+});
+
+// ==================== Database Backup ====================
+
+// POST /admin/backup-database - Create and download a database backup
+router.post('/backup-database', isAuthenticated, isAdmin, async (req, res) => {
+  const date = new Date().toISOString().split('T')[0];
+  const backupDir = path.join(process.cwd(), 'backups');
+  
+  // Ensure backup directory exists
+  if (!fs.existsSync(backupDir)) {
+    try {
+      fs.mkdirSync(backupDir, { recursive: true });
+    } catch (error) {
+      logger.error('Error creating backup directory:', error);
+      return res.status(500).json({ error: 'Failed to create backup directory' });
+    }
+  }
+
+  const backupPath = path.join(backupDir, `database_backup_${date}.sqlite`);
+
+  try {
+    await backupDatabase(backupPath);
+
+    // Set response headers for file download
+    res.setHeader('Content-Type', 'application/x-sqlite3');
+    res.setHeader('Content-Disposition', `attachment; filename=database_backup_${date}.sqlite`);
+
+    // Create read stream and pipe to response
+    const fileStream = fs.createReadStream(backupPath);
+    fileStream.pipe(res);
+
+    // Handle stream completion and cleanup
+    fileStream.on('end', () => {
+      // Clean up: delete the temporary backup file after sending
+      fs.unlink(backupPath, (unlinkErr) => {
+        if (unlinkErr) {
+          logger.error('Error deleting temporary backup file:', unlinkErr);
+        }
+      });
+    });
+
+    // Handle stream errors
+    fileStream.on('error', (err) => {
+      logger.error('Error streaming backup file:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to stream backup file' });
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error creating database backup:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to create database backup' });
+    }
   }
 });
 

@@ -79,7 +79,7 @@ app.set('views', path.join(__dirname, 'src', 'views'));
 // Authentication middleware for default route
 app.use('/', (req, res, next) => {
   // Skip auth check for login-related routes
-  const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+  const publicPaths = ['/login'];
   if (publicPaths.includes(req.path)) {
     return next();
   }
@@ -99,10 +99,10 @@ app.use('/', (req, res, next) => {
 
 // SSL/TLS configuration using PEM file
 const sslOptions = {
-  key: fs.readFileSync('ssl/private.key'),
-  cert: fs.readFileSync('ssl/certificate.crt'),
+  key: fs.readFileSync(process.env.SSL_KEY_PATH),
+  cert: fs.readFileSync(process.env.SSL_CERT_PATH),
   ca: [
-    fs.readFileSync('ssl/origin_ca_rsa_root.pem'),
+    fs.readFileSync(process.env.SSL_CA_PATH),
   ],
   rejectUnauthorized: false
 };

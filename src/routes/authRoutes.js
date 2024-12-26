@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
 
     if (!user.is_active) {
       return res.render('login', { 
-        error: 'User is desactivated, contact your administrator',
+        error: 'User is disabled, contact your administrator',
         errors: [],
         user: null
       });

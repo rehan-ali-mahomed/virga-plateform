@@ -30,9 +30,11 @@
                 });
                 return `${formattedDate} à ${formattedTime}`;
               })()
-            %> <br><i class="fa-regular fa-calendar-plus"></i> Créé par : <%= created_by %>
-            <% if (mechanics.length > 0) { %>
-              <br><i class="far fa-user-circle"></i> Mécaniciens : <%= mechanics %>
+            %> <br><i class="fa-regular fa-calendar-plus"></i> Créé par : <%= created_by ? `${created_by.first_name} ${created_by.last_name}` : 'N/A' %>
+            <% if (mechanics[0] !== 'Pas de mécanicien assigné') { %>
+              <br><i class="far fa-user-circle"></i> Mécaniciens : <%= mechanics.map(mechanic => `${mechanic.first_name} ${mechanic.last_name}`).join(', ') %>
+            <% } else { %>
+              <br><i class="far fa-user-circle"></i> Mécaniciens : <%= mechanics[0] %>
             <% } %>
           </div>
         </div>
@@ -147,9 +149,9 @@
               </div>
               <div class="col-md-6">
                 <div class="info-item">
-                  <label><i class="fa-solid fa-cookie-bite"></i> Disques AV :</label>
+                  <label><i class="fa-solid fa-cookie-bite"></i> Disques AV (mm) :</label>
                   <div class="form-control-static">
-                    <%= report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front} mm` : 'N/A' %>
+                    <%= report.brake_disc_thickness_front ? `${report.brake_disc_thickness_front}` : 'N/A' %>
                   </div>
                 </div>
               </div>
@@ -163,9 +165,9 @@
               </div>
               <div class="col-md-6">
                 <div class="info-item">
-                  <label><i class="fa-solid fa-cookie"></i> Disques AR :</label>
+                  <label><i class="fa-solid fa-cookie"></i> Disques AR (mm) :</label>
                   <div class="form-control-static">
-                    <%= report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear} mm` : 'N/A' %>
+                    <%= report.brake_disc_thickness_rear ? `${report.brake_disc_thickness_rear}` : 'N/A' %>
                   </div>
                 </div>
               </div>

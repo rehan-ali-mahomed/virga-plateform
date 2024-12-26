@@ -91,6 +91,7 @@ textarea {
   padding-right: 0.65rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+  -webkit-autofill: none;
 }
 
 .select-input {
@@ -992,11 +993,15 @@ label i {
 
 .search-box input {
   width: auto;
-  min-width: 400px;
+  min-width: 310px;
   padding: 0.5rem 1rem 0.5rem 2rem;
   border: 1px solid #dee2e6;
   border-radius: 6px;
   font-size: 0.9rem;
+  /* min-width: is 400px on desktop */
+  @media (min-width: 768px) {
+    min-width: 400px;
+  }
 }
 
 .reports-table {

@@ -2,8 +2,247 @@
 
 // Modal handling
 let isModalOpen = false;
+
+// Input formatting configurations
+const inputsToFormat = [
+  // User form
+  {input: 'first_name', type: 'first_letter_only'},
+  {input: 'last_name', type: 'first_letter_only'},
+  {input: 'username', type: 'lower'},
+  {input: 'email', type: 'lower'},
+  
+  // Customer form
+  {input: 'customerName', type: 'first_letter_only'},
+  {input: 'customerEmail', type: 'lower'},
+  {input: 'customerPhone', type: 'phone'},
+  
+  // Vehicle form
+  {input: 'brand', type: 'camel'},
+  {input: 'model', type: 'first_letter_only'},
+  {input: 'engine_code', type: 'upper'},
+  {input: 'revision_oil_type', type: 'upper'},
+  {input: 'brake_disc_thickness_front', type: 'brake_thicknesses'},
+  {input: 'brake_disc_thickness_rear', type: 'brake_thicknesses'}
+];
+
+// Format input based on type
+const formatInput = (input, type) => {
+  let value = input.value;
+  
+  switch(type) {
+    case 'sentence': 
+      value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+      break;
+      
+    case 'upper': 
+      value = value.toUpperCase();
+      break;
+      
+    case 'camel': 
+      value = value.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      break;
+      
+    case 'first_letter_only': {
+      // Split into words while preserving cursor position
+      const cursorPos = input.selectionStart;
+      const words = value.split(' ');
+      let currentPos = 0;
+      
+      // Find which word the cursor is in
+      const formattedWords = words.map((word, index) => {
+        const wordStart = currentPos;
+        const wordEnd = wordStart + word.length;
+        currentPos = wordEnd + 1; // +1 for the space
+        
+        // If this is the word being typed (cursor is in or at the end of this word)
+        if (cursorPos > wordStart && cursorPos <= wordEnd) {
+          return word; // Leave the current word as is
+        }
+        
+        // Format completed words
+        if (word) {
+          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }
+        return '';
+      });
+      
+      value = formattedWords.join(' ');
+      
+      // Restore cursor position
+      input.value = value;
+      input.setSelectionRange(cursorPos, cursorPos);
+      return; // Early return since we've already set the value
+    }
+      
+    case 'lower': 
+      value = value.toLowerCase();
+      break;
+      
+    case 'phone':
+      value = value.replace(/\D/g, '').slice(0, 10);
+      break;
+      
+    case 'brake_thicknesses': 
+      if (value.includes('/')) {
+        value = value.replace(/\//g, ' / ').replace(/\s+/g, ' ').replace(/\s+$/, '');
+      }
+      break;
+  }
+  
+  input.value = value;
+};
+
+// Show error message
+const showError = (input, message) => {
+  try {
+    if (!input) {
+      console.error('Cannot show error: input is null');
+      return;
+    }
+
+    const formGroup = input.closest('.form-group');
+    if (!formGroup) {
+      return;
+    }
+
+    const errorDiv = formGroup.querySelector('.error-message') || document.createElement('div');
+    errorDiv.className = 'error-message text-danger small mt-1';
+    errorDiv.textContent = message;
+    
+    if (!formGroup.querySelector('.error-message')) {
+      formGroup.appendChild(errorDiv);
+    }
+    input.classList.add('is-invalid');
+    
+    console.error(`Error shown: ${message}`);
+  } catch (error) {
+    console.error('Error in showError', error);
+  }
+};
+
+// Clear error message
+const clearError = (input) => {
+  const formGroup = input.closest('.form-group');
+  if (formGroup) {
+    const errorDiv = formGroup.querySelector('.error-message');
+    if (errorDiv) {
+      errorDiv.remove();
+    }
+    input.classList.remove('is-invalid');
+  }
+};
+
+// Validate form based on type
+const validateForm = (type) => {
+  let isValid = true;
+
+  // Clear all previous errors
+  document.querySelectorAll('.error-message').forEach(error => error.remove());
+  document.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
+
+  if (type === 'user') {
+    // Validate user form
+    const requiredFields = ['first_name', 'last_name', 'username'];
+    requiredFields.forEach(field => {
+      const input = document.getElementById(field);
+      if (!input.value.trim()) {
+        showError(input, 'Ce champ est requis');
+        isValid = false;
+      }
+    });
+
+    // Validate email if provided
+    const emailInput = document.getElementById('email');
+    if (emailInput && emailInput.value.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailInput.value.trim())) {
+        showError(emailInput, 'Format d\'email invalide');
+        isValid = false;
+      }
+    }
+
+    // Validate password for new users
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const userId = document.getElementById('userId');
+
+    if (!userId.value && (!passwordInput.value || passwordInput.value.length < 4)) {
+      showError(passwordInput, 'Le mot de passe doit contenir au moins 4 caractères');
+      isValid = false;
+    }
+
+    if (passwordInput.value && passwordInput.value !== confirmPasswordInput.value) {
+      showError(confirmPasswordInput, 'Les mots de passe ne correspondent pas');
+      isValid = false;
+    }
+  }
+
+  else if (type === 'customer') {
+    // Validate customer form
+    const nameInput = document.getElementById('customerName');
+    if (!nameInput.value.trim()) {
+      showError(nameInput, 'Le nom est requis');
+      isValid = false;
+    }
+
+    // Validate phone if provided
+    const phoneInput = document.getElementById('customerPhone');
+    if (phoneInput && phoneInput.value.trim()) {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phoneInput.value.trim())) {
+        showError(phoneInput, 'Format de téléphone invalide (10 chiffres requis)');
+        isValid = false;
+      }
+    }
+
+    // Validate email if provided
+    const emailInput = document.getElementById('customerEmail');
+    if (emailInput && emailInput.value.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailInput.value.trim())) {
+        showError(emailInput, 'Format d\'email invalide');
+        isValid = false;
+      }
+    }
+  }
+
+  else if (type === 'vehicule') {
+    // Validate vehicle form
+    const requiredFields = ['license_plate', 'brand', 'model'];
+    requiredFields.forEach(field => {
+      const input = document.getElementById(field);
+      if (!input.value.trim()) {
+        showError(input, 'Ce champ est requis');
+        isValid = false;
+      }
+    });
+
+    // Validate license plate format
+    const licensePlateInput = document.getElementById('license_plate');
+    if (licensePlateInput && licensePlateInput.value.trim()) {
+      const plateRegex = /^[A-Z]{2}[-]?[0-9]{3}[-]?[A-Z]{2}$/;
+      const value = licensePlateInput.value.trim().toUpperCase();
+      if (!plateRegex.test(value)) {
+        showError(licensePlateInput, 'Format d\'immatriculation invalide (ex: AB-123-CD)');
+        isValid = false;
+      }
+    }
+
+    // Validate customer selection
+    const customerIdInput = document.getElementById('vehicule_customer_id');
+    if (!customerIdInput.value.trim()) {
+      showError(document.getElementById('customer_search'), 'La sélection d\'un client est requise');
+      isValid = false;
+    }
+  }
+
+  return isValid;
+};
+
 const openModal = (type, id = null) => {
-  console.log("Fetching data form entity ", type, id);
+  console.log("Fetching data form entity", type, id);
 
     const modalContainer = document.getElementById('modalContainer');
     const modal = document.getElementById(`${type}Modal`);
@@ -64,6 +303,8 @@ const openModal = (type, id = null) => {
       
       if (type === 'user') {
         const user = data.user;
+        document.getElementById('first_name').value = user.first_name;
+        document.getElementById('last_name').value = user.last_name;
         document.getElementById('userId').value = user.user_id;
         document.getElementById('username').value = user.username;
         document.getElementById('email').value = user.email || '';
@@ -74,8 +315,8 @@ const openModal = (type, id = null) => {
         if (user.is_active) {
           document.getElementById('is_active').checked = true;
         } else {
-          document.getElementById('username').value = user.username.replace(/ \(D\)$/, '');
-          document.getElementById('is_active').checked = false;
+          document.getElementById('username').value = user.username.replace(/ \(Désactivé\)$/, '');
+        document.getElementById('is_active').checked = false;
         }
 
       }
@@ -88,6 +329,12 @@ const openModal = (type, id = null) => {
         document.getElementById('customerEmail').value = customer.email || '';
         document.getElementById('customerAddress').value = customer.address || '';
         document.getElementById('isCompany').checked = customer.is_company || false;
+
+        // Format customer name based on company status
+        const customerNameInput = document.getElementById('customerName');
+        if (customerNameInput && customerNameInput.value) {
+          formatInput(customerNameInput, customer.is_company ? 'upper' : 'first_letter_only');
+        }
       }
 
       if (type === 'vehicule') {
@@ -145,13 +392,20 @@ const openModal = (type, id = null) => {
   // Handle form submission
   const handleSubmit = async (event, type) => {
     event.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm(type)) {
+      console.error('Form validation failed');
+      return;
+    }
+
     const form = event.target;
     const formData = new FormData(form);
     const id = formData.get(`${type}_id`);
     
     // Convert FormData to JSON
     const data = Object.fromEntries(formData.entries());
-    
+    console.log(data);
     // Handle boolean values
     if (type === 'customer') {
       data.is_company = data.is_company ? 1 : 0;
@@ -191,7 +445,7 @@ const openModal = (type, id = null) => {
         throw new Error(errorData.error || 'Operation failed');
       }
       
-      showToast(id ? 'Updated successfully!' : 'Created successfully!', 'success');
+      showToast(id ? 'Modification effectuée avec succès!' : 'Création effectuée avec succès!', 'success');
       closeModal();
       location.reload();
     } catch (error) {
@@ -229,7 +483,7 @@ const openModal = (type, id = null) => {
           body: JSON.stringify({ is_active: 0 }) 
         });
       if (!response.ok) throw new Error('Failed to deactivate');
-      showToast('Deactivated successfully!', 'success');
+      showToast('Désactivation effectuée avec succès!', 'success');
       location.reload();
     } catch (error) {
       showToast(error.message, 'error');
@@ -253,10 +507,36 @@ const openModal = (type, id = null) => {
   // Capitalize first letter
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
+  const generateUsername = () => {
+    const firstName = document.getElementById('first_name').value.trim();
+    const lastName = document.getElementById('last_name').value.trim();
+    const usernameInput = document.getElementById('username');
+    
+    if (firstName && lastName) {
+      const username = `${firstName.charAt(0)}.${lastName.replace(/\s+/g, '-')}`;
+      usernameInput.value = username;
+    }
+  };
+
   // Toggle password visibility
   const togglePasswordVisibility = (event) => {
-    const passwordField = event.target.parentElement.querySelector('input[type="password"]');
-    passwordField.type = passwordField.type === 'password' ? 'text' : 'password';
+    event.preventDefault(); // Prevent default since we're using an <a> tag
+    
+    // Get the clicked element (either the button or the icon)
+    const toggleButton = event.target.closest('[name="passwordToggle"]');
+    if (!toggleButton) return;
+
+    // Find the associated password input
+    const passwordInput = toggleButton.closest('.relative').querySelector('input');
+    if (!passwordInput) return;
+
+    // Toggle the input type
+    const newType = passwordInput.type === 'password' ? 'text' : 'password';
+    passwordInput.type = newType;
+
+    // Update the icon
+    const icon = toggleButton.querySelector('i');
+    icon.className = `fas fa-eye${newType === 'password' ? '' : '-slash'}`;
   };
   
   // Handle category selection for inspection items
@@ -382,8 +662,199 @@ const openModal = (type, id = null) => {
     document.getElementById('selected_customer_info').classList.add('hidden');
   };
 
+   // Database backup functionality
+   const handleDatabaseBackup = async () => {
+    const button = document.getElementById('backupDatabaseBtn');
+    const spinner = document.getElementById('backupLoadingSpinner');
+    const statusDiv = document.getElementById('backupStatus');
+    const buttonText = button.querySelector('span');
+    
+    const updateStatus = (message, type = 'info') => {
+      const colorClasses = {
+        info: 'text-blue-600',
+        success: 'text-green-600',
+        error: 'text-red-600'
+      };
+      
+      // For mobile, we'll show shorter messages
+      const isMobile = window.innerWidth < 640;
+      const messages = {
+        creating: {
+          full: 'Création de la sauvegarde...',
+          short: 'Création...'
+        },
+        downloading: {
+          full: 'Téléchargement en cours...',
+          short: 'Téléchargement...'
+        },
+        success: {
+          full: 'Sauvegarde réussie !',
+          short: 'Réussi !'
+        }
+      };
+
+      let displayMessage = message;
+      if (isMobile && messages[message.toLowerCase()]) {
+        displayMessage = messages[message.toLowerCase()].short;
+      } else if (!isMobile && messages[message.toLowerCase()]) {
+        displayMessage = messages[message.toLowerCase()].full;
+      }
+
+      statusDiv.textContent = displayMessage;
+      statusDiv.className = `absolute left-0 sm:left-1/2 sm:-translate-x-1/2 -bottom-7 text-sm font-medium transition-all duration-200 ${colorClasses[type]} whitespace-nowrap`;
+      statusDiv.style.opacity = '1';
+
+      // On mobile, also update the button text to show status
+      if (isMobile) {
+        buttonText.textContent = displayMessage;
+      }
+    };
+
+    try {
+      // Save original button text
+      const originalButtonText = buttonText.textContent;
+
+      // Disable button and show spinner
+      button.disabled = true;
+      spinner.classList.remove('hidden');
+      button.classList.add('bg-opacity-75');
+      updateStatus('creating', 'info');
+
+      // Request the backup
+      const response = await fetch('/admin/backup-database', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a date string for the filename
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `database_backup_${date}.sqlite`;
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      
+      // Trigger download
+      updateStatus('downloading', 'info');
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      // Show success message
+      updateStatus('success', 'success');
+      
+      // Reset status and button text after 3 seconds
+      setTimeout(() => {
+        statusDiv.style.opacity = '0';
+        if (window.innerWidth < 640) {
+          buttonText.textContent = originalButtonText;
+        }
+        setTimeout(() => {
+          statusDiv.textContent = '';
+        }, 200);
+      }, 3000);
+
+    } catch (error) {
+      console.error('Backup error:', error);
+      const errorMessage = window.innerWidth < 640 ? 'Erreur !' : `Erreur: ${error.message}`;
+      updateStatus(errorMessage, 'error');
+      
+      // Keep error message visible for 5 seconds
+      setTimeout(() => {
+        statusDiv.style.opacity = '0';
+        if (window.innerWidth < 640) {
+          buttonText.textContent = 'Sauvegarder BDD';
+        }
+        setTimeout(() => {
+          statusDiv.textContent = '';
+        }, 200);
+      }, 5000);
+    } finally {
+      // Re-enable button and hide spinner
+      button.disabled = false;
+      button.classList.remove('bg-opacity-75');
+      spinner.classList.add('hidden');
+    }
+  };
+  
   // Initialize Event Listeners
   const initEventListeners = () => {
+    // Add input formatting listeners
+    inputsToFormat.forEach(({input, type}) => {
+      const inputElement = document.getElementById(input);
+      if (inputElement) {
+        // Add input event listener for all types
+        inputElement.addEventListener('input', (e) => {
+          formatInput(e.target, type);
+          clearError(e.target);
+        });
+
+        // Add blur event listener to ensure final formatting
+        inputElement.addEventListener('blur', (e) => {
+          // Trim on blur
+          e.target.value = e.target.value.trim();
+          formatInput(e.target, type);
+          clearError(e.target);
+        });
+      }
+    });
+
+    // Format license plate input
+    const licensePlateInput = document.getElementById('license_plate');
+    if (licensePlateInput) {
+      licensePlateInput.addEventListener('input', (e) => {
+        let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (value.length > 4) {
+          value = value.slice(0, 2) + '-' + value.slice(2, 5) + '-' + value.slice(5, 7);
+        } else if (value.length > 2) {          
+          value = value.slice(0, 2) + '-' + value.slice(2);
+        }
+        e.target.value = value;
+        clearError(e.target);
+      });
+    }
+
+    // Handle company name formatting
+    const isCompanyCheckbox = document.getElementById('isCompany');
+    const customerNameInput = document.getElementById('customerName');
+    
+    if (isCompanyCheckbox && customerNameInput) {
+      // Format on input
+      customerNameInput.addEventListener('input', (e) => {
+        formatInput(e.target, isCompanyCheckbox.checked ? 'upper' : 'first_letter_only');
+        clearError(e.target);
+      });
+
+      // Format on blur to ensure proper final format
+      customerNameInput.addEventListener('blur', (e) => {
+        e.target.value = e.target.value.trim();
+        formatInput(e.target, isCompanyCheckbox.checked ? 'upper' : 'first_letter_only');
+        clearError(e.target);
+      });
+
+      // Handle checkbox change
+      isCompanyCheckbox.addEventListener('change', () => {
+        if (customerNameInput.value) {
+          formatInput(customerNameInput, isCompanyCheckbox.checked ? 'upper' : 'first_letter_only');
+        }
+      });
+    }
+
     // Search functionality
     const searchInput = document.getElementById('searchTerm');
     const clearSearchBtn = document.getElementById('clearSearch');
@@ -459,6 +930,13 @@ const openModal = (type, id = null) => {
           window.location.href = window.location.pathname;
         }
       });
+    }
+
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    if (firstNameInput && lastNameInput) {
+      firstNameInput.addEventListener('input', generateUsername);
+      lastNameInput.addEventListener('input', generateUsername);
     }
 
     // User Management
@@ -644,8 +1122,21 @@ const openModal = (type, id = null) => {
         clearCustomerSelection();
       }
     });
-  };
-  
+
+    document.getElementById('backupDatabaseBtn').addEventListener('click', () => {
+      console.log('Backup button clicked');
+      handleDatabaseBackup();
+    });
+
+    // Password visibility toggles
+    document.addEventListener('click', (event) => {
+      const toggleButton = event.target.closest('[name="passwordToggle"]');
+      if (toggleButton) {
+        togglePasswordVisibility(event);
+      }
+    });
+  };  
+
   // Call initEventListeners when DOM is loaded
   document.addEventListener('DOMContentLoaded', initEventListeners);
   
@@ -723,18 +1214,13 @@ const openModal = (type, id = null) => {
     const formData = new FormData(event.target);
     const password = formData.get('password');
     
-    if (password.length < 4) {
-      showToast('Password must be at least 4 characters long', 'error');
+    if (password && password.length < 4) {
+      showToast('Le mot de passe doit contenir au moins 4 caractères', 'error');
       return;
     } 
     
     if(formData.get('confirmPassword') !== password) {
-      showToast('Passwords do not match', 'error');
-      return;
-    }
-    
-    if (formData.get('email') instanceof EmailAddress) {
-      showToast('Email is required', 'error');
+      showToast('Les mots de passe ne correspondent pas', 'error');
       return;
     }
 
@@ -745,7 +1231,7 @@ const openModal = (type, id = null) => {
       const data = await response.json();
       
       if (data.exists) {
-        showToast('Username already exists', 'error');
+        showToast('Le nom d\'utilisateur existe déjà', 'error');
         return;
       }
       
@@ -757,7 +1243,7 @@ const openModal = (type, id = null) => {
       
       if (!submitResponse.ok) throw new Error('Failed to create user');
       
-      showToast('User created successfully', 'success');
+      showToast('Utilisateur créé avec succès', 'success');
       closeModal();
       location.reload();
     } catch (error) {
@@ -858,18 +1344,6 @@ const openModal = (type, id = null) => {
     }
   });
 
-  // Add these constants at the top
-  const REPORT_STATUS_CLASSES = {
-    'pending': 'bg-yellow-100 text-yellow-800',
-    'completed': 'bg-green-100 text-green-800'
-  };
-
-  const REPORT_STATUS_LABELS = {
-    'pending': 'En attente',
-    'completed': 'Terminé'
-  };
-
-  // Add these functions
   const handleViewCustomerCars = async (customerId) => {
     
     try {

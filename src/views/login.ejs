@@ -21,7 +21,11 @@
             <%= error %>
           </div>
         <% } %>
-        <form action="/login" method="POST">
+        <div id="loginAttemptsAlert" class="alert alert-warning d-none" role="alert">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span id="loginAttemptsMessage"></span>
+        </div>
+        <form id="loginForm" action="/login" method="POST">
           <div class="form-group">
             <label for="username">
               <i class="fas fa-user"></i> Nom d'utilisateur
@@ -38,15 +42,9 @@
                 <span class="input-group-text"><i class="fas fa-eye" id="togglePassword"></i></span>
               </div>
             </div>
-            <script>
-              document.getElementById('togglePassword').addEventListener('click', function() {
-                const passwordInput = document.getElementById('password');
-                passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
-              });
-            </script>
           </div>
           <div class="my-3">
-            <button type="submit" class="btn btn-primary btn-block">
+            <button type="submit" id="loginButton" class="btn btn-primary btn-block">
               <i class="fas fa-sign-in-alt"></i> Se connecter
             </button>
           </div>
@@ -55,6 +53,104 @@
     </div>
   </div>
 </div>
+
+<script>
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+function checkLoginAttempts() {
+  const username = document.getElementById('username').value;
+  if (!username) return true;
+  
+  const attemptsKey = `loginAttempts_${username}`;
+  const attempts = JSON.parse(localStorage.getItem(attemptsKey) || '{"count": 0}');
+  
+  if (attempts.lockoutUntil && attempts.lockoutUntil > Date.now()) {
+    const waitTime = Math.ceil((attempts.lockoutUntil - Date.now()) / 60000);
+    showLoginAlert(`Account is locked. Please try again in ${waitTime} minutes.`, true);
+    return false;
+  }
+  
+  if (attempts.lockoutUntil && attempts.lockoutUntil <= Date.now()) {
+    localStorage.removeItem(attemptsKey);
+    hideLoginAlert();
+    return true;
+  }
+  
+  const remainingAttempts = MAX_LOGIN_ATTEMPTS - attempts.count;
+  if (remainingAttempts < MAX_LOGIN_ATTEMPTS && remainingAttempts > 0) {
+    showLoginAlert(`${remainingAttempts} login attempts remaining.`, false);
+  }
+  
+  return true;
+}
+
+function recordFailedAttempt(username) {
+  const attemptsKey = `loginAttempts_${username}`;
+  const attempts = JSON.parse(localStorage.getItem(attemptsKey) || '{"count": 0}');
+  attempts.count += 1;
+  
+  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+    attempts.lockoutUntil = Date.now() + LOCKOUT_TIME;
+  }
+  
+  localStorage.setItem(attemptsKey, JSON.stringify(attempts));
+  return MAX_LOGIN_ATTEMPTS - attempts.count;
+}
+
+function showLoginAlert(message, isLocked) {
+  const alert = document.getElementById('loginAttemptsAlert');
+  const loginButton = document.getElementById('loginButton');
+  const msg = document.getElementById('loginAttemptsMessage');
+  
+  alert.classList.remove('d-none');
+  msg.textContent = message;
+  
+  if (isLocked) {
+    loginButton.disabled = true;
+    loginButton.classList.add('opacity-50');
+  }
+}
+
+function hideLoginAlert() {
+  const alert = document.getElementById('loginAttemptsAlert');
+  const loginButton = document.getElementById('loginButton');
+  
+  alert.classList.add('d-none');
+  loginButton.disabled = false;
+  loginButton.classList.remove('opacity-50');
+}
+
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  const username = document.getElementById('username').value;
+  if (!checkLoginAttempts()) {
+    e.preventDefault();
+    return;
+  }
+  
+  // Store the username for checking the response
+  sessionStorage.setItem('lastLoginAttempt', username);
+});
+
+// Check for failed login response
+if ('<%= error %>' && sessionStorage.getItem('lastLoginAttempt')) {
+  const username = sessionStorage.getItem('lastLoginAttempt');
+  const remaining = recordFailedAttempt(username);
+  if (remaining <= 0) {
+    checkLoginAttempts();
+  }
+  sessionStorage.removeItem('lastLoginAttempt');
+}
+
+// Password toggle functionality
+document.getElementById('togglePassword').addEventListener('click', function() {
+  const passwordInput = document.getElementById('password');
+  passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+});
+
+// Initial check on page load
+document.getElementById('username').addEventListener('input', checkLoginAttempts);
+</script>
 
 <%- include('partials/footer', {
   showScripts: false,

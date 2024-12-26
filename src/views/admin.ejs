@@ -7,19 +7,38 @@
 
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
-  <div class="content-wrapper">
+  <div class="content-wrapper reports-section">
 
-    <div class="header-actions mb-4 flex items-center justify-between">
+    <div class="header-actions mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
       <!-- Search Box -->
-      <div class="search-box flex items-center bg-white p-2 rounded-lg shadow-sm">
-        <i class="fas fa-search text-gray-500 mr-2"></i>
-        <input type="text" id="searchTerm" placeholder="Rechercher un rapport..." value="<%= searchTerm %>" 
-          class="flex-grow bg-transparent outline-none text-gray-700" aria-label="Search reports">
+      <div class="flex items-start gap-1 items-center">
+        <div class="search-box flex items-center bg-white p-1 rounded-lg">
+          <i class="fas fa-search text-gray-500"></i>
+          <input type="text" id="searchTerm" placeholder="Rechercher un rapport..." value="<%= searchTerm %>" aria-label="Search reports">
+        </div>
+        <!-- Reset search button -->
         <button id="clearSearch" 
-          class="ml-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 focus:ring-2 focus:ring-red-400 h-6 w-6 flex items-center justify-center text-md" 
+          class="p-2 text-red-500 rounded-full hover:text-white hover:bg-red-500 focus:ring-2 focus:ring-red-400 flex items-center justify-center text-md" 
           aria-label="Clear search" tabindex="0">
-          x
+          <i class="fas fa-filter-circle-xmark"></i>
         </button>
+      </div>
+
+      <!-- Backup Database Button -->
+      <div class="flex items-center w-full sm:w-auto">
+        <div class="relative w-full sm:w-auto">
+          <button id="backupDatabaseBtn" 
+                  class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  aria-label="Sauvegarder la base de données" 
+                  tabindex="0">
+            <i class="fas fa-database"></i>
+            <span class="whitespace-nowrap">Sauvegarder BDD</span>
+            <div id="backupLoadingSpinner" class="hidden">
+              <i class="fas fa-circle-notch fa-spin"></i>
+            </div>
+          </button>
+          <div id="backupStatus" class="absolute left-0 sm:left-1/2 sm:-translate-x-1/2 -bottom-7 text-sm font-medium transition-all duration-200 opacity-0 whitespace-nowrap"></div>
+        </div>
       </div>
     </div>
 
@@ -27,9 +46,9 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Users Table -->
-        <div class="bg-white shadow rounded-lg">
-          <div class="p-4 border-b flex justify-between items-center">
-            <h2 class="text-xl font-semibold">Users</h2>
+        <div class="bg-white border rounded-lg">
+          <div class="p-3 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Utilisateurs</h2>
             <button id="new-user-btn"
                     class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
                     aria-label="Ajouter un utilisateur" tabindex="0">
@@ -41,10 +60,11 @@
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nom complet</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rôle</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
@@ -57,6 +77,9 @@
                     sortedUsers.forEach(user => { 
                   %>
                     <tr class="<%= user.is_active ? '' : 'bg-red-50' %>">
+                      <td class="px-4 py-2 whitespace-nowrap text-sm <%= user.is_active ? 'text-gray-900' : 'text-red-700' %>">
+                        <%= user.last_name %> <%= user.first_name %>
+                      </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm <%= user.is_active ? 'text-gray-900' : 'text-red-700' %>">
                         <%= user.username %>
                       </td>
@@ -99,9 +122,9 @@
         </div>
 
         <!-- Customers Table -->
-        <div class="bg-white shadow rounded-lg">
-          <div class="p-4 border-b flex justify-between items-center">
-            <h2 class="text-xl font-semibold">Customers</h2>
+        <div class="bg-white border rounded-lg">
+          <div class="p-3 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Clients</h2>
             <button name="new-customer-btn"
                     class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
                     aria-label="Ajouter un client" tabindex="0">
@@ -113,9 +136,9 @@
               <table class="min-w-full divide-y divide-gray-200 relative">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Téléphone</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Adresse</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase sticky right-0 bg-gray-50 z-10">Actions</th>
                   </tr>
                 </thead>
@@ -149,15 +172,15 @@
                 </tbody>
               </table>
             <% } else { %>
-              <p class="text-gray-600">No customers found.</p>
+              <p class="text-gray-600">Aucun client trouvé.</p>
             <% } %>
           </div>
         </div>
       </div>
 
       <!-- Inspection Reports Table -->
-      <div class="bg-white shadow rounded-lg">
-        <div class="p-4 border-b flex justify-between items-center">
+      <div class="bg-white border rounded-lg">
+        <div class="p-3 border-b flex justify-between items-center">
           <h2 class="text-xl font-semibold">Inspection Reports</h2>
         </div>
         <div class="p-3 overflow-x-auto">
@@ -165,10 +188,10 @@
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Report ID</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vehicule ID</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mileage</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Next Inspection</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID Rapport</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Véhicule</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kilométrage</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Prochaine C.T.</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
@@ -207,15 +230,15 @@
               </tbody>
             </table>
           <% } else { %>
-            <p class="text-gray-600">No inspection reports found.</p>
+            <p class="text-gray-600">Aucun rapport trouvé.</p>
           <% } %>
         </div>
       </div>
 
       <!-- Vehicules Table -->
-      <div class="bg-white shadow rounded-lg">
-        <div class="p-4 border-b flex justify-between items-center">
-          <h2 class="text-xl font-semibold">Vehicules</h2>
+      <div class="bg-white border rounded-lg">
+        <div class="p-3 border-b flex justify-between items-center">
+          <h2 class="text-xl font-semibold">Véhicules</h2>
           <button id="new-vehicule-btn"
                   class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
                   aria-label="Ajouter un véhicule" tabindex="0">
@@ -276,14 +299,14 @@
               </tbody>
             </table>
           <% } else { %>
-            <p class="text-gray-600">No vehicules found.</p>
+            <p class="text-gray-600">Aucun véhicule trouvé.</p>
           <% } %>
         </div>
       </div>
 
       <!-- Inspection Items Table
-      <div class="bg-white shadow rounded-lg">
-        <div class="p-4 border-b flex justify-between items-center">
+      <div class="bg-white border rounded-lg">
+        <div class="p-3 border-b flex justify-between items-center">
           <h2 class="text-xl font-semibold">Inspection Items</h2>
           <button id="new-inspection-item-btn"
                   class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400"
@@ -340,37 +363,54 @@
     <!-- User Modal -->
     <div id="userModal" class="bg-white rounded-lg shadow-xl w-full max-w-md hidden">
       <div class="p-6">
-        <h3 class="text-xl font-semibold mb-4">New User</h3>
+        <h3 class="text-xl font-semibold mb-4">Nouvel utilisateur</h3>
         <form id="userForm" class="space-y-4">
           <input type="hidden" id="userId" name="user_id">
           <div>
-            <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-            <input type="text" id="username" name="username" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            <label for="first_name" class="block text-sm font-medium text-gray-700">Prénom</label>
+            <input type="text" id="first_name" name="first_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm capitalize">
+          </div>
+          <div>
+            <label for="last_name" class="block text-sm font-medium text-gray-700">Nom</label>
+            <input type="text" id="last_name" name="last_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm uppercase">
+          </div>
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">
+              Nom d'utilisateur <i>(utiliser pour la connexion)</i>
+            </label>
+            <input type="text"
+                   id="username"
+                   name="username"
+                   required
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm lowercase bg-gray-200 cursor-not-allowed" 
+                   readonly
+                   
+                   aria-label="Generated username">
           </div>
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
             <input type="email" id="email" name="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
           </div>
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <label for="password" class="block text-sm font-medium text-gray-700">Mot de passe</label>
             <div class="relative">
               <input type="password" id="password" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-              <button type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <a type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
                 <i class="fas fa-eye"></i>
-              </button>
+              </a>
             </div>
           </div>
           <div>
-            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
             <div class="relative">
-              <input type="password" id="confirmPassword" name="confirmPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-              <button type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <input type="password" id="confirmPassword" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+              <a type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
                 <i class="fas fa-eye"></i>
-              </button>
+              </a>
             </div>
           </div>
           <div>
-            <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+            <label for="role" class="block text-sm font-medium text-gray-700">Rôle</label>
             <select id="role" name="role" required class="select-input block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
               <option value="user">Utilisateur</option>
               <option value="admin">Administrateur</option>
@@ -422,7 +462,7 @@
           </div>
           <div class="flex items-center">
             <input type="checkbox" id="isCompany" name="is_company" class="rounded border-gray-300 text-blue-600">
-            <label for="isCompany" class="ml-2 block text-sm text-gray-700">
+            <label for="isCompany" class="ml-2 block cursor-pointer text-sm text-gray-700">
               <i class="fas fa-building"></i> Société
             </label>
           </div>
