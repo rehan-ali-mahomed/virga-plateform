@@ -1,0 +1,34 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies
+node_modules
+npm-debug.log
+
+# Environment variables
+.env
+.env.*
+
+# Development files
+*.log
+README.md
+Dockerfile
+.dockerignore
+
+# Runtime data
+src/db/*.db
+src/logs/*
+generated_reports/*
+sessions.db
+database.db
+database.sqlite
+
+# SSL certificates
+ssl/
+
+# IDE specific files
+.idea
+.vscode
+*.swp
+*.swo 

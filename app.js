@@ -97,15 +97,18 @@ app.use('/', (req, res, next) => {
   next();
 });
 
-// SSL/TLS configuration using PEM file
-const sslOptions = {
-  key: fs.readFileSync(process.env.SSL_KEY_PATH),
+// if SSL_KEY_PATH, SSL_CERT_PATH, SSL_CA_PATH are set, use them
+if (process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH && process.env.SSL_CA_PATH) {
+  // SSL/TLS configuration using PEM file
+  const sslOptions = {
+    key: fs.readFileSync(process.env.SSL_KEY_PATH),
   cert: fs.readFileSync(process.env.SSL_CERT_PATH),
   ca: [
     fs.readFileSync(process.env.SSL_CA_PATH),
   ],
-  rejectUnauthorized: false
-};
+    rejectUnauthorized: false
+  };
+}
 
 // Initialize database before starting the server
 initializeDatabase()
@@ -136,11 +139,19 @@ initializeDatabase()
       });
     });
 
-    // Start the HTTPS server
-    const PORT = process.env.PORT || 443;
-    https.createServer(sslOptions, app).listen(PORT, () => {
-      logger.info(`HTTPS Server running on port ${PORT}`);
-    });
+    // Start the HTTPS server if SSL_KEY_PATH, SSL_CERT_PATH, SSL_CA_PATH are set
+    if (process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH && process.env.SSL_CA_PATH) {
+      const PORT = process.env.PORT || 3000;
+      https.createServer(sslOptions, app).listen(PORT, () => {
+        logger.info(`HTTPS Server running on port ${PORT}`);
+      });
+    } else {
+      // Start the HTTP server
+      const PORT = process.env.PORT || 3000;
+      app.listen(PORT, () => {
+        logger.info(`HTTP Server running on port ${PORT}`);
+      });
+    }
   })
   .catch((err) => {
     logger.error('Failed to initialize database:', err);
