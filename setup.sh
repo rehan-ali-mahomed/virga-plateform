@@ -29,7 +29,11 @@ info() {
 cleanup() {
     info "Cleaning up temporary files..."
     rm -rf "${TMP_DIR}"
+<<<<<<< HEAD
     ssh -q ${PROXY_USER}@${PROXY_HOST} "rm -rf ${PROXY_TMP_DIR}"
+=======
+    ssh ${PROXY_USER}@${PROXY_HOST} "rm -rf ${PROXY_TMP_DIR}"
+>>>>>>> 5f14e82099d793f79785b34e996593ebbd3ae23c
 }
 
 # Set trap for cleanup
@@ -38,7 +42,11 @@ trap cleanup EXIT
 # Create temporary directories
 info "Creating temporary directories..."
 mkdir -p "${TMP_DIR}"
+<<<<<<< HEAD
 ssh -q ${PROXY_USER}@${PROXY_HOST} "mkdir -p ${PROXY_TMP_DIR}"
+=======
+ssh ${PROXY_USER}@${PROXY_HOST} "mkdir -p ${PROXY_TMP_DIR}"
+>>>>>>> 5f14e82099d793f79785b34e996593ebbd3ae23c
 
 # Test SSH connection
 info "Testing SSH connection to proxy server..."
