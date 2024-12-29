@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  autopresto:
-    image: your-username/autopresto-check:latest
-    container_name: autopresto-${COMPANY_DIR:-default}
+  carinspection :
+    image: rehanalimahomed/autopresto-plateform:latest
+    container_name: ${COMPANY_DIR:-default}-plateform
     ports:
       - "${PORT:-3000}:3000"
     volumes:

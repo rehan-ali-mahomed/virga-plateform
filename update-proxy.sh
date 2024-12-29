@@ -4,9 +4,10 @@
 INSTANCES_FILE="instances/active_instances.txt"
 HAPROXY_MAP="/etc/haproxy/domain2backend.map"
 HAPROXY_BACKENDS_DIR="/etc/haproxy/backends"
-HAPROXY_CONFIG_TEMPLATE="haproxy.cfg.template"
+HAPROXY_CONFIG_TEMPLATE="/home/amadiyadm/proxy-settings/haproxy.cfg.template"
 HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 PROXY_TMP_DIR="/tmp/haproxy-manager"
+# PROXY_MANAGER_DIR="/home/amadiyadm/proxy-settings"
 
 # Create necessary directories
 mkdir -p instances "${PROXY_TMP_DIR}"
@@ -14,7 +15,8 @@ sudo mkdir -p "$HAPROXY_BACKENDS_DIR"
 
 # Function to cleanup temporary files
 cleanup() {
-    rm -rf "${PROXY_TMP_DIR}"/*
+    # rm -rf "${PROXY_TMP_DIR}"/*
+    echo "Cleaning temporary files at ${PROXY_TMP_DIR}"
 }
 
 # Set trap for cleanup

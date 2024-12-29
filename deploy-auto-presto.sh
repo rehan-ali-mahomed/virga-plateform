@@ -38,16 +38,16 @@ export MAIN_DOMAIN="amadiy.com"
 [[ -z "$COMPANY_ADDRESS" ]] && error "COMPANY_ADDRESS is required"
 [[ -z "$COMPANY_PHONE" ]] && error "COMPANY_PHONE is required"
 [[ -z "$COMPANY_EMAIL" ]] && error "COMPANY_EMAIL is required"
-[[ -z "$DOMAIN" ]] && error "DOMAIN is required"
+# [[ -z "$DOMAIN" ]] && error "DOMAIN is required"
 
 # Format company name for directory (lowercase, replace spaces with hyphens, trim)
 export COMPANY_DIR=$(echo "${COMPANY_NAME}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | xargs)
 [[ -z "$COMPANY_DIR" ]] && error "Failed to format company directory name"
 
-export DOMAIN="${COMPANY_DIR }.${MAIN_DOMAIN}"
+export DOMAIN="${COMPANY_DIR}.${MAIN_DOMAIN}"
 
 # Print deployment information
-info "Deploying AutoPresto instance:"
+info "Deploying new instance:"
 info "Company: $COMPANY_NAME"
 info "Directory: $COMPANY_DIR"
 info "Port: $PORT"
@@ -59,7 +59,7 @@ mkdir -p ${INSTANCE_DIR}/{db,logs} || error "Failed to create instance directori
 success "Created instance directories"
 
 # Move to instance directory
-cd ${INSTANCE_DIR} || error "Failed to change to instance directory"
+# cd ${INSTANCE_DIR} || error "Failed to change to instance directory"
 
 # Deploy with docker-compose
 info "Starting deployment..."

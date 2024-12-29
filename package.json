@@ -2,10 +2,10 @@
     "name": "vehicule-inspection-app",
     "version": "1.0.0",
     "description": "Vehicule Inspection Report Application",
-    "main": "src/app.js",
+    "main": "./app.js",
     "scripts": {
-        "start": "node src/app.js",
-        "start:debug": "NODE_ENV=development node src/app.js"
+        "start": "node ./app.js",
+        "start:debug": "NODE_ENV=development node ./app.js"
     },
     "dependencies": {
         "bcrypt": "^5.1.1",

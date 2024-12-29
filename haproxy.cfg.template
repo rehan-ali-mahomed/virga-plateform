@@ -44,10 +44,6 @@ frontend https
         # Use map file for domain to backend mapping
         use_backend %[req.hdr(host),lower,map(/etc/haproxy/domain2backend.map)]
 
-        # Redirect to Home Assistant
-        acl hassio_host hdr(host) -i home-assistant.amadiy.com
-        use_backend hassio_backend if hassio_host
-
 # Default backend if no match is found
 backend default_backend
     mode http

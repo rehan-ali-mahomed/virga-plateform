@@ -35,6 +35,9 @@ cleanup() {
 # Set trap for cleanup
 trap cleanup EXIT
 
+[[ ! -f "haproxy.cfg.template" ]] && error "haproxy.cfg.template not found"
+[[ ! -f "update-proxy.sh" ]] && error "update-proxy.sh not found"
+
 # Create temporary directories
 info "Creating temporary directories..."
 mkdir -p "${TMP_DIR}"
@@ -52,15 +55,15 @@ ssh -q ${PROXY_USER}@${PROXY_HOST} "sudo mkdir -p ${PROXY_MANAGER_DIR} ${HAPROXY
 
 # Copy scripts to temporary location first
 info "Copying configuration files to proxy server..."
-scp -q update-proxy.sh ${PROXY_USER}@${PROXY_HOST}:${PROXY_TMP_DIR}/
-scp -q haproxy.cfg.template ${PROXY_USER}@${PROXY_HOST}:${PROXY_TMP_DIR}/
+scp -q haproxy.cfg.template ${PROXY_USER}@${PROXY_HOST}:${PROXY_TMP_DIR}/ || error "Failed to copy haproxy.cfg.template"
+scp -q update-proxy.sh ${PROXY_USER}@${PROXY_HOST}:${PROXY_TMP_DIR}/ || error "Failed to copy update-proxy.sh"
 
 # Move files to final location with sudo
-ssh -q ${PROXY_USER}@${PROXY_HOST} "sudo mv ${PROXY_TMP_DIR}/* ${PROXY_MANAGER_DIR}/ && sudo chown -R root:root ${PROXY_MANAGER_DIR}/"
+ssh -q ${PROXY_USER}@${PROXY_HOST} "sudo mv ${PROXY_TMP_DIR}/* ${PROXY_MANAGER_DIR}/ && sudo chown -R root:root ${PROXY_MANAGER_DIR}/" || error "Failed to move files to final location"
 
 # Set permissions on proxy server
 info "Setting up permissions on proxy server..."
-ssh -q ${PROXY_USER}@${PROXY_HOST} "sudo chmod +x ${PROXY_MANAGER_DIR}/update-proxy.sh"
+ssh -q ${PROXY_USER}@${PROXY_HOST} "sudo chmod +x ${PROXY_MANAGER_DIR}/update-proxy.sh" || error "Failed to set permissions"
 
 # Create local instance directory
 info "Setting up local instance directory..."
