@@ -3,7 +3,6 @@
 # Directory to store instance metadata
 INSTANCES_FILE="instances/active_instances.txt"
 HAPROXY_MAP="/etc/haproxy/domain2backend.map"
-HAPROXY_BACKENDS_DIR="/etc/haproxy/backends"
 HAPROXY_CONFIG_TEMPLATE="/home/amadiyadm/proxy-settings/haproxy.cfg.template"
 HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 PROXY_TMP_DIR="/tmp/haproxy-manager"
@@ -43,15 +42,14 @@ update_backend_config() {
     local port="$2"
     local server_ip="$3"
     
-    # Create backend configuration in temp location
-    cat << EOF > "${PROXY_TMP_DIR}/${company_dir}.cfg"
-backend ${company_dir}_backend
-    mode http
-    server ${company_dir}_server ${server_ip}:${port} check
-EOF
-
-    # Move to final location
-    sudo mv "${PROXY_TMP_DIR}/${company_dir}.cfg" "$HAPROXY_BACKENDS_DIR/"
+    # Check if backend already exists
+    if sudo grep -q "^backend ${company_dir}_backend" "$HAPROXY_CONFIG"; then
+        # Update existing backend
+        sudo sed -i "/^backend ${company_dir}_backend/,/^$/c\\backend ${company_dir}_backend\\n    mode http\\n    server ${company_dir}_server ${server_ip}:${port} check\\n" "$HAPROXY_CONFIG"
+    else
+        # Add new backend at the end of the file
+        echo -e "\\nbackend ${company_dir}_backend\\n    mode http\\n    server ${company_dir}_server ${server_ip}:${port} check" | sudo tee -a "$HAPROXY_CONFIG" > /dev/null
+    fi
 }
 
 # Function to add/update instance
@@ -90,8 +88,8 @@ remove_instance() {
     # Remove from instances file
     sed -i "/^${company_dir}|/d" "$INSTANCES_FILE"
     
-    # Remove backend configuration
-    sudo rm -f "$HAPROXY_BACKENDS_DIR/${company_dir}.cfg"
+    # Remove backend configuration from main config
+    sudo sed -i "/^backend ${company_dir}_backend/,/^$/d" "$HAPROXY_CONFIG"
     
     # Remove from domain mapping
     if [ ! -z "$domain" ]; then
