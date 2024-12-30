@@ -66,7 +66,7 @@ router.post('/login', async (req, res) => {
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) logger.error('Session destruction error:', err);
-    res.redirect('/login');
+    res.redirect('/auth/login');
   });
 });
 

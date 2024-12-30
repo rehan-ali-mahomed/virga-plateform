@@ -1,6 +1,6 @@
 ﻿const isAuthenticated = (req, res, next) => {
   if (!req.session.user) {
-    return res.redirect('/login');
+    return res.redirect('/auth/login');
   }
   
   // Make user data available to all views AND to req.user

@@ -9,11 +9,14 @@ PROXY_TMP_DIR="/tmp/haproxy-manager"
 # PROXY_MANAGER_DIR="/home/amadiyadm/proxy-settings"
 
 # Create necessary directories
-mkdir -p instances "${PROXY_TMP_DIR}"
+mkdir -p instances "${PROXY_TMP_DIR}" || {
+    echo "Error: Failed to create directories ${PROXY_TMP_DIR} ${INSTANCES_FILE}"
+    exit 1
+}
 
 # Function to cleanup temporary files
 cleanup() {
-    # rm -rf "${PROXY_TMP_DIR}"/*
+    rm -rf "${PROXY_TMP_DIR}"/*
     echo "Cleaning temporary files at ${PROXY_TMP_DIR}"
 }
 
@@ -43,11 +46,6 @@ update_haproxy_config() {
         fi
     fi
 
-    # Ensure map file directory exists
-    if ! sudo mkdir -p "$(dirname "$HAPROXY_MAP")"; then
-        echo "Error: Failed to create map directory"
-        return 1
-    fi
     
     # Create empty map file if it doesn't exist
     if [ ! -f "$HAPROXY_MAP" ]; then
@@ -199,13 +197,13 @@ add_update_instance() {
     if ! validate_domain "$domain"; then
         echo "Error: Instance creation failed due to invalid domain format"
         return 1
-    }
+    fi
 
     # Update instances file
     if grep -q "^${company_dir}|" "$INSTANCES_FILE" 2>/dev/null; then
         sed -i "s|^${company_dir}|.*|${company_dir}|${port}|${domain}|${server_ip}|" "$INSTANCES_FILE"
     else
-        echo "${company_dir}|${port}|${domain}|${server_ip}" >> "$INSTANCES_FILE"
+        echo "${company_dir}|${port}|${domain}|${server_ip}" | tee -a "$INSTANCES_FILE" > /dev/null
     fi
     sort -u "$INSTANCES_FILE" -o "$INSTANCES_FILE"
 
@@ -321,13 +319,13 @@ list_restore_backups() {
             if [ ! -f "$backup_file" ]; then
                 echo "Error: Backup file not found: $backup_file"
                 return 1
-            }
+            fi
             
             # Validate the backup config
             if ! sudo haproxy -c -f "$backup_file"; then
                 echo "Error: Backup configuration is invalid"
                 return 1
-            }
+            fi
             
             # Create a backup of current config before restore
             local timestamp=$(date +%Y%m%d_%H%M%S)
@@ -347,7 +345,7 @@ EOF
             if ! sudo cp "$backup_file" "$HAPROXY_CONFIG"; then
                 echo "Error: Failed to restore backup"
                 return 1
-            }
+            fi
             
             echo "Successfully restored backup: $backup_id"
             return 0

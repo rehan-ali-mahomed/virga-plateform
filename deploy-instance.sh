@@ -81,7 +81,7 @@ save_secrets() {
     local credentials_file="${instance_dir}/admin_credentials.txt"
     
     # Format admin username (use email format for consistency)
-    local admin_username="admin@${DOMAIN}"
+    local admin_username="admin.${COMPANY_DIR}"
 
     # Generate additional secrets if needed
     local session_secret=$(generate_secret 32)
@@ -95,7 +95,7 @@ ADMIN_USERNAME=${admin_username}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 ADMIN_EMAIL=${COMPANY_EMAIL}
 ADMIN_FIRST_NAME=Admin
-ADMIN_LAST_NAME=Administrator
+ADMIN_LAST_NAME=${COMPANY_NAME}
 
 # Company Details
 COMPANY_NAME=${COMPANY_NAME}
@@ -226,8 +226,27 @@ prompt_required COMPANY_NAME "Enter company name"
 prompt_required COMPANY_ADDRESS "Enter company address"
 prompt_required COMPANY_PHONE "Enter company phone"
 prompt_required COMPANY_EMAIL "Enter company email"
-prompt_required DOMAIN "Enter domain name"
 prompt_required ADMIN_PASSWORD "Enter admin password" "" true
+
+# Format company name for directory
+export COMPANY_DIR=$(echo "${COMPANY_NAME}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | xargs)
+[[ -z "$COMPANY_DIR" ]] && error "Failed to format company directory name"
+
+# Generate default domain name
+export GENERATED_DOMAIN="${COMPANY_DIR}.amadiy.com"
+prompt_required DOMAIN "Enter domain name (default: ${GENERATED_DOMAIN})" "${GENERATED_DOMAIN}"
+
+# if domain is not provided, use generated domain
+if [ -z "$DOMAIN" ]; then
+    info "Using generated domain name: ${GENERATED_DOMAIN}"
+    DOMAIN="${GENERATED_DOMAIN}"
+fi
+
+# if domain doesnt end with .amadiy.com, add it
+if [[ "$DOMAIN" != *.amadiy.com ]]; then
+    DOMAIN="${DOMAIN}.amadiy.com"
+    info "Added amadiy.com to domain name : ${DOMAIN}"
+fi
 
 # Generate secure secrets if not existing
 SESSION_SECRET=${SESSION_SECRET:-$(generate_secret 32)}
@@ -239,10 +258,6 @@ LOG_LEVEL=${LOG_LEVEL:-info}
 MAX_LOGIN_ATTEMPTS=${MAX_LOGIN_ATTEMPTS:-4}
 LOCK_TIME=${LOCK_TIME:-15}
 BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS:-12}
-
-# Format company name for directory
-export COMPANY_DIR=$(echo "${COMPANY_NAME}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | xargs)
-[[ -z "$COMPANY_DIR" ]] && error "Failed to format company directory name"
 
 # Check if instance exists
 if check_instance "$COMPANY_DIR"; then
@@ -272,7 +287,8 @@ if ! chown -R $(id -u):$(id -g) ${INSTANCE_DIR}; then
     error "Failed to set directory ownership"
 fi
 
-success "Created/Updated instance directories"
+# Display instance directory with a 
+success "Created/Updated instance directories ${INSTANCE_DIR}"
 
 # Save secrets to protected file
 save_secrets "$INSTANCE_DIR"
