@@ -355,7 +355,7 @@ if docker-compose up -d; then
         
         # Display admin credentials securely
         echo -e "\n${GREEN}Admin Credentials${NC}"
-        echo "Username: admin@${DOMAIN}"
+        echo "Username: admin.${COMPANY_DIR}"
         echo "Password: (saved in ${INSTANCE_DIR}/secrets.env)"
     else
         error "Failed to update proxy configuration"
