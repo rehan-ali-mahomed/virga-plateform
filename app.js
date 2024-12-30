@@ -159,7 +159,7 @@ app.use('/', (req, res, next) => {
       logger.debug(`Redirecting authenticated user (${req.session.user.username}) to dashboard`);
       return res.redirect('/dashboard');
     } else {
-      return res.redirect('/login');
+      return res.redirect('/auth/login');
     }
   }
 
