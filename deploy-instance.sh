@@ -78,6 +78,7 @@ check_instance() {
 save_secrets() {
     local instance_dir=$1
     local secrets_file="${instance_dir}/secrets.env"
+    local credentials_file="${instance_dir}/admin_credentials.txt"
     
     # Format admin username (use email format for consistency)
     local admin_username="admin@${DOMAIN}"
@@ -88,7 +89,7 @@ save_secrets() {
     
     # Create secrets file with restricted permissions
     umask 077
-    cat > "$secrets_file" << EOL
+    if ! cat > "$secrets_file" << EOL
 # Admin Credentials
 ADMIN_USERNAME=${admin_username}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
@@ -115,11 +116,19 @@ LOCK_TIME=15
 INSTANCE_ID=${COMPANY_DIR}
 DOMAIN=${DOMAIN}
 EOL
+    then
+        error "Failed to create secrets file"
+    fi
+
+    # Ensure proper ownership and permissions for secrets file
+    if ! chown $(id -u):$(id -g) "$secrets_file" || ! chmod 600 "$secrets_file"; then
+        error "Failed to set secrets file permissions"
+    fi
+    
     success "Secrets saved to $secrets_file"
     
     # Save a backup of credentials
-    local credentials_file="${instance_dir}/admin_credentials.txt"
-    cat > "$credentials_file" << EOL
+    if ! cat > "$credentials_file" << EOL
 Admin Portal Credentials
 =======================
 URL: https://${DOMAIN}/admin
@@ -134,12 +143,19 @@ Phone: ${COMPANY_PHONE}
 IMPORTANT: Store this file securely and then delete it.
 This file will be automatically deleted in 24 hours for security.
 EOL
+    then
+        error "Failed to create credentials file"
+    fi
     
-    # Set file permissions
-    chmod 600 "$credentials_file"
+    # Set file permissions for credentials file
+    if ! chown $(id -u):$(id -g) "$credentials_file" || ! chmod 600 "$credentials_file"; then
+        error "Failed to set credentials file permissions"
+    fi
     
     # Schedule credentials file deletion
-    echo "rm -f \"$credentials_file\"" | at now + 24 hours 2>/dev/null || true
+    if ! echo "rm -f \"$credentials_file\"" | at now + 24 hours 2>/dev/null; then
+        info "Note: Could not schedule automatic deletion of credentials file"
+    fi
     
     success "Admin credentials saved to $credentials_file (will be deleted in 24 hours)"
 }
@@ -242,14 +258,27 @@ fi
 
 # Create instance directories
 INSTANCE_DIR="instances/${COMPANY_DIR}"
-mkdir -p ${INSTANCE_DIR}/{db,logs}
+if ! mkdir -p ${INSTANCE_DIR}/{db,logs}; then
+    error "Failed to create instance directories"
+fi
+
+# Set proper permissions for instance directory
+if ! chmod 755 ${INSTANCE_DIR} ${INSTANCE_DIR}/{db,logs}; then
+    error "Failed to set directory permissions"
+fi
+
+# Ensure current user owns the directories
+if ! chown -R $(id -u):$(id -g) ${INSTANCE_DIR}; then
+    error "Failed to set directory ownership"
+fi
+
 success "Created/Updated instance directories"
 
 # Save secrets to protected file
 save_secrets "$INSTANCE_DIR"
 
 # Generate docker-compose file
-cat > ${INSTANCE_DIR}/docker-compose.yml << EOL
+if ! cat > ${INSTANCE_DIR}/docker-compose.yml << EOL
 version: '3.8'
 
 services:
@@ -286,6 +315,14 @@ services:
         max-size: "10m"
         max-file: "3"
 EOL
+then
+    error "Failed to create docker-compose.yml"
+fi
+
+# Set proper permissions for docker-compose.yml
+if ! chmod 644 ${INSTANCE_DIR}/docker-compose.yml; then
+    error "Failed to set docker-compose.yml permissions"
+fi
 
 # Deploy container
 info "Deploying instance..."
