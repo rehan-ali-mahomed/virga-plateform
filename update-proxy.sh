@@ -201,9 +201,18 @@ add_update_instance() {
 
     # Update instances file
     if grep -q "^${company_dir}|" "$INSTANCES_FILE" 2>/dev/null; then
-        sed -i "s|^${company_dir}|.*|${company_dir}|${port}|${domain}|${server_ip}|" "$INSTANCES_FILE"
+        # Create the new line first
+        local new_line="${company_dir}|${port}|${domain}|${server_ip}"
+        # Replace the matching line
+        sed -i "/^${company_dir}|/c\\${new_line}" "$INSTANCES_FILE" || {
+            echo "Error: Failed to update instances file"
+            return 1
+        }
     else
-        echo "${company_dir}|${port}|${domain}|${server_ip}" | tee -a "$INSTANCES_FILE" > /dev/null
+        echo "${company_dir}|${port}|${domain}|${server_ip}" | tee -a "$INSTANCES_FILE" > /dev/null || {
+            echo "Error: Failed to add new instance to instances file"
+            return 1
+        }
     fi
     sort -u "$INSTANCES_FILE" -o "$INSTANCES_FILE"
 
@@ -212,9 +221,15 @@ add_update_instance() {
 
     # Update domain mapping
     if sudo grep -q "^${domain}" "$HAPROXY_MAP" 2>/dev/null; then
-        sudo sed -i "s|^${domain}.*|${domain} ${company_dir}_backend|" "$HAPROXY_MAP"
+        sudo sed -i "s|^${domain}.*|${domain} ${company_dir}_backend|" "$HAPROXY_MAP" || {
+            echo "Error: Failed to update domain mapping"
+            return 1
+        }
     else
-        echo "${domain} ${company_dir}_backend" | sudo tee -a "$HAPROXY_MAP" > /dev/null
+        echo "${domain} ${company_dir}_backend" | sudo tee -a "$HAPROXY_MAP" > /dev/null || {
+            echo "Error: Failed to add new domain to mapping"
+            return 1
+        }
     fi
 }
 
@@ -270,14 +285,23 @@ Command: $0 $*
 EOF
     
     # Remove from instances file
-    sed -i "/^${company_dir}|/d" "$INSTANCES_FILE"
+    sed -i "/^${company_dir}|/d" "$INSTANCES_FILE" || {
+        echo "Error: Failed to remove instance from instances file"
+        return 1
+    }
     
     # Remove backend configuration from main config
-    sudo sed -i "/^backend ${company_dir}_backend/,/^$/d" "$HAPROXY_CONFIG"
+    sudo sed -i "/^backend ${company_dir}_backend/,/^$/d" "$HAPROXY_CONFIG" || {
+        echo "Error: Failed to remove backend configuration from main config"
+        return 1
+    }
     
     # Remove from domain mapping
     if [ ! -z "$domain" ]; then
-        sudo sed -i "/^${domain}/d" "$HAPROXY_MAP"
+        sudo sed -i "/^${domain}/d" "$HAPROXY_MAP" || {
+            echo "Error: Failed to remove domain from mapping"
+            return 1
+        }
     fi
 }
 
