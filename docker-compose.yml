@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  carinspection :
+  carinspection:
     image: rehanalimahomed/autopresto-plateform:latest
     container_name: ${COMPANY_DIR:-default}-plateform
     ports:
@@ -12,6 +12,11 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SESSION_SECRET=${SESSION_SECRET:-default-secret-change-in-production}
+      - MAX_LOGIN_ATTEMPTS=${MAX_LOGIN_ATTEMPTS:-4}
+      - LOCK_TIME=${LOCK_TIME:-15}
+      - BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS:-12}
       - COMPANY_NAME=${COMPANY_NAME}
       - COMPANY_ADDRESS=${COMPANY_ADDRESS}
       - COMPANY_PHONE=${COMPANY_PHONE}
