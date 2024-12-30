@@ -44,7 +44,7 @@ prompt_required() {
                 read -s -p "Confirm $prompt_text: " value2
                 echo
                 if [ "$value" = "$value2" ]; then
-                    export $var_name=$value
+                    printf -v "$var_name" "%s" "$value"
                 else
                     echo "Values do not match, please try again"
                 fi
@@ -53,11 +53,11 @@ prompt_required() {
             # Handle normal input
             if [ -n "$default_value" ]; then
                 read -p "$prompt_text (default: $default_value): " value
-                export $var_name=${value:-$default_value}
+                printf -v "$var_name" "%s" "${value:-$default_value}"
             else
                 while [ -z "${!var_name}" ]; do
                     read -p "$prompt_text: " value
-                    export $var_name=$value
+                    printf -v "$var_name" "%s" "$value"
                 done
             fi
         fi
