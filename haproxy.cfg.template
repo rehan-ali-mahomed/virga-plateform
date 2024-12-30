@@ -42,8 +42,8 @@ frontend https
         redirect scheme https code 301 if !{ ssl_fc }
 
         # Use map for domain to backend mapping
-        # use_backend %[req.hdr(host),lower,map(/etc/haproxy/domain2backend.map)] # Using separated map file
-        use_backend %[req.hdr(Host),lower] # Using Host header for mapping
+        use_backend %[req.hdr(host),lower,map(/etc/haproxy/domain2backend.map)] # Using separated map file        
+        # use_backend %[req.hdr(Host),lower] # In case of map file is not working, using Host header for mapping
 
         default_backend default_be
 
@@ -51,6 +51,8 @@ frontend https
 backend default_be
     mode http
     http-request deny deny_status 404
+
+# ---STATIC BACKENDS---
 
 # ---SCRIPTED BACKENDS---
 # Backends will be automatically added below this line by the update script
