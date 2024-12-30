@@ -8,6 +8,18 @@ HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 PROXY_TMP_DIR="/tmp/haproxy-manager"
 # PROXY_MANAGER_DIR="/home/amadiyadm/proxy-settings"
 
+# Ensure map file exists and has proper permissions
+if [ ! -f "$HAPROXY_MAP" ]; then
+    sudo touch "$HAPROXY_MAP" || {
+        echo "Error: Could not create map file"
+        exit 1
+    }
+    sudo chmod 644 "$HAPROXY_MAP" || {
+        echo "Error: Could not set map file permissions"
+        exit 1
+    }
+fi
+
 # Create necessary directories
 mkdir -p instances "${PROXY_TMP_DIR}" || {
     echo "Error: Failed to create directories ${PROXY_TMP_DIR} ${INSTANCES_FILE}"
@@ -46,7 +58,6 @@ update_haproxy_config() {
         fi
     fi
 
-    
     # Create empty map file if it doesn't exist
     if [ ! -f "$HAPROXY_MAP" ]; then
         if ! sudo touch "$HAPROXY_MAP"; then
@@ -55,10 +66,26 @@ update_haproxy_config() {
         fi
     fi
 
-    # Ensure the backend marker exists in the config
+    # Check if backend marker exists and handle appropriately
     if ! sudo grep -q "^# ---SCRIPTED BACKENDS---" "$HAPROXY_CONFIG"; then
+        # If marker doesn't exist, add it
         echo -e "\n# ---SCRIPTED BACKENDS---" | sudo tee -a "$HAPROXY_CONFIG" > /dev/null
         echo "# Backends will be automatically added below this line by the update script" | sudo tee -a "$HAPROXY_CONFIG" > /dev/null
+    else
+        # If marker exists, ensure it's only there once by removing duplicates
+        local temp_config="${PROXY_TMP_DIR}/haproxy.cfg.tmp"
+        # Get the first occurrence of the marker
+        local first_marker_line=$(sudo grep -n "^# ---SCRIPTED BACKENDS---" "$HAPROXY_CONFIG" | head -n1 | cut -d: -f1)
+        
+        # Copy everything up to first marker
+        sudo head -n "$first_marker_line" "$HAPROXY_CONFIG" > "$temp_config"
+        
+        # Add the marker and its description
+        echo "# ---SCRIPTED BACKENDS---" >> "$temp_config"
+        echo "# Backends will be automatically added below this line by the update script" >> "$temp_config"
+        
+        # Replace the original file
+        sudo mv "$temp_config" "$HAPROXY_CONFIG"
     fi
 }
 
@@ -86,6 +113,24 @@ update_backend_config() {
         return 1
     fi
 
+    # Create temporary file for the new config
+    local temp_config="${PROXY_TMP_DIR}/haproxy.cfg.tmp"
+    
+    # Find the line number of the backend marker (use only first occurrence)
+    local marker_line=$(sudo grep -n "^# ---SCRIPTED BACKENDS---" "$HAPROXY_CONFIG" | head -n1 | cut -d: -f1)
+    
+    if [ -z "$marker_line" ]; then
+        echo "Error: Backend marker not found in config"
+        return 1
+    fi
+    
+    # Copy the config up to the marker line
+    sudo head -n "$marker_line" "$HAPROXY_CONFIG" > "$temp_config" || {
+        echo "Error: Failed to process config file"
+        sudo cp "$backup_file" "$HAPROXY_CONFIG"
+        return 1
+    }
+    
     # Save metadata about the modification
     local modification_type="New backend"
     local old_config=""
@@ -193,6 +238,11 @@ add_update_instance() {
     local domain="$3"
     local server_ip="$4"
 
+    # Add domain validation and debugging
+    if [ -z "$domain" ]; then
+        echo "Error: Domain parameter is null or empty"
+        return 1
+    fi
     # Validate domain format
     if ! validate_domain "$domain"; then
         echo "Error: Instance creation failed due to invalid domain format"
@@ -219,17 +269,34 @@ add_update_instance() {
     # Update backend configuration
     update_backend_config "$company_dir" "$port" "$server_ip"
 
+    # Update domain mapping with additional checks
+    if [ -z "$domain" ] || [ -z "$company_dir" ]; then
+        echo "Error: Domain or company_dir is empty. Domain='$domain', Company='$company_dir'"
+        return 1
+    fi
+
     # Update domain mapping
-    if sudo grep -q "^${domain}" "$HAPROXY_MAP" 2>/dev/null; then
-        sudo sed -i "s|^${domain}.*|${domain} ${company_dir}_backend|" "$HAPROXY_MAP" || {
+    if sudo grep -q "^${domain}\s" "$HAPROXY_MAP" 2>/dev/null; then
+        # More precise pattern matching and replacement
+        sudo sed -i "s|^${domain}\s.*$|${domain} ${company_dir}_backend|" "$HAPROXY_MAP" || {
             echo "Error: Failed to update domain mapping"
             return 1
         }
     else
+        # Ensure newline before adding
         echo "${domain} ${company_dir}_backend" | sudo tee -a "$HAPROXY_MAP" > /dev/null || {
             echo "Error: Failed to add new domain to mapping"
             return 1
         }
+        # Sort and remove duplicate entries
+        sudo sort -u -o "$HAPROXY_MAP" "$HAPROXY_MAP"
+    fi
+
+    # Verify the update
+    if ! sudo grep -q "^${domain}\s.*${company_dir}_backend$" "$HAPROXY_MAP"; then
+        echo "Error: Failed to verify domain mapping update"
+        echo "Debug: Expected mapping not found: '${domain} ${company_dir}_backend'"
+        return 1
     fi
 }
 
@@ -388,6 +455,12 @@ case "$1" in
             echo "Usage: $0 add <company_dir> <port> <domain> <server_ip>"
             exit 1
         fi
+        # Add parameter validation
+        if [ -z "$4" ]; then
+            echo "Error: Domain parameter is required"
+            exit 1
+        fi
+        
         update_haproxy_config
         if ! add_update_instance "$2" "$3" "$4" "$5"; then
             echo "Failed to add/update instance"
