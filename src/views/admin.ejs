@@ -359,7 +359,7 @@
   </div>
 
   <!-- All Modals -->
-  <div id="modalContainer" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-start justify-center z-50 pt-20">
+  <div id="modalContainer" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-start justify-center z-[100] pt-20 overflow-y-auto modal-container">
     <!-- User Modal -->
     <div id="userModal" class="bg-white rounded-lg shadow-xl w-full max-w-md hidden">
       <div class="p-6">
@@ -367,25 +367,31 @@
         <form id="userForm" class="space-y-4">
           <input type="hidden" id="userId" name="user_id">
           <div>
-            <label for="first_name" class="block text-sm font-medium text-gray-700">Prénom</label>
-            <input type="text" id="first_name" name="first_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm capitalize">
+            <label for="last_name" class="block text-sm font-medium text-gray-700">Nom</label>
+            <input type="text" id="last_name" name="last_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
           </div>
           <div>
-            <label for="last_name" class="block text-sm font-medium text-gray-700">Nom</label>
-            <input type="text" id="last_name" name="last_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm uppercase">
+            <label for="first_name" class="block text-sm font-medium text-gray-700">Prénom</label>
+            <input type="text" id="first_name" name="first_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
           </div>
           <div>
             <label for="username" class="block text-sm font-medium text-gray-700">
               Nom d'utilisateur <i>(utiliser pour la connexion)</i>
             </label>
-            <input type="text"
-                   id="username"
-                   name="username"
-                   required
-                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm lowercase bg-gray-200 cursor-not-allowed" 
-                   readonly
-                   
-                   aria-label="Generated username">
+            <div class="relative">
+              <input type="text"
+                     id="username"
+                     name="username"
+                     required
+                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm transition-colors duration-200"
+                     aria-label="Username input field">
+              <a id="toggleUsernameEdit"
+                    class="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-full"
+                    aria-label="Toggle username editability">
+              <i class="fas fa-lock"></i>
+            </a>
+            </div>
+            <p class="mt-1 text-sm text-gray-500">Le nom d'utilisateur est généré automatiquement par défaut</p>
           </div>
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
@@ -403,7 +409,7 @@
           <div>
             <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
             <div class="relative">
-              <input type="password" id="confirmPassword" name="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+              <input type="password" id="confirmPassword" name="confirmPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
               <a type="button" name="passwordToggle" class="absolute right-2 top-1/2 transform -translate-y-1/2">
                 <i class="fas fa-eye"></i>
               </a>
@@ -731,9 +737,12 @@
   </div>
 
   <!-- Toast notifications -->
-  <div id="toast-container" class="fixed top-2 right-2 flex flex-col items-end space-y-2 z-50" aria-live="assertive" aria-atomic="true">
+  <div id="toast-container" class="fixed top-2 right-2 flex flex-col items-end space-y-2 popup-container" aria-live="assertive" aria-atomic="true">
   </div>
 
   <script src="/static/js/admin.js"></script>
-</body>
-</html>
+  
+<%- include('partials/footer', {
+  showScripts: true,
+  customScripts: ['/static/js/admin.js']
+}) %>

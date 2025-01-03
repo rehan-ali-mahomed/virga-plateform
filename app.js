@@ -197,11 +197,44 @@ app.use((req, res) => {
 initializeDatabase()
   .then(() => {
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV}`);
-      logger.info(`Company: ${process.env.COMPANY_NAME}`);
+    const useHttps = process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH;
+    
+    // Log startup configuration once
+    logger.info('Starting server with configuration:', {
+      environment: process.env.NODE_ENV,
+      domain: process.env.DOMAIN,
+      company: process.env.COMPANY_NAME,
+      ssl: useHttps ? 'Enabled' : 'Disabled'
     });
+
+    const handleServerStart = (type) => {
+      logger.info(`🚀 ${type} Server running on port ${PORT}`);
+    };
+
+    if (useHttps) {
+      try {
+        // SSL configuration
+        const sslOptions = {
+          key: fs.readFileSync(process.env.SSL_KEY_PATH),
+          cert: fs.readFileSync(process.env.SSL_CERT_PATH)
+        };
+        
+        // Add CA if defined
+        if (process.env.SSL_CA_PATH) {
+          sslOptions.ca = fs.readFileSync(process.env.SSL_CA_PATH);
+        }
+        
+        // Create HTTPS server
+        const httpsServer = https.createServer(sslOptions, app);
+        httpsServer.listen(PORT, () => handleServerStart('HTTPS'));
+      } catch (error) {
+        logger.error('Failed to start HTTPS server:', error);
+        logger.warn('Falling back to HTTP server');
+        app.listen(PORT, () => handleServerStart('HTTP/Fallback'));
+      }
+    } else {
+      app.listen(PORT, () => handleServerStart('HTTP'));
+    }
   })
   .catch((err) => {
     logger.error('Failed to initialize database:', err);

@@ -1,5 +1,13 @@
     </main>
   </div>
+  <footer class="app-footer">
+    <div class="footer-content">
+      <div class="footer-version" title="Application Version">
+        <i class="fas fa-code-branch"></i>
+        <span>VIRGA v<%= process.env.APP_VERSION %></span>
+      </div>
+    </div>
+  </footer>
   <% if (showScripts) { %>
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>

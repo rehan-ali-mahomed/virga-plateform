@@ -6,6 +6,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Read app version
+APP_VERSION=$(cat VERSION)
+if [ -z "$APP_VERSION" ]; then
+    error "Failed to read version from VERSION file"
+fi
+
 # Function to print error and exit
 error() {
     echo -e "${RED}Error: $1${NC}" >&2
@@ -299,7 +305,7 @@ version: '3.8'
 
 services:
   carinspection:
-    image: rehanalimahomed/autopresto-plateform:latest
+    image: rehanalimahomed/virga-platform:${APP_VERSION}
     container_name: ${COMPANY_DIR}-plateform
     ports:
       - "${PORT}:3000"

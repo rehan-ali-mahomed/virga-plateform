@@ -6,6 +6,7 @@ const {
   // Users
   addUser,
   getUserById,
+  getUserByUsername,
   updateUser,
   deleteUser,
   // Customers
@@ -183,43 +184,29 @@ router.get('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
 router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
   const { first_name, last_name, username, email, role, password } = req.body;
   
-  let undefinedFields = [];
-  for (const field of ['first_name', 'last_name', 'username', 'email', 'role', 'password']) {
-    if (!req.body[field]) {
-      undefinedFields.push(field);
-    }
-  }
-
-  if (undefinedFields.length > 0) {
-    return res.status(400).json({ error: `Les champs suivants sont requis: ${undefinedFields.join(', ')}.` });
-  }
-
   try {
-    await addUser(first_name, last_name, username, email, role, password);
+    await addUser(first_name, last_name, username, (email || null), role, password);
     res.status(201).json({ message: `Utilisateur ${username} créé avec succès.`});
   } catch (error) {
     logger.error('Error creating user:', error);
-    res.status(500).json({ error: error.message });
+    res.status(417).json({ error: error.message });
   }
 });
 
 // PUT /admin/users/:id - Update an existing user
 router.put('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { first_name, last_name, email, role, password, is_active } = req.body;
-
+  const userId = req.params.id;
+  const updates = req.body;
+  
   try {
-    const user = await getUserById(id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    await updateUser(id, { first_name, last_name, email, role, password, is_active });
-
-    res.json({ message: 'User updated successfully.' });
+    await updateUser(userId, updates);
+    
+    res.json({ 
+      message: 'Utilisateur modifié avec succès' 
+    });
   } catch (error) {
-    logger.error('Error updating user:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.message === 'Utilisateur non trouvé' ? 404 : 500)
+       .json({ error: error.message });
   }
 });
 
@@ -240,19 +227,6 @@ router.delete('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
   } catch (error) {
     logger.error('Erreur lors de la désactivation de l\'utilisateur:', error);
     res.status(500).json({ error: 'Erreur lors de la désactivation de l\'utilisateur.' });
-  }
-});
-
-// Check if username exists
-router.get('/users/check-username', isAuthenticated, isAdmin, async (req, res) => {
-  const { username } = req.query;
-  
-  try {
-    const user = await getUserByUsername(username);
-    res.json({ exists: !!user });
-  } catch (error) {
-    logger.error('Error checking username:', error);
-    res.status(500).json({ error: 'Failed to check username' });
   }
 });
 
@@ -307,23 +281,12 @@ router.post('/customers', isAuthenticated, isAdmin, async (req, res) => {
 
 // PUT /admin/customers/:id - Update an existing customer
 router.put('/customers/:id', isAuthenticated, isAdmin, async (req, res) => {
-  const db = getDatabase();
   const { id } = req.params;
-  const { name, email, phone, address, is_company } = req.body;
+  const updates = req.body;
 
   try {
-    const customer = await dbGet(db, 'SELECT * FROM Customers WHERE customer_id = ?', [id]);
-    if (!customer) {
-      return res.status(404).json({ error: 'Client non trouvé.' });
-    }
 
-    const updatedName = name || customer.name;
-    const updatedEmail = email || customer.email;
-    const updatedPhone = phone || customer.phone;
-    const updatedAddress = address || customer.address;
-    const updatedIsCompany = typeof is_company !== 'undefined' ? (is_company ? 1 : 0) : customer.is_company;
-
-    await updateCustomer(id, updatedName, updatedEmail, updatedPhone, updatedAddress, updatedIsCompany);
+    await updateCustomer(id, updates);
 
     res.json({ message: 'Client mis à jour avec succès.' });
   } catch (error) {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %> - Auto Presto</title>
+  <title><%= title %> - VIRGA</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="/static/css/style.css" />
@@ -30,18 +30,63 @@
             <i class="fas fa-plus"></i>
             <span>Nouveau rapport</span>
           </a>
-          <% if (isAdmin) { %>
-            <a href="/admin" class="nav-btn <%= currentPage === 'admin' ? 'active' : '' %>">
-              <i class="fas fa-user-shield"></i>
-              <span>Admin</span>
-            </a>
-          <% } %>
-          <a href="/auth/logout" class="nav-btn danger">
-            <i class="fas fa-sign-out-alt"></i>
-          </a>
-        </nav>
-      <% } %>
-    </header>
-    <main class="page-main">
+
+          <div id="userInfo"
+            class="nav-btn user-info"
+            tabindex="0"
+            role="button"
+            aria-expanded="false"
+            aria-label="User information"
+            style="position: relative; isolation: isolate;"
+          >
+            <!-- User Avatar -->
+            <div class="user-avatar">
+              <i class="fas fa-user-circle"></i>
+            </div>
+
+            <!-- Basic Info (Always Visible) -->
+            <div class="user-basic-info">
+              <% if (typeof user !== 'undefined' && user) { %>
+                <span class="user-name" data-full-name="<%= user.first_name %> <%= user.last_name %>">
+                  <%= user.first_name %>
+                </span>
+              <% } else { %>
+                <span class="user-name">Guest</span>
+              <% } %>
+            </div>
+
+            <!-- Expanded Content -->
+            <div class="user-expanded-content">
+              <div class="user-expanded-inner">
+                <% if (typeof user !== 'undefined' && user && user.username) { %>
+                  <div class="user-header">
+                    <div class="user-avatar-large">
+                      <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-details">
+                      <p class="user-fullname"><%= user.first_name %> <%= user.last_name %></p>
+                      <p class="user-role">@<%= user.username %></p>
+                    </div>
+                  </div>
+                  <div class="divider"></div>
+                <% } %>
+                <% if (isAdmin) { %>
+                  <a href="/admin" class="menu-item <%= currentPage === 'admin' ? 'active' : '' %>">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Administration</span>
+                  </a>
+                <% } %>
+                <a href="/auth/logout" class="menu-item logout">
+                  <i class="fas fa-sign-out-alt"></i>
+                  <span>Déconnexion</span>
+                </a>
+              </div>
+            </div>
+          </div>
+               
+          </nav>
+        <% } %>
+      </header>
+      <main class="page-main">
 </body>
 </html> 

@@ -5,6 +5,11 @@ const logger = require('../utils/logger');
 
 const router = express.Router();
 
+router.use((req, res, next) => {
+  res.locals.user = req.session.user || null;
+  next();
+});
+
 router.get('/login', (req, res) => {
   if (req.session.user) {
     return res.redirect('/dashboard');
@@ -49,9 +54,13 @@ router.post('/login', async (req, res) => {
 
     req.session.user = {
       id: user.user_id, 
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
       username: user.username, 
       role: user.role.toLowerCase()
     };
+    
     res.redirect('/dashboard');
   } catch (err) {
     logger.error('Login error:', err);

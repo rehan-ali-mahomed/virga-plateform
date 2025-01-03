@@ -269,38 +269,47 @@ const createDefaultAdminUser = async () => {
   await addUser(defaultFirstName, defaultLastName, defaultUsername, defaultEmail, 'admin', hashedPassword, true);
 };
 
-const addUser = (first_name, last_name, username, email, role, password, password_is_hashed = false) => {
+const addUser = (first_name, last_name, username, email = null, role, password, password_is_hashed = false) => {
   return new Promise(async (resolve, reject) => {
-    username = username.toLowerCase();
-    email = email.toLowerCase();
-    role = role.toLowerCase();
-    const userId = uuidv4();
-    first_name = toCamelCase(first_name);
-    last_name = last_name.toUpperCase();
-    const hashedPassword = password_is_hashed ? password : await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
-
-    // Check if email or username already exists
-    db.get('SELECT * FROM Users WHERE username = ?', [username], (err, row) => {
-      if (err) reject(err);
-      if (row) reject(new Error('Username already exists'));
-    });
-    
-    db.run(`
-      INSERT INTO Users (
-        user_id, 
-        first_name,
-        last_name,
-        username, 
-        email, 
-        role, 
-        password
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, first_name, last_name, username, email, role, hashedPassword],
-      (err) => {
-        if (err) reject(err);
-        else resolve(userId);
+    try {
+      username = username.toLowerCase();
+      email = email.toLowerCase();
+      role = role.toLowerCase();
+      const userId = uuidv4();
+      first_name = toCamelCase(first_name);
+      last_name = last_name.toUpperCase();
+      
+      // Check if username already exists
+      const existingUser = await getUserByUsername(username);
+      if (existingUser !== 'N/A') {
+        throw new Error('Ce nom d\'utilisateur existe déjà.');
       }
-    );
+
+      const hashedPassword = password_is_hashed ? password : await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
+      
+      await new Promise((resolveDb, rejectDb) => {
+        db.run(`
+          INSERT INTO Users (
+            user_id, 
+            first_name,
+            last_name,
+            username, 
+            email, 
+            role, 
+            password
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [userId, first_name, last_name, username, email, role, hashedPassword],
+          (err) => {
+            if (err) rejectDb(err);
+            else resolveDb(userId);
+          }
+        );
+      });
+
+      resolve(userId);
+    } catch (error) {
+      reject(error);
+    }
   });
 };
 
@@ -309,6 +318,9 @@ const updateUser = (userId, updates) => {
     try {
       // Check if the user is the default admin user to avoid editing it
       const user = await getUserById(userId);
+
+      logger.debug(`Trying to update user ${userId} with fields: ${JSON.stringify(updates)}`);
+
       if(process.env.ADMIN_USERNAME === user.username) {
         logger.warn('Cannot edit default admin user.');
         return reject(new Error('Impossible de modifier l\'administrateur par défaut.'));
@@ -339,7 +351,7 @@ const updateUser = (userId, updates) => {
 
       if (updates.password !== undefined) {
         fields.push('password = ?');
-        const hashedPassword = await bcrypt.hash(updates.password, process.env.BCRYPT_SALT_ROUNDS);
+        const hashedPassword = await bcrypt.hash(updates.password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
         values.push(hashedPassword);
       }
 
@@ -348,14 +360,22 @@ const updateUser = (userId, updates) => {
         values.push(updates.is_active);
       }
 
+      if (updates.username !== undefined) {
+        const existingUser = await getUserByUsername(updates.username);
+        if (existingUser !== 'N/A') {
+          throw new Error('Ce nom d\'utilisateur existe déjà');
+        } else {
+          fields.push('username = ?');
+          values.push(updates.username.toLowerCase());
+        }
+      }
+
       if (fields.length === 0) {
         logger.debug(`No updates to perform for user ${userId}`);
         return resolve(); // No updates to perform
       }
 
       values.push(userId);
-
-      logger.debug(`Updating user ${userId} with fields: ${fields.join(', ')} and values: ${values.join(', ')}`);
 
       const query = `UPDATE Users SET ${fields.join(', ')} WHERE user_id = ?`;
       db.run(query, values, (err) => {
@@ -429,9 +449,14 @@ const getUserByUsername = (username) => {
 
 const getUserWithPasswordByUsername = (username) => {
   return new Promise((resolve, reject) => {
-    db.get('SELECT user_id, username, role, is_active, password FROM Users WHERE username = ?', [username], (err, row) => {
-      if (err) reject(err); else resolve(row);
-    });
+    db.get(
+      'SELECT user_id, username, password, first_name, last_name, email, role, is_active FROM Users WHERE username = ?',
+      [username],
+      (err, user) => {
+        if (err) reject(err);
+        else resolve(user);
+      }
+    );
   });
 };
 
@@ -543,13 +568,50 @@ const addCustomer = (name, phone, email, address, is_company) => {
   });
 };
 
-const updateCustomer = (customer_id, name, phone, email, address, is_company) => {
+const updateCustomer = async (customer_id, updates) => {
   return new Promise((resolve, reject) => {
-    db.run(`UPDATE Customers SET name = ?, phone = ?, email = ?, address = ?, is_company = ? WHERE customer_id = ?`, 
-      [name, phone, email, address, is_company ? 1 : 0, customer_id], (err) => {
-        if (err) reject(err); else resolve();
+    try {
+      
+      logger.debug(`Trying to update user ${customer_id} with fields: ${JSON.stringify(updates)}`);
+
+      const fields = [];
+      const values = [];
+
+      if (updates.name !== undefined) {
+        fields.push('name = ?');
+        values.push(updates.name);
       }
-    );
+
+      if (updates.phone !== undefined) {
+        fields.push('phone = ?');
+        values.push(updates.phone);
+      }
+
+      if (updates.email !== undefined) {
+        fields.push('email = ?');
+        values.push(updates.email);
+      }
+
+      if (updates.address !== undefined) {
+        fields.push('address = ?');
+        values.push(updates.address);
+      }
+
+      if (updates.is_company !== undefined) {
+        fields.push('is_company = ?');
+        values.push(updates.is_company ? 1 : 0);
+      }
+
+      values.push(customer_id);
+
+      const query = `UPDATE Customers SET ${fields.join(', ')} WHERE customer_id = ?`;
+      db.run(query, values, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    } catch (error) {
+      reject(error);
+    }
   });
 };
 
