@@ -10,9 +10,8 @@ on:
       - 'LICENSE'
 
 env:
-  RUNNER_WORKSPACE: /home/userX/github-actions-runner
-  INSTANCE_DIR: /home/userX/virga-platform/instances
-  BACKUP_BASE_DIR: /home/userX/virga-platform/backups
+  INSTANCE_DIR: /var/lib/virga-platform/instances
+  BACKUP_BASE_DIR: /var/lib/virga-platform/backups
   DOCKER_REGISTRY: rehanalimahomed/virga-platform
   COMPANY_DOMAIN: amadiy.com
 
@@ -24,7 +23,6 @@ jobs:
     - name: Check Environment
       run: |
         echo "🔍 Checking environment configuration..."
-        echo "Workspace: $RUNNER_WORKSPACE"
         echo "Instance Directory: $INSTANCE_DIR"
         echo "Backup Directory: $BACKUP_BASE_DIR"
         echo "Current User: $(whoami)"
