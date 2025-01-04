@@ -627,7 +627,7 @@ router.delete('/reports/:id', isAuthenticated, isAdmin, async (req, res) => {
 // POST /admin/backup-database - Create and download a database backup
 router.post('/backup-database', isAuthenticated, isAdmin, async (req, res) => {
   const date = new Date().toISOString().split('T')[0];
-  const backupDir = path.join(process.cwd(), 'backups');
+  const backupDir = path.join(process.cwd(), 'db-backups');
   
   // Ensure backup directory exists
   if (!fs.existsSync(backupDir)) {

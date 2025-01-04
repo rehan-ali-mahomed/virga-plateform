@@ -10,6 +10,7 @@ sessions.db
 # Ignore main database
 database.db
 database.sqlite
+db-backups/
 
 # Ignore SSL certificate
 ssl/

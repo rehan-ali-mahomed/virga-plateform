@@ -1,0 +1,300 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - '.cursorrules'
+      - 'LICENSE'
+
+env:
+  RUNNER_WORKSPACE: /home/userX/github-actions-runner
+  INSTANCE_DIR: /home/userX/virga-platform/instances
+  BACKUP_BASE_DIR: /home/userX/virga-platform/backups
+  DOCKER_REGISTRY: rehanalimahomed/virga-platform
+  COMPANY_DOMAIN: amadiy.com
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Check Environment
+      run: |
+        echo "🔍 Checking environment configuration..."
+        echo "Workspace: $RUNNER_WORKSPACE"
+        echo "Instance Directory: $INSTANCE_DIR"
+        echo "Backup Directory: $BACKUP_BASE_DIR"
+        echo "Current User: $(whoami)"
+        echo "Docker Status: $(docker info | grep 'Server Version')"
+        
+        # Verify directories exist
+        for dir in "$INSTANCE_DIR" "$BACKUP_BASE_DIR"; do
+          if [ ! -d "$dir" ]; then
+            echo "Creating directory: $dir"
+            mkdir -p "$dir"
+          fi
+        done
+        
+        # Check Docker login status
+        if ! docker info | grep -q "Username"; then
+          echo "::warning::Docker Hub login not found. Will need to login during workflow."
+          echo "NEED_DOCKER_LOGIN=true" >> $GITHUB_ENV
+        else
+          echo "✅ Docker Hub already logged in"
+          echo "NEED_DOCKER_LOGIN=false" >> $GITHUB_ENV
+        fi
+        
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        clean: true
+        fetch-depth: 0
+        
+    - name: Generate Version
+      id: version
+      run: |
+        # Get base version from file
+        BASE_VERSION=$(cat VERSION)
+        
+        # Get current date in readable format
+        BUILD_DATE=$(date +'%Y.%m.%d')
+        
+        # Get git info
+        GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+        GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        
+        # Get commit count since last tag for build number
+        BUILD_NUMBER=$(git rev-list --count HEAD)
+        
+        # Format versions
+        # Technical version (for Docker tags and internal use)
+        TECHNICAL_VERSION="${BASE_VERSION}-${BUILD_NUMBER}-${GIT_SHORT_SHA}"
+        # User-friendly version (for display and logs)
+        DISPLAY_VERSION="${BASE_VERSION} (${BUILD_DATE} build ${BUILD_NUMBER})"
+        
+        # Export versions
+        echo "VERSION=${TECHNICAL_VERSION}" >> $GITHUB_ENV
+        echo "DISPLAY_VERSION=${DISPLAY_VERSION}" >> $GITHUB_ENV
+        
+        # Save versions to environment file
+        cat > .env << EOL
+        VERSION=${TECHNICAL_VERSION}
+        DISPLAY_VERSION=${DISPLAY_VERSION}
+        BUILD_DATE=${BUILD_DATE}
+        GIT_SHA=${GIT_SHORT_SHA}
+        BUILD_NUMBER=${BUILD_NUMBER}
+        EOL
+        
+        # Log version information
+        echo "Generated versions:"
+        echo "Technical version: ${TECHNICAL_VERSION}"
+        echo "Display version: ${DISPLAY_VERSION}"
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Run tests
+      run: npm test
+      
+    - name: Backup Production Database
+      run: |
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        backup_dir="${BACKUP_BASE_DIR}/${timestamp}"
+        mkdir -p "$backup_dir"
+        
+        # Find and backup all instance databases
+        find ${INSTANCE_DIR} -name "*.db" -type f -exec bash -c '
+          instance_name=$(basename $(dirname {}))
+          cp {} "$0/${instance_name}_$(basename {})"
+        ' "$backup_dir" \;
+        
+        echo "BACKUP_DIR=${backup_dir}" >> $GITHUB_ENV
+        
+        # Log backup information
+        echo "📦 Databases backed up to: $backup_dir"
+        echo "Found databases:"
+        ls -l "$backup_dir"
+      
+    - name: Build Docker image
+      run: |
+        docker build -t ${DOCKER_REGISTRY}:${{ env.VERSION }} .
+        docker tag ${DOCKER_REGISTRY}:${{ env.VERSION }} ${DOCKER_REGISTRY}:latest
+      
+    - name: Login to Docker Hub
+      if: env.NEED_DOCKER_LOGIN == 'true'
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Push Docker image
+      run: |
+        # Try to push, if it fails and we haven't logged in, try logging in
+        if ! docker push ${DOCKER_REGISTRY}:${{ env.VERSION }}; then
+          if [ "${{ env.NEED_DOCKER_LOGIN }}" = "false" ]; then
+            echo "::warning::Push failed, trying to login to Docker Hub..."
+            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            docker push ${DOCKER_REGISTRY}:${{ env.VERSION }}
+          else
+            echo "::error::Failed to push Docker image"
+            exit 1
+          fi
+        fi
+        docker push ${DOCKER_REGISTRY}:latest
+        
+    - name: Deploy Test Instance
+      id: deploy_test
+      run: |
+        export APP_VERSION=${{ env.VERSION }}
+        export APP_DISPLAY_VERSION="${{ env.DISPLAY_VERSION }}"
+        
+        # Configuration test instance
+        TEST_DOMAIN="test-virga.${COMPANY_DOMAIN}"
+        
+        echo "🚀 Deploying test instance to ${TEST_DOMAIN}..."
+        
+        ./deploy-instance.sh \
+          --company-name="test-instance" \
+          --company-address="Test Address" \
+          --company-phone="0123456789" \
+          --company-email="test@example.com" \
+          --domain="${TEST_DOMAIN}" \
+          --admin-password="${{ secrets.TEST_ADMIN_PASSWORD }}" \
+          --force
+          
+    - name: Verify Test Instance
+      run: |
+        TEST_DOMAIN="test-virga.${COMPANY_DOMAIN}"
+        echo "🔍 Verifying test instance at ${TEST_DOMAIN}..."
+        
+        # Wait for the service to be up
+        sleep 30
+        
+        # Test the health endpoint
+        if ! curl -f "https://${TEST_DOMAIN}/health"; then
+          echo "❌ Test instance health check failed"
+          exit 1
+        fi
+        echo "✅ Test instance health check passed"
+        
+        # Additional checks for test instance
+        echo "Running additional checks..."
+        curl -f "https://${TEST_DOMAIN}/health" | jq .
+        
+    - name: Prepare Pre-production
+      run: |
+        PREPROD_DOMAIN="preprod-virga.${COMPANY_DOMAIN}"
+        PROD_INSTANCE="${INSTANCE_DIR}/prod"
+        PREPROD_INSTANCE="${INSTANCE_DIR}/preprod"
+        
+        echo "🔄 Preparing pre-production environment..."
+        
+        # Ensure prod instance exists
+        if [ ! -d "$PROD_INSTANCE" ]; then
+          echo "❌ Production instance not found at ${PROD_INSTANCE}"
+          exit 1
+        fi
+        
+        # Create backup of current pre-prod if exists
+        if [ -d "$PREPROD_INSTANCE" ]; then
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          backup_dir="${BACKUP_BASE_DIR}/preprod_${timestamp}"
+          echo "📦 Backing up current pre-prod to ${backup_dir}"
+          cp -r "$PREPROD_INSTANCE" "$backup_dir"
+        fi
+        
+        # Copy production data to pre-prod
+        echo "📋 Copying production data to pre-prod..."
+        mkdir -p "$PREPROD_INSTANCE"
+        
+        # Copy only necessary files (database and configurations)
+        cp -r "${PROD_INSTANCE}/db" "${PREPROD_INSTANCE}/"
+        
+        echo "PREPROD_DOMAIN=${PREPROD_DOMAIN}" >> $GITHUB_ENV
+        echo "✅ Pre-production environment prepared"
+        
+    - name: Deploy to Pre-production
+      id: deploy_preprod
+      run: |
+        export APP_VERSION=${{ env.VERSION }}
+        export APP_DISPLAY_VERSION="${{ env.DISPLAY_VERSION }}"
+        
+        echo "🚀 Deploying pre-production instance to ${PREPROD_DOMAIN}..."
+        
+        ./deploy-instance.sh \
+          --company-name="preprod" \
+          --company-address="${{ secrets.PREPROD_ADDRESS }}" \
+          --company-phone="${{ secrets.PREPROD_PHONE }}" \
+          --company-email="${{ secrets.PREPROD_EMAIL }}" \
+          --domain="${PREPROD_DOMAIN}" \
+          --admin-password="${{ secrets.PREPROD_ADMIN_PASSWORD }}" \
+          --force
+          
+    - name: Verify Pre-production
+      run: |
+        echo "🔍 Verifying pre-production instance at ${PREPROD_DOMAIN}..."
+        
+        # Wait for the service to be up
+        sleep 30
+        
+        # Basic health check
+        if ! curl -f "https://${PREPROD_DOMAIN}/health"; then
+          echo "❌ Pre-production health check failed"
+          exit 1
+        fi
+        
+        # Additional verification steps
+        echo "Running additional checks..."
+        
+        # Check database integrity
+        if ! curl -f "https://${PREPROD_DOMAIN}/health" | jq -e '.database.status == "ok"'; then
+          echo "❌ Database integrity check failed"
+          exit 1
+        fi
+        
+        # Verify application version
+        if ! curl -f "https://${PREPROD_DOMAIN}/health" | jq -e ".version == \"${{ env.VERSION }}\""; then
+          echo "❌ Version mismatch in pre-production"
+          exit 1
+        fi
+        
+        echo "✅ Pre-production verification complete"
+        
+    - name: Cleanup Old Backups
+      if: always()
+      run: |
+        # Keep only last 5 backups
+        cd ${BACKUP_BASE_DIR}
+        ls -t | tail -n +6 | xargs -r rm -rf
+        echo "🧹 Cleaned up old backups"
+        echo "Remaining backups:"
+        ls -l
+        
+    - name: Notify Status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ Deployment successful"
+          echo "Version: ${{ env.DISPLAY_VERSION }}"
+          echo "Technical version: ${{ env.VERSION }}"
+          echo "Test URL: https://test-virga.${COMPANY_DOMAIN}"
+          echo "Pre-prod URL: https://preprod-virga.${COMPANY_DOMAIN}"
+          echo "Backup location: ${{ env.BACKUP_DIR }}"
+        else
+          echo "❌ Deployment failed"
+          echo "Version: ${{ env.DISPLAY_VERSION }}"
+          echo "Backup available at: ${{ env.BACKUP_DIR }}"
+          echo "Check the logs above for error details"
+        fi 

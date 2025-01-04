@@ -40,7 +40,8 @@ const requiredEnvVars = [
 
   // Instance Information
   'INSTANCE_ID',
-  'DOMAIN'
+  'DOMAIN',
+  'VERSION'
 ];
 
 // Optional environment variables with defaults
