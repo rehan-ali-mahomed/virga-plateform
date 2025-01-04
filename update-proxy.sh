@@ -169,7 +169,7 @@ EOF
     local temp_config="${PROXY_TMP_DIR}/haproxy.cfg.tmp"
     
     # Find the line number of the backend marker
-    local marker_line=$(sudo grep -n "^# ---SCRIPTED BACKENDS---" "$HAPROXY_CONFIG" | cut -d: -f1)
+    local marker_line=$(sudo grep -n "^# ---SCRIPTED BACKENDS---" "$HAPROXY_CONFIG" | head -n1 | cut -d: -f1)
     
     if [ -z "$marker_line" ]; then
         echo "Error: Backend marker not found in config"
@@ -242,7 +242,10 @@ add_update_instance() {
     if [ -z "$domain" ]; then
         echo "Error: Domain parameter is null or empty"
         return 1
+    else
+	echo "Domain param retreived : $domain"
     fi
+
     # Validate domain format
     if ! validate_domain "$domain"; then
         echo "Error: Instance creation failed due to invalid domain format"
@@ -268,11 +271,12 @@ add_update_instance() {
 
     # Update backend configuration
     update_backend_config "$company_dir" "$port" "$server_ip"
-
+    
     # Update domain mapping with additional checks
-    if [ -z "$domain" ] || [ -z "$company_dir" ]; then
-        echo "Error: Domain or company_dir is empty. Domain='$domain', Company='$company_dir'"
-        return 1
+    if [ -z "${domain}" ]; then
+	domain="$3"
+        # echo "Error: Domain or company_dir is empty. Domain=${domain}, Company=${company_dir}"
+        # return 1
     fi
 
     # Update domain mapping
