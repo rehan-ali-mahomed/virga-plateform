@@ -6,10 +6,17 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Read app version
-APP_VERSION=$(cat VERSION)
+# Build app version
+BASE_VERSION=$(cat VERSION)
+BUILD_DATE=$(date +'%Y.%m.%d')
+GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+BUILD_NUMBER=$(git rev-list --count HEAD)
+
+# Generate versions
+export APP_VERSION="${BASE_VERSION}-${BUILD_NUMBER}-${GIT_SHORT_SHA}"
+
 if [ -z "$APP_VERSION" ]; then
-    error "Failed to read version from VERSION file"
+    export APP_VERSION="latest"
 fi
 
 # Function to print error and exit
@@ -126,10 +133,6 @@ EOL
         error "Failed to create secrets file"
     fi
 
-    # Ensure proper ownership and permissions for secrets file
-    if ! chown $(id -u):$(id -g) "$secrets_file" || ! chmod 600 "$secrets_file"; then
-        error "Failed to set secrets file permissions"
-    fi
     
     success "Secrets saved to $secrets_file"
     
@@ -153,11 +156,6 @@ EOL
         error "Failed to create credentials file"
     fi
     
-    # Set file permissions for credentials file
-    if ! chown $(id -u):$(id -g) "$credentials_file" || ! chmod 600 "$credentials_file"; then
-        error "Failed to set credentials file permissions"
-    fi
-    
     # Schedule credentials file deletion
     if ! echo "rm -f \"$credentials_file\"" | at now + 24 hours 2>/dev/null; then
         info "Note: Could not schedule automatic deletion of credentials file"
@@ -170,8 +168,14 @@ EOL
 if [ -f "config.env" ]; then
     source config.env
 else
-    error "config.env not found"
+    info "config.env not found, will prompt for all required values"
 fi
+
+# Prompt for proxy configuration if not defined
+prompt_required PROXY_USER "Enter proxy server username"
+prompt_required PROXY_HOST "Enter proxy server hostname"
+prompt_required PROXY_MANAGER_DIR "Enter proxy manager directory path"
+prompt_required APP_SERVER_IP "Enter application server IP"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -215,10 +219,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --company-address=ADDR  Company address"
             echo "  --company-phone=PHONE   Company phone"
             echo "  --company-email=EMAIL   Company email"
-            echo "  --port=PORT            Port number (default: 3000)"
-            echo "  --domain=DOMAIN        Domain name"
-            echo "  --admin-password=PASS  Admin password (will prompt if not provided)"
-            echo "  --force                Force redeployment"
+            echo "  --port=PORT             Port number (default: 3000)"
+            echo "  --domain=DOMAIN         Domain name"
+            echo "  --admin-password=PASS   Admin password (will prompt if not provided)"
+            echo "  --force                 Force redeployment"
             exit 0
             ;;
         *)
@@ -283,16 +287,6 @@ if ! mkdir -p ${INSTANCE_DIR}/{db,logs}; then
     error "Failed to create instance directories"
 fi
 
-# Set proper permissions for instance directory
-if ! chmod 755 ${INSTANCE_DIR} ${INSTANCE_DIR}/{db,logs}; then
-    error "Failed to set directory permissions"
-fi
-
-# Ensure current user owns the directories
-if ! chown -R $(id -u):$(id -g) ${INSTANCE_DIR}; then
-    error "Failed to set directory ownership"
-fi
-
 # Display instance directory with a 
 success "Created/Updated instance directories ${INSTANCE_DIR}"
 
@@ -305,7 +299,7 @@ version: '3.8'
 
 services:
   carinspection:
-    image: rehanalimahomed/virga-platform:${APP_VERSION}
+    image: rehanalimahomed/virga-plateform:latest
     container_name: ${COMPANY_DIR}-plateform
     ports:
       - "${PORT}:3000"
@@ -321,6 +315,7 @@ services:
       # Instance Information
       - INSTANCE_ID=${COMPANY_DIR}
       - DOMAIN=${DOMAIN}
+      - APP_VERSION=${APP_VERSION}
       
     env_file:
       - secrets.env
@@ -339,11 +334,6 @@ services:
 EOL
 then
     error "Failed to create docker-compose.yml"
-fi
-
-# Set proper permissions for docker-compose.yml
-if ! chmod 644 ${INSTANCE_DIR}/docker-compose.yml; then
-    error "Failed to set docker-compose.yml permissions"
 fi
 
 # Deploy container

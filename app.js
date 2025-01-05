@@ -245,7 +245,17 @@ initializeDatabase()
 
 app.closeServer = () => {
   return new Promise((resolve) => {
-    appServer.close(() => resolve());
+    if (appServer && appServer.listening) {
+      // Close all existing connections
+      appServer.unref();
+      // Close the server
+      appServer.close(() => {
+        appServer = null;
+        resolve();
+      });
+    } else {
+      resolve();
+    }
   });
 };
 
