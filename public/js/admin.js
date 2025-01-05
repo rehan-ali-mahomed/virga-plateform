@@ -133,7 +133,7 @@ const clearError = (input) => {
   }
 };
 
-// Validate form based on type
+// eslint-disable-next-line no-unused-vars
 const validateForm = (type) => {
   let isValid = true;
   console.log(`Starting validation for type: ${type}`);

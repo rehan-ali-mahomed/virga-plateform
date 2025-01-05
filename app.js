@@ -193,6 +193,8 @@ app.use((req, res) => {
   });
 });
 
+let appServer;
+
 // Initialize database before starting the server
 initializeDatabase()
   .then(() => {
@@ -225,20 +227,26 @@ initializeDatabase()
         }
         
         // Create HTTPS server
-        const httpsServer = https.createServer(sslOptions, app);
-        httpsServer.listen(PORT, () => handleServerStart('HTTPS'));
+        appServer = https.createServer(sslOptions, app);
+        appServer.listen(PORT, () => handleServerStart('HTTPS'));
       } catch (error) {
         logger.error('Failed to start HTTPS server:', error);
         logger.warn('Falling back to HTTP server');
-        app.listen(PORT, () => handleServerStart('HTTP/Fallback'));
+        appServer = app.listen(PORT, () => handleServerStart('HTTP/Fallback'));
       }
     } else {
-      app.listen(PORT, () => handleServerStart('HTTP'));
+      appServer = app.listen(PORT, () => handleServerStart('HTTP'));
     }
   })
   .catch((err) => {
     logger.error('Failed to initialize database:', err);
     process.exit(1);
   });
+
+app.closeServer = () => {
+  return new Promise((resolve) => {
+    appServer.close(() => resolve());
+  });
+};
 
 module.exports = app;
