@@ -1,3 +1,5 @@
+/* eslint-env browser */
+
 document.addEventListener('DOMContentLoaded', () => {
   // Global variables
   const form = document.getElementById('inspection-form');
@@ -135,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  previewPdfBtn.addEventListener('click', async (e) => {
+  previewPdfBtn.addEventListener('click', async () => {
 
     if (!validateForm(true)) {
       console.error('Form validation failed, preventing submission');
@@ -281,16 +283,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function formatInput(input, type) {
     // input.value = input.value.trim();
     switch(type) {
-      case 'sentence': input.value = toSentenceCase(input.value); break;
-      case 'upper': input.value = input.value.toUpperCase(); break;
-      case 'camel': input.value = toCamelCase(input.value); break;
-      case 'first_letter_only': input.value = input.value.charAt(0).toUpperCase() + input.value.slice(1); break;
-      case 'lower': input.value = input.value.toLowerCase(); break;
-      case 'brake_thicknesses': 
-        if (input.value.includes('/')) {
-          input.value = input.value.replace(/\//g, ' / ').replace(/\s+/g, ' ').replace(/\s+$/, '');
-        }
-        break;
+    case 'sentence': input.value = toSentenceCase(input.value); break;
+    case 'upper': input.value = input.value.toUpperCase(); break;
+    case 'camel': input.value = toCamelCase(input.value); break;
+    case 'first_letter_only': input.value = input.value.charAt(0).toUpperCase() + input.value.slice(1); break;
+    case 'lower': input.value = input.value.toLowerCase(); break;
+    case 'brake_thicknesses': 
+      if (input.value.includes('/')) {
+        input.value = input.value.replace(/\//g, ' / ').replace(/\s+/g, ' ').replace(/\s+$/, '');
+      }
+      break;
     }
   }
 
@@ -302,23 +304,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (form) {
       for(const [key, val] of Object.entries(data)) {
-          const input = document.getElementById(key);
+        const input = document.getElementById(key);
 
-          if (input) {
-            switch(input.type) {
-                case 'checkbox': input.checked = !!val; break;
-                case 'date': 
-                  try {
-                    input.value = new Date(val).toISOString().split('T')[0];
-                  } catch (error) {
-                    input.value = val;
-                    console.error(`fillForm() : Error in date formatting for ${key} => ${val}`, error);
-                  }
-                  break;
-                case 'number': input.value = Number(val); break;
-                case 'textarea': input.value = val; break;
-                default: input.value = val; break;
+        if (input) {
+          switch(input.type) {
+          case 'checkbox': input.checked = !!val; break;
+          case 'date': 
+            try {
+              input.value = new Date(val).toISOString().split('T')[0];
+            } catch (error) {
+              input.value = val;
+              console.error(`fillForm() : Error in date formatting for ${key} => ${val}`, error);
             }
+            break;
+          case 'number': input.value = Number(val); break;
+          case 'textarea': input.value = val; break;
+          default: input.value = val; break;
+          }
         }
       }
 
@@ -347,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 option.selected = true;
               }
             });
-          }
+        }
       }
     } else {
       console.error('Form not found in DOM');
@@ -364,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return str
       .split(' ') // Split into words
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) // Capitalize first letter
-      .join(' ') // Join back with single spaces
+      .join(' '); // Join back with single spaces
   };
 
   // Set radio inputs to checked if not already checked
@@ -375,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isChecked = Array.from(radios).some(radio => radio.checked);
 
       if (!isChecked) {
-          const nonVerifieRadio = group.querySelector('input[type="radio"][value="2"]');
+        const nonVerifieRadio = group.querySelector('input[type="radio"][value="2"]');
         if (nonVerifieRadio) {
           nonVerifieRadio.checked = true;
           console.info(`Set radio with id="2" to checked for group: ${group.id}`);
@@ -384,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
-  }
+  };
 
   let allVehicles = [];
   let filteredVehicles = [];

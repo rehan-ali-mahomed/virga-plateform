@@ -61,7 +61,7 @@ router.get('/api-vehicule-details/:id', isAuthenticated, async (req, res) => {
         is_company: customer.is_company
       };
 
-      logger.debug(`Vehicule and customer found`);
+      logger.debug('Vehicule and customer found');
 
       res.json({
         success: true,

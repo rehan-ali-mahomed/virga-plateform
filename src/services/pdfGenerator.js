@@ -95,8 +95,8 @@ const organizeInspectionResults = (results) => {
         value: result.value || 'Non Vérifier',
         type: result.type || 'options',
         status: result.value === 'Conforme' ? 'good' : 
-                result.value === 'Pas bon' ? 'critical' : 
-                'neutral'
+          result.value === 'Pas bon' ? 'critical' : 
+            'neutral'
       });
 
       return acc;
@@ -113,22 +113,22 @@ const drawHeader = (doc, report) => {
   // Left side - Company logo
   doc.save();
   doc.roundedRect(25, 15, headerHeight * 0.75, headerHeight * 0.75, 4)
-     .clip();
+    .clip();
   doc.image(path.join(process.cwd(), 'public', 'img', 'company_logo.png'), 25, 15, { height: headerHeight * 0.75 });
   doc.restore();
 
   // Company name
   doc.font(textStyles.mainTitle.font)
-     .fontSize(textStyles.mainTitle.size)
-     .fillColor(colors.primary.main)
-     .text(process.env.COMPANY_NAME, 97, 15);
+    .fontSize(textStyles.mainTitle.size)
+    .fillColor(colors.primary.main)
+    .text(process.env.COMPANY_NAME, 97, 15);
 
   // Separator line
   doc.moveTo(95, 35)
-     .lineTo(300, 35)
-     .strokeColor(colors.primary.medium)
-     .lineWidth(0.5)
-     .stroke();
+    .lineTo(300, 35)
+    .strokeColor(colors.primary.medium)
+    .lineWidth(0.5)
+    .stroke();
 
   // Company info
   const companyInfo = [
@@ -140,33 +140,33 @@ const drawHeader = (doc, report) => {
   let infoY = 42;
   companyInfo.forEach(info => {
     doc.font(textStyles.headerInfo.font)
-       .fontSize(textStyles.headerInfo.size)
-       .fillColor(colors.primary.main)
-       .text(`${info.label}`, 95, infoY);
+      .fontSize(textStyles.headerInfo.size)
+      .fillColor(colors.primary.main)
+      .text(`${info.label}`, 95, infoY);
 
     doc.font(textStyles.headerInfo.font)
-       .text(info.value, 140, infoY);
+      .text(info.value, 140, infoY);
     infoY += spacing.xl;
   });
 
   // Right side - Client info box
   doc.roundedRect(380, 15, 190, headerHeight - 15, 4)
-     .fillColor(colors.primary.light)
-     .fill();
+    .fillColor(colors.primary.light)
+    .fill();
 
   doc.font(textStyles.headerDate.font)
-     .fontSize(textStyles.headerDate.size)
-     .fillColor(colors.primary.main)
-     .text(` ${new Date(report.created_at).toLocaleDateString('fr-FR')}`, 390, 20, {
-       width: 170,
-       align: 'center'
-     });
+    .fontSize(textStyles.headerDate.size)
+    .fillColor(colors.primary.main)
+    .text(` ${new Date(report.created_at).toLocaleDateString('fr-FR')}`, 390, 20, {
+      width: 170,
+      align: 'center'
+    });
 
   doc.moveTo(390, 35)
-     .lineTo(560, 35)
-     .strokeColor(colors.primary.medium)
-     .lineWidth(0.5)
-     .stroke();
+    .lineTo(560, 35)
+    .strokeColor(colors.primary.medium)
+    .lineWidth(0.5)
+    .stroke();
 
   const clientInfo = [
     { label: 'Nom', value: report.client_name || 'N/A' },
@@ -177,12 +177,12 @@ const drawHeader = (doc, report) => {
   let clientY = 42;
   clientInfo.forEach(info => {
     doc.font(textStyles.headerInfo.font)
-       .fontSize(textStyles.headerInfo.size)
-       .fillColor(colors.primary.main)
-       .text(info.label, 390, clientY);
+      .fontSize(textStyles.headerInfo.size)
+      .fillColor(colors.primary.main)
+      .text(info.label, 390, clientY);
 
     doc.font(textStyles.headerInfo.font)
-       .text(info.value, 440, clientY);
+      .text(info.value, 440, clientY);
     clientY += spacing.xl;
   });
 
@@ -217,35 +217,35 @@ const drawInfoSection = (doc, report, startY) => {
   const vehiculeHeight = Math.max(infoHeight * leftColumnInfo.length, infoHeight * rightColumnInfo.length) + infoHeight + spacing.lg;
   
   doc.roundedRect(25, startY, sectionWidth, vehiculeHeight, 4)
-     .fillColor(colors.primary.light)
-     .fill();
+    .fillColor(colors.primary.light)
+    .fill();
 
   doc.roundedRect(25, startY, sectionWidth, 20, 4)
-     .fillColor(colors.primary.main)
-     .fill();
+    .fillColor(colors.primary.main)
+    .fill();
 
   doc.font(textStyles.sectionHeader.font)
-     .fontSize(textStyles.sectionHeader.size)
-     .fillColor(colors.primary.contrast)
-     .text('VÉHICULE', 25, startY + 5, {
-       width: sectionWidth,
-       align: 'center'
-     });
+    .fontSize(textStyles.sectionHeader.size)
+    .fillColor(colors.primary.contrast)
+    .text('VÉHICULE', 25, startY + 5, {
+      width: sectionWidth,
+      align: 'center'
+    });
 
   let infoY = startY + 27;
   
   // Draw left column
   leftColumnInfo.forEach(info => {
     doc.font(fonts.medium)
-       .fontSize(9)
-       .fillColor(colors.primary.main)
-       .text(info.label, 35, infoY);
+      .fontSize(9)
+      .fillColor(colors.primary.main)
+      .text(info.label, 35, infoY);
 
     doc.font(info.bold ? fonts.bold : fonts.regular)
-       .text(info.value, 35, infoY, {
-         width: columnWidth - 20,
-         align: 'right'
-       });
+      .text(info.value, 35, infoY, {
+        width: columnWidth - 20,
+        align: 'right'
+      });
     infoY += infoHeight;
   });
 
@@ -253,15 +253,15 @@ const drawInfoSection = (doc, report, startY) => {
   infoY = startY + 27;
   rightColumnInfo.forEach(info => {
     doc.font(fonts.medium)
-       .fontSize(9)
-       .fillColor(colors.primary.main)
-       .text(info.label, sectionWidth/2 + 15, infoY);
+      .fontSize(9)
+      .fillColor(colors.primary.main)
+      .text(info.label, sectionWidth/2 + 15, infoY);
 
     doc.font(info.bold ? fonts.bold : fonts.regular)
-       .text(info.value, sectionWidth/2 + 50, infoY, {
-         width: columnWidth - 10,
-         align: 'right'
-       });
+      .text(info.value, sectionWidth/2 + 50, infoY, {
+        width: columnWidth - 10,
+        align: 'right'
+      });
     infoY += infoHeight;
   });
 
@@ -273,34 +273,34 @@ const drawInfoSection = (doc, report, startY) => {
     const commentsHeight = 100;
 
     doc.roundedRect(25, commentsY, sectionWidth, commentsHeight, 4)
-       .fillColor(colors.primary.light)
-       .fill();
+      .fillColor(colors.primary.light)
+      .fill();
 
     doc.roundedRect(25, commentsY, sectionWidth, 20, 4)
-       .fillColor(colors.primary.main)
-       .fill();
+      .fillColor(colors.primary.main)
+      .fill();
 
     doc.font(textStyles.sectionHeader.font)
-       .fontSize(textStyles.sectionHeader.size)
-       .fillColor(colors.primary.contrast)
-       .text('OBSERVATIONS', 25, commentsY + 5, {
-         width: sectionWidth,
-         align: 'center'
-       });
+      .fontSize(textStyles.sectionHeader.size)
+      .fillColor(colors.primary.contrast)
+      .text('OBSERVATIONS', 25, commentsY + 5, {
+        width: sectionWidth,
+        align: 'center'
+      });
 
     doc.font(fonts.regular)
-       .fontSize(8)
-       .fillColor(colors.primary.main)
-       .text(report.comments.replace(/[^\x20-\x7E\n]/g, ""), 
-            35, 
-            commentsY + 25, 
-            {
-              width: sectionWidth - 40,
-              height: commentsHeight - 35,
-              lineGap: 3,
-              paragraphGap: 3,
-              align: 'left'
-            });
+      .fontSize(8)
+      .fillColor(colors.primary.main)
+      .text(report.comments.replace(/[^\x20-\x7E\n]/g, ''), 
+        35, 
+        commentsY + 25, 
+        {
+          width: sectionWidth - 40,
+          height: commentsHeight - 35,
+          lineGap: 3,
+          paragraphGap: 3,
+          align: 'left'
+        });
 
     return commentsY + commentsHeight + spacing.lg;
   }
@@ -308,7 +308,7 @@ const drawInfoSection = (doc, report, startY) => {
   return startY + vehiculeHeight + spacing.lg;
 };
 
-const drawInspectionGrid = (doc, x, y, results, options) => {
+const drawInspectionGrid = (doc, x, y, results) => {
   let currentY = y;
   const sectionWidth = 170; // Width for each category section
   const spacing = 12; // Space between sections
@@ -327,48 +327,48 @@ const drawInspectionGrid = (doc, x, y, results, options) => {
       
       // Draw background for the entire section
       doc.roundedRect(xPos, yPos, sectionWidth, 
-                     (items.length + 1) * lineHeight,
-                     4)
-         .fillColor(colors.primary.light)
-         .fill();
+        (items.length + 1) * lineHeight,
+        4)
+        .fillColor(colors.primary.light)
+        .fill();
       
       // Draw category header with smaller height and new color
       doc.roundedRect(xPos, yPos, sectionWidth, 18, 4)
-         .fillColor('#2596be')
-         .fill();
+        .fillColor('#2596be')
+        .fill();
 
       // Center the text vertically and horizontally
       doc.font(textStyles.sectionHeader.font)
-         .fontSize(textStyles.sectionHeader.size)
-         .fillColor(colors.primary.contrast)
-         .text(category, 
-               xPos, 
-               yPos + (18 - textStyles.sectionHeader.size) / 2, // Center vertically
-               { 
-                 width: sectionWidth,
-                 align: 'center',
-                 lineGap: 0
-               });
+        .fontSize(textStyles.sectionHeader.size)
+        .fillColor(colors.primary.contrast)
+        .text(category, 
+          xPos, 
+          yPos + (18 - textStyles.sectionHeader.size) / 2, // Center vertically
+          { 
+            width: sectionWidth,
+            align: 'center',
+            lineGap: 0
+          });
 
       yPos += lineHeight;
 
       // Draw items
       items.forEach(item => {
         doc.font(textStyles.itemText.font)
-           .fontSize(textStyles.itemText.size)
-           .fillColor(textStyles.itemText.color)
-           .text(item.name, 
-                 xPos + 10, 
-                 yPos + (18 - textStyles.itemText.size) / 2,
-                 { width: sectionWidth - 40 });
+          .fontSize(textStyles.itemText.size)
+          .fillColor(textStyles.itemText.color)
+          .text(item.name, 
+            xPos + 10, 
+            yPos + (18 - textStyles.itemText.size) / 2,
+            { width: sectionWidth - 40 });
 
         if (item.type === 'options') {
           if (fs.existsSync(item.value.icon_absolute_path)) {
             const svgContent = fs.readFileSync(item.value.icon_absolute_path, 'utf8');
             doc.addSVG(svgContent, 
-                      xPos + sectionWidth - 25, 
-                      yPos, 
-                      { width: 16, height: 16 });
+              xPos + sectionWidth - 25, 
+              yPos, 
+              { width: 16, height: 16 });
           }
         }
 
@@ -389,25 +389,25 @@ const drawFooter = (doc, pageHeight) => {
   const footerMargin = 30;
   
   doc.save()
-     .moveTo(25, pageHeight - footerMargin)
-     .lineTo(570, pageHeight - footerMargin)
-     .strokeColor(colors.primary.medium)
-     .lineWidth(0.5)
-     .stroke();
+    .moveTo(25, pageHeight - footerMargin)
+    .lineTo(570, pageHeight - footerMargin)
+    .strokeColor(colors.primary.medium)
+    .lineWidth(0.5)
+    .stroke();
 
   doc.font(fonts.regular)
-     .fontSize(9)
-     .fillColor(colors.primary.main)
-     .text(
+    .fontSize(9)
+    .fillColor(colors.primary.main)
+    .text(
       // This pdf has been generated by Auto Presto
-       `Ce document a été généré automatiquement par ${process.env.COMPANY_NAME}. © ${new Date().getFullYear()} Tous droits réservés.`,
-       0,
-       pageHeight - footerMargin + 10,
-       {
-         align: 'center',
-         width: doc.page.width
-       }
-     );
+      `Ce document a été généré automatiquement par ${process.env.COMPANY_NAME}. © ${new Date().getFullYear()} Tous droits réservés.`,
+      0,
+      pageHeight - footerMargin + 10,
+      {
+        align: 'center',
+        width: doc.page.width
+      }
+    );
 };
 
 const generatePDF = (report) => {
@@ -438,7 +438,7 @@ const generatePDF = (report) => {
       currentY = drawInfoSection(doc, report, currentY);
       
       const organizedResults = organizeInspectionResults(report.inspection_results || []);
-      currentY = drawInspectionGrid(doc, 25, currentY, organizedResults, optimizedGrid);
+      drawInspectionGrid(doc, 25, currentY, organizedResults, optimizedGrid);
       
       drawFooter(doc, pageHeight);
 

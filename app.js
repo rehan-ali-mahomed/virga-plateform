@@ -40,8 +40,7 @@ const requiredEnvVars = [
 
   // Instance Information
   'INSTANCE_ID',
-  'DOMAIN',
-  'VERSION'
+  'DOMAIN'
 ];
 
 // Optional environment variables with defaults
@@ -81,10 +80,10 @@ const app = express();
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      imgSrc: ["'self'", 'data:', 'https:'],
+      defaultSrc: ['\'self\''],
+      styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https:'],
+      scriptSrc: ['\'self\'', '\'unsafe-inline\'', 'https:'],
+      imgSrc: ['\'self\'', 'data:', 'https:'],
     },
   },
   hsts: {

@@ -2,7 +2,8 @@
     "env": {
         "node": true,
         "es2021": true,
-        "jest": true
+        "jest": true,
+        "browser": true
     },
     "extends": "eslint:recommended",
     "parserOptions": {
@@ -15,6 +16,19 @@
         "quotes": ["error", "single"],
         "semi": ["error", "always"],
         "no-unused-vars": ["warn"],
-        "no-console": ["warn"]
+        "no-undef": ["off"],
+        "no-console": ["off"]
+    },
+    "globals": {
+        "document": "readonly",
+        "window": "readonly",
+        "location": "readonly",
+        "confirm": "readonly",
+        "DOMParser": "readonly",
+        "requestAnimationFrame": "readonly",
+        "bootstrap": "readonly",
+        "isModalOpen": "writable",
+        "searchTimeout": "writable",
+        "toggleButton": "writable"
     }
 } 

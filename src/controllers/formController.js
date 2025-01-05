@@ -47,7 +47,7 @@ const updateForm = async (req, res, userId) => {
       inspectionItems: req.inspectionItems || []
     });
   }
-}
+};
 
 module.exports = {
   submitForm,

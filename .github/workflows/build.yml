@@ -440,6 +440,4 @@ jobs:
           echo "❌ Deployment Pipeline Failed"
           echo "Version: ${{ needs.initialize.outputs.display_version }}"
           echo "Check deployment reports for error details"
-        fi 
-        fi 
-        fi 
+        fi

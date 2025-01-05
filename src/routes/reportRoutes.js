@@ -124,8 +124,8 @@ const handlePDFStream = (pdfPath, res, customer_name, license_plate, formatedDat
   const fileName = `${customer_name} - ${license_plate} - ${formatedDate}.pdf`;
   
   res.setHeader('Content-Disposition', download ?
-     `attachment; filename="${fileName}"` : 
-     `inline; filename="${fileName}"`);
+    `attachment; filename="${fileName}"` : 
+    `inline; filename="${fileName}"`);
 
   
   res.setHeader('Content-Type', 'application/pdf');
@@ -228,7 +228,7 @@ router.get('/:id', isAuthenticated, async (req, res) => {
     let mechanicsParsed = JSON.parse(report.mechanics);
     
     if (mechanicsParsed.length === 0) {
-      mechanics.push("Pas de mécanicien assigné");
+      mechanics.push('Pas de mécanicien assigné');
     } else {
       for (let mechanic in mechanicsParsed) {
         const mechanic_id = mechanicsParsed[mechanic];

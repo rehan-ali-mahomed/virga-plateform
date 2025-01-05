@@ -6,7 +6,7 @@ const {
   // Users
   addUser,
   getUserById,
-  getUserByUsername,
+  getAllActiveUsers,
   updateUser,
   deleteUser,
   // Customers
@@ -196,17 +196,17 @@ router.post('/users', isAuthenticated, isAdmin, async (req, res) => {
 // PUT /admin/users/:id - Update an existing user
 router.put('/users/:id', isAuthenticated, isAdmin, async (req, res) => {
   const userId = req.params.id;
-  const updates = req.body;
+  const { first_name, last_name, email, role, password, is_active } = req.body;
   
   try {
-    await updateUser(userId, updates);
+    await updateUser(userId, { first_name, last_name, email, role, password, is_active });
     
     res.json({ 
       message: 'Utilisateur modifié avec succès' 
     });
   } catch (error) {
     res.status(error.message === 'Utilisateur non trouvé' ? 404 : 500)
-       .json({ error: error.message });
+      .json({ error: error.message });
   }
 });
 
@@ -508,15 +508,15 @@ router.post('/inspectionItems', isAuthenticated, isAdmin, async (req, res) => {
     await dbRun(db, `
       INSERT INTO InspectionItems (item_id, name, type, category, is_active, display_order, options)
       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        itemId,
-        name,
-        type,
-        category,
-        is_active ? 1 : 0,
-        display_order || 0,
-        optionsJSON
-      ]
+    [
+      itemId,
+      name,
+      type,
+      category,
+      is_active ? 1 : 0,
+      display_order || 0,
+      optionsJSON
+    ]
     );
 
     res.status(201).json({ message: 'Point de contrôle créé avec succès.' });
@@ -549,15 +549,15 @@ router.put('/inspectionItems/:id', isAuthenticated, isAdmin, async (req, res) =>
       UPDATE InspectionItems 
       SET name = ?, type = ?, category = ?, is_active = ?, display_order = ?, options = ?
       WHERE item_id = ?`,
-      [
-        updatedName,
-        updatedType,
-        updatedCategory,
-        updatedIsActive,
-        updatedDisplayOrder,
-        updatedOptions,
-        id
-      ]
+    [
+      updatedName,
+      updatedType,
+      updatedCategory,
+      updatedIsActive,
+      updatedDisplayOrder,
+      updatedOptions,
+      id
+    ]
     );
 
     res.json({ message: 'Point de contrôle mis à jour avec succès.' });

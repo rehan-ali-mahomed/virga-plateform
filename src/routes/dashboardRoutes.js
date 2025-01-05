@@ -38,7 +38,7 @@ router.get('/', isAuthenticated, async (req, res) => {
       params.push(searchParam, searchParam, searchParam, searchParam);
     }
 
-    query += ` ORDER BY ir.created_at DESC`;
+    query += ' ORDER BY ir.created_at DESC';
 
     const reports = await new Promise((resolve, reject) => {
       db.all(query, params, (err, rows) => {

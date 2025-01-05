@@ -23,9 +23,13 @@ router.get('/login', (req, res) => {
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  console.log('username => ', username);
+  console.log('password => ', password);
 
   try {
     const user = await getUserWithPasswordByUsername(username);
+
+    logger.debug('User => ', user);
 
     if (!user) {
       return res.render('login', { 
@@ -43,10 +47,13 @@ router.post('/login', async (req, res) => {
       });
     }
     
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await bcrypt.compareSync(password, user.password);
+    logger.debug(`Password dont matches => ${user.password} and ${bcrypt.hashSync(password, 12)} for password => ${password}`);
+
     if (!isValidPassword) {
+      logger.debug('Invalid password for user => ', user.username, ' (', user.user_id, ')');
       return res.render('login', { 
-        error: 'Invalid password',
+        error: 'Mot de passe incorrect',
         errors: [],
         user: null
       });

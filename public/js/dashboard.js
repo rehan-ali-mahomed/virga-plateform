@@ -1,3 +1,5 @@
+/* eslint-env browser */
+
 document.addEventListener('DOMContentLoaded', () => {
   let reportToDelete = null;
   const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteModal'));

@@ -32,7 +32,13 @@
               })()
             %> <br><i class="fa-regular fa-calendar-plus"></i> Créé par : <%= created_by ? `${created_by.first_name} ${created_by.last_name}` : 'N/A' %>
             <% if (mechanics[0] !== 'Pas de mécanicien assigné') { %>
-              <br><i class="far fa-user-circle"></i> Mécaniciens : <%= mechanics.map(mechanic => `${mechanic.first_name} ${mechanic.last_name}`).join(', ') %>
+              <br><i class="far fa-user-circle"></i> Mécaniciens : <%= mechanics.map(mechanic => {
+                if (mechanic.is_active === 0) {
+                  return `${mechanic.first_name} ${mechanic.last_name} (Désactivé)`;
+                } else {
+                  return `${mechanic.first_name} ${mechanic.last_name}`;
+                }
+              }).join(', ') %>
             <% } else { %>
               <br><i class="far fa-user-circle"></i> Mécaniciens : <%= mechanics[0] %>
             <% } %>

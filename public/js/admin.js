@@ -1,5 +1,7 @@
 // File: public/js/admin.js
 
+var searchTimeout;
+
 // Input formatting configurations
 const inputsToFormat = [
   // User form
@@ -27,65 +29,65 @@ const formatInput = (input, type) => {
   let value = input.value;
   
   switch(type) {
-    case 'sentence': 
-      value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-      break;
+  case 'sentence': 
+    value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+    break;
       
-    case 'upper': 
-      value = value.toUpperCase();
-      break;
+  case 'upper': 
+    value = value.toUpperCase();
+    break;
       
-    case 'camel': 
-      value = value.split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
-      break;
+  case 'camel': 
+    value = value.split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+    break;
       
-    case 'first_letter_only': {
-      // Split into words while preserving cursor position
-      const cursorPos = input.selectionStart;
-      const words = value.split(' ');
-      let currentPos = 0;
+  case 'first_letter_only': {
+    // Split into words while preserving cursor position
+    const cursorPos = input.selectionStart;
+    const words = value.split(' ');
+    let currentPos = 0;
       
-      // Find which word the cursor is in
-      const formattedWords = words.map((word, index) => {
-        const wordStart = currentPos;
-        const wordEnd = wordStart + word.length;
-        currentPos = wordEnd + 1; // +1 for the space
+    // Find which word the cursor is in
+    const formattedWords = words.map((word) => {
+      const wordStart = currentPos;
+      const wordEnd = wordStart + word.length;
+      currentPos = wordEnd + 1; // +1 for the space
         
-        // If this is the word being typed (cursor is in or at the end of this word)
-        if (cursorPos > wordStart && cursorPos <= wordEnd) {
-          return word; // Leave the current word as is
-        }
-        
-        // Format completed words
-        if (word) {
-          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-        }
-        return '';
-      });
-      
-      value = formattedWords.join(' ');
-      
-      // Restore cursor position
-      input.value = value;
-      input.setSelectionRange(cursorPos, cursorPos);
-      return; // Early return since we've already set the value
-    }
-      
-    case 'lower': 
-      value = value.toLowerCase();
-      break;
-      
-    case 'phone':
-      value = value.replace(/\D/g, '').slice(0, 10);
-      break;
-      
-    case 'brake_thicknesses': 
-      if (value.includes('/')) {
-        value = value.replace(/\//g, ' / ').replace(/\s+/g, ' ').replace(/\s+$/, '');
+      // If this is the word being typed (cursor is in or at the end of this word)
+      if (cursorPos > wordStart && cursorPos <= wordEnd) {
+        return word; // Leave the current word as is
       }
-      break;
+        
+      // Format completed words
+      if (word) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return '';
+    });
+      
+    value = formattedWords.join(' ');
+      
+    // Restore cursor position
+    input.value = value;
+    input.setSelectionRange(cursorPos, cursorPos);
+    return; // Early return since we've already set the value
+  }
+      
+  case 'lower': 
+    value = value.toLowerCase();
+    break;
+      
+  case 'phone':
+    value = value.replace(/\D/g, '').slice(0, 10);
+    break;
+      
+  case 'brake_thicknesses': 
+    if (value.includes('/')) {
+      value = value.replace(/\//g, ' / ').replace(/\s+/g, ' ').replace(/\s+$/, '');
+    }
+    break;
   }
   
   input.value = value;
@@ -319,65 +321,65 @@ const validateForm = (type) => {
 };
 
 const openModal = (type, id = null) => {
-  console.log("Fetching data form entity", type, id);
+  console.log('Fetching data form entity', type, id);
 
-    const modalContainer = document.getElementById('modalContainer');
-    const modal = document.getElementById(`${type}Modal`);
-    isModalOpen = true;
+  const modalContainer = document.getElementById('modalContainer');
+  const modal = document.getElementById(`${type}Modal`);
+  isModalOpen = true;
 
-    if(isModalOpen) {
-      closeModal();
-    }
+  if(isModalOpen) {
+    closeModal();
+  }
     
-    // Reset form if it exists
-    const form = modal.querySelector('form');
-    if (form) {
-      form.reset();
-      // Reset password field requirement
-      const passwordField = form.querySelector('#password');
-      if (passwordField) {
-        passwordField.required = !id; // Required for new users, optional for editing
-      }
+  // Reset form if it exists
+  const form = modal.querySelector('form');
+  if (form) {
+    form.reset();
+    // Reset password field requirement
+    const passwordField = form.querySelector('#password');
+    if (passwordField) {
+      passwordField.required = !id; // Required for new users, optional for editing
     }
+  }
     
-    // Update modal title
-    const titleElement = modal.querySelector('h3');
-    if (titleElement && type !== 'carsReports') {
-      let title;
-      switch (type) {
-        case 'user':
-          title = id ? 'Modifier utilisateur' : 'Nouvel utilisateur';
-          break;
-        case 'customer':
-          title = id ? 'Modifier client' : 'Nouveau client';
-          break;
-        case 'vehicule':
-          title = id ? 'Modifier véhicule' : 'Nouveau véhicule';
-          break;
-        case 'inspectionItem':
-          title = id ? 'Modifier item d\'inspection' : 'Nouvel item d\'inspection';
-          break;
-        default:
-          title = id ? `Modifier ${type}` : `Nouveau ${type}`;
-      }
-      titleElement.textContent = title;
+  // Update modal title
+  const titleElement = modal.querySelector('h3');
+  if (titleElement && type !== 'carsReports') {
+    let title;
+    switch (type) {
+    case 'user':
+      title = id ? 'Modifier utilisateur' : 'Nouvel utilisateur';
+      break;
+    case 'customer':
+      title = id ? 'Modifier client' : 'Nouveau client';
+      break;
+    case 'vehicule':
+      title = id ? 'Modifier véhicule' : 'Nouveau véhicule';
+      break;
+    case 'inspectionItem':
+      title = id ? 'Modifier item d\'inspection' : 'Nouvel item d\'inspection';
+      break;
+    default:
+      title = id ? `Modifier ${type}` : `Nouveau ${type}`;
     }
+    titleElement.textContent = title;
+  }
     
-    modalContainer.classList.remove('hidden');
-    modal.classList.remove('hidden');
+  modalContainer.classList.remove('hidden');
+  modal.classList.remove('hidden');
 
-    if(type === 'user') {
-      document.getElementById('is_active').checked = true;
-    }
+  if(type === 'user') {
+    document.getElementById('is_active').checked = true;
+  }
     
-    if (id) {
-      if(type === 'carsReports') {
-        handleViewCustomerCars(id);
-      } else {
-        fetchEntityData(type, id);
-      }
+  if (id) {
+    if(type === 'carsReports') {
+      handleViewCustomerCars(id);
+    } else {
+      fetchEntityData(type, id);
     }
-  };
+  }
+};
   
 const closeModal = () => {
   const modalContainer = document.getElementById('modalContainer');
@@ -492,7 +494,7 @@ const fetchEntityData = async (type, id) => {
   }
 };
   
-  // Handle form submission
+// Handle form submission
 const handleSubmit = async (event, type) => {
   event.preventDefault();
   console.log('Starting form submission for type:', type);
@@ -500,11 +502,11 @@ const handleSubmit = async (event, type) => {
   const form = event.target;
   const formData = new FormData(form);
   const id = formData.get(`${type}_id`);
+  let data = {};
   
   try {
     if (type === 'user') {
       // Convert FormData to JSON
-      const data = {};
       const originalData = form.getAttribute('data-original');
       const original = originalData ? JSON.parse(originalData) : {};
       
@@ -589,57 +591,42 @@ const handleSubmit = async (event, type) => {
         showToast('Aucune modification détectée', 'info');
         return;
       }
-
-      console.log('Submitting data:', data);
-
-      // Submit the form
-      const response = await fetch(`/admin/${type}s${id ? `/${id}` : ''}`, {
-        method: id ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Operation failed');
-      }
-
-      showToast(id ? 'Modification effectuée avec succès!' : 'Création effectuée avec succès!', 'success');
-      closeModal();
-      location.reload();
     }
 
-    if (type === 'customer') {
-      const data = {
+    else if (type === 'customer') {
+      data = {
         name: formData.get('name'),
         phone: formData.get('phone'),
         email: formData.get('email'),
         address: formData.get('address'),
         is_company: formData.get('is_company') === 'on'
       };
-
-      console.log('Submitting customer data:', data);
-
-      const response = await fetch(`/admin/customers${id ? `/${id}` : ''}`, {
-        method: id ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Operation failed');
-      }
-
-      showToast(id ? 'Modification effectuée avec succès!' : 'Création effectuée avec succès!', 'success');
-      closeModal();
-      location.reload();
     }
 
+    else {
+      data = Object.fromEntries(formData.entries());
+    }
+
+    // Submit the form
+    console.log('Submitting data:', data);
+    
+    const response = await fetch(`/admin/${type}s${id ? `/${id}` : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Operation failed');
+    }
+
+    showToast(id ? 'Modification effectuée avec succès!' : 'Création effectuée avec succès!', 'success');
+    closeModal();
+    location.reload();
+    
   } catch (error) {
     console.error('Form submission error:', error);
     showToast(error.message, 'error');
@@ -700,9 +687,6 @@ const showToast = (message, type) => {
   }, 3000);
 };
 
-// Capitalize first letter
-const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
-
 const generateUsername = () => {
   if(document.getElementById('username').value?.startsWith('admin.')) return;
   const firstName = document.getElementById('first_name').value.toLowerCase().trim();
@@ -744,7 +728,7 @@ const toggleUsernameEdit = () => {
 // Initialize username field as locked
 const initUsernameField = () => {
   const usernameInput = document.getElementById('username');
-
+  const toggleButton = document.getElementById('toggleUsernameEdit');
   if (usernameInput) {
     usernameInput.classList.add('bg-gray-200', 'cursor-not-allowed');
     usernameInput.setAttribute('readonly', true);
@@ -796,7 +780,7 @@ const handleCategorySelection = () => {
 const handleCustomerSearch = async (searchTerm) => {
   try {
     // Use the customers endpoint
-    const response = await fetch(`/admin/customers`);
+    const response = await fetch('/admin/customers');
     if (!response.ok) throw new Error('Search failed');
     
     const data = await response.json();
@@ -842,7 +826,7 @@ const selectCustomerFromID = async (customerId) => {
   if (!customerId) throw new Error('Customer ID is required');
 
   const response = await fetch(`/admin/customers/${customerId}`);
-    if (!response.ok) throw new Error('Search failed');
+  if (!response.ok) throw new Error('Search failed');
     
   const data = await response.json();
   const customer = data.customer;
@@ -894,7 +878,7 @@ const clearCustomerSelection = () => {
   document.getElementById('selected_customer_info').classList.add('hidden');
 };
 
-  // Database backup functionality
+// Database backup functionality
 const handleDatabaseBackup = async () => {
   const button = document.getElementById('backupDatabaseBtn');
   const spinner = document.getElementById('backupLoadingSpinner');
@@ -1182,7 +1166,7 @@ const initEventListeners = () => {
     button.addEventListener('click', () => {
       const userId = button.getAttribute('data-id');
       openModal('user', userId);
-      initUsernameField()
+      initUsernameField();
     });
   });
 
@@ -1497,3 +1481,138 @@ document.addEventListener('click', (e) => {
     openModal('carsReports', customerId);
   }
 });
+
+const handleViewCustomerCars = async (customerId) => {
+    
+  try {
+    const response = await fetch(`/admin/customers/${customerId}/cars-reports`);
+    if (!response.ok) throw new Error('Failed to fetch data');
+    
+    const data = await response.json();
+    
+    // Update modal content
+    document.getElementById('modalCustomerName').textContent = data.customer.name;
+    document.getElementById('carsReportsList').innerHTML = generateCarsReportsContent(data.cars);
+    
+    // Show modal
+    // document.getElementById('carsReportsModal').classList.remove('hidden');
+    
+  } catch (error) {
+    showToast('Erreur lors de la récupération des véhicules et rapports', 'error');
+    console.error(error);
+  }
+};
+
+const generateCarsReportsContent = (cars) => {
+  console.log('Generating cars reports content for', cars);
+  if (!cars || cars.length === 0) {
+    return `
+      <div class="col-span-full text-center py-8 text-gray-500">
+        <i class="fas fa-car text-4xl mb-3"></i>
+        <p>Aucun véhicule trouvé pour ce client</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+      ${cars.map(car => `
+        <div class="car-item">
+          <div class="bg-gray-50 rounded-lg shadow-sm">
+            <div class="p-3 md:p-4">
+              <div class="flex flex-col space-y-3">
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-3">
+                    <i class="fas fa-car text-green-500 text-xl"></i>
+                    <div>
+                      <h4 class="font-semibold text-gray-900 text-lg">${car.license_plate}</h4>
+                      <div class="text-sm text-gray-600">
+                        <span class="font-medium">${car.brand} ${car.model}</span>
+                        ${car.engine_code ? `<span class="hidden md:inline mx-2">|</span><span class="block md:inline mt-1 md:mt-0">${car.engine_code}</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" 
+                          class="toggle-reports-btn p-2 hover:bg-gray-200 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                          aria-label="Toggle reports"
+                          data-expanded="false">
+                    <i class="fas fa-chevron-down transform transition-transform duration-200"></i>
+                  </button>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                  <span class="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                    ${car.reports.length} rapport(s)
+                  </span>
+                  ${car.first_registration_date ? `
+                    <span class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-sm">
+                      <span class="md:inline">Mise en circulation : </span>${new Date(car.first_registration_date).toLocaleDateString('fr-FR')}
+                    </span>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+            
+            <div class="reports-container transition-all duration-300 ease-in-out overflow-hidden" style="max-height: 0; opacity: 0;">
+              ${generateReportsList(car.reports)}
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+};
+
+const generateReportsList = (reports) => {
+  if (!reports || reports.length === 0) {
+    return `
+      <div class="border-t border-gray-200">
+        <p class="text-sm text-gray-500 italic p-4">Aucun rapport disponible</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="border-t border-gray-200">
+      <div class="space-y-3 p-3 md:p-4 max-h-[300px] overflow-y-auto">
+        ${reports.map(report => `
+          <div class="flex flex-col md:flex-row md:items-center justify-between bg-white p-3 rounded-md shadow-sm hover:shadow-md transition-shadow duration-200 space-y-3 md:space-y-0">
+            <div class="flex items-start md:items-center gap-3 md:gap-4">
+              <i class="fas fa-file-alt text-lg text-blue-500 mt-1 md:mt-0"></i>
+              <div class="flex-grow">
+                <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                  <p class="text-md font-medium text-gray-900 rounded-full py-1 font-semibold">
+                    ${report.mileage ? `${report.mileage} km` : '<i class="px-1 fas fa-exclamation-triangle text-yellow-500"></i> Kilométrage non renseigné'}
+                  </p>
+                  <span class="px-2.5 py-1 text-xs rounded-full font-medium bg-yellow-100 text-yellow-800">
+                    ${new Date(report.created_at).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1.5 flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                  <span><i class="fas fa-calendar-alt mr-1.5"></i> Créé le : ${new Date(report.created_at).toLocaleDateString('fr-FR')}</span>
+                  ${report.next_technical_inspection ? 
+    `<span><i class="fas fa-calendar-alt mr-1.5"></i> <span class="hidden md:inline">Prochaine </span>CT : ${new Date(report.next_technical_inspection).toLocaleDateString('fr-FR')}</span>` 
+    : ''}
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2 md:gap-3 justify-end">
+              <a href="/report/${report.report_id}" target="_blank" 
+                 class="flex-1 md:flex-none px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 focus:ring-2 focus:ring-blue-400 transition-colors duration-200 text-center"
+                 aria-label="Voir le rapport">
+                <i class="fas fa-eye"></i>
+                <span class="m-1 md:hidden">Afficher</span>
+              </a>
+              <a href="/report/preview/${report.report_id}" target="_blank"
+                 class="flex-1 md:flex-none px-3 py-1.5 text-sm bg-green-500 text-white rounded hover:bg-green-600 focus:ring-2 focus:ring-green-400 transition-colors duration-200 text-center"
+                 aria-label="Télécharger le PDF">
+                <i class="fas fa-file-pdf"></i>
+                <span class="m-1 md:hidden">Prévisualiser</span>
+              </a>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};

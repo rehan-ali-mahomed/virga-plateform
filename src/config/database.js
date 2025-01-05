@@ -155,24 +155,24 @@ const addVehicule = (licensePlate, customerId, vehiculeDetails = {}) => {
       first_registration_date,
       drain_plug_torque
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        vehiculeId, 
-        licensePlate, 
-        customerId,
-        vehiculeDetails.brand || null,
-        vehiculeDetails.model || null,
-        vehiculeDetails.engine_code || null,
-        vehiculeDetails.revision_oil_type || null,
-        vehiculeDetails.revision_oil_volume || null,
-        vehiculeDetails.brake_disc_thickness_front || null,
-        vehiculeDetails.brake_disc_thickness_rear || null,
-        vehiculeDetails.first_registration_date || null,
-        vehiculeDetails.drain_plug_torque || null
-      ],
-      (err) => {
-        if (err) reject(err);
-        else resolve(vehiculeId);
-      }
+    [
+      vehiculeId, 
+      licensePlate, 
+      customerId,
+      vehiculeDetails.brand || null,
+      vehiculeDetails.model || null,
+      vehiculeDetails.engine_code || null,
+      vehiculeDetails.revision_oil_type || null,
+      vehiculeDetails.revision_oil_volume || null,
+      vehiculeDetails.brake_disc_thickness_front || null,
+      vehiculeDetails.brake_disc_thickness_rear || null,
+      vehiculeDetails.first_registration_date || null,
+      vehiculeDetails.drain_plug_torque || null
+    ],
+    (err) => {
+      if (err) reject(err);
+      else resolve(vehiculeId);
+    }
     );
   });
 };
@@ -241,7 +241,7 @@ const getAllVehicules = async () => {
 const getVehiculeByLicensePlate = async (license_plate) => {
   const db = getDatabase();
   return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM Vehicules WHERE license_plate = ?`, [license_plate], (err, vehicule) => {
+    db.get('SELECT * FROM Vehicules WHERE license_plate = ?', [license_plate], (err, vehicule) => {
       if (err) reject(err);
       else resolve(vehicule);
     });
@@ -258,203 +258,278 @@ const createDefaultAdminUser = async () => {
 
   try {
     const user = await getUserByUsername(defaultUsername);
-    if (user !== 'N/A') {
+    if (user) {
       logger.debug('Default admin user already exists. Skipping creation.');
       return user.user_id;
     }
-  } catch (error) {
+
     logger.debug('Default admin user not found. Creating it...');
+    const userId = await addUser(defaultFirstName, defaultLastName, defaultUsername, defaultEmail, 'admin', hashedPassword, true);
+    return userId;
+  } catch (error) {
+    logger.error('Error checking if default admin user exists:', error);
+    throw error;
   }
-
-  await addUser(defaultFirstName, defaultLastName, defaultUsername, defaultEmail, 'admin', hashedPassword, true);
 };
 
-const addUser = (first_name, last_name, username, email = null, role, password, password_is_hashed = false) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      username = username.toLowerCase();
-      email = email.toLowerCase();
-      role = role.toLowerCase();
-      const userId = uuidv4();
-      first_name = toCamelCase(first_name);
-      last_name = last_name.toUpperCase();
-      
-      // Check if username already exists
-      const existingUser = await getUserByUsername(username);
-      if (existingUser !== 'N/A') {
-        throw new Error('Ce nom d\'utilisateur existe déjà.');
-      }
-
-      const hashedPassword = password_is_hashed ? password : await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
-      
-      await new Promise((resolveDb, rejectDb) => {
-        db.run(`
-          INSERT INTO Users (
-            user_id, 
-            first_name,
-            last_name,
-            username, 
-            email, 
-            role, 
-            password
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [userId, first_name, last_name, username, email, role, hashedPassword],
-          (err) => {
-            if (err) rejectDb(err);
-            else resolveDb(userId);
-          }
-        );
-      });
-
-      resolve(userId);
-    } catch (error) {
-      reject(error);
+const addUser = async (first_name, last_name, username, email = null, role, password, password_is_hashed = false) => {
+  try {
+    username = username.toLowerCase();
+    email = email?.toLowerCase();
+    role = role.toLowerCase();
+    const userId = uuidv4();
+    first_name = toCamelCase(first_name);
+    last_name = last_name.toUpperCase();
+    
+    // Check if username already exists
+    const existingUser = await getUserByUsername(username);
+    if (existingUser) {
+      throw new Error('Ce nom d\'utilisateur existe déjà.');
     }
-  });
+
+    const hashedPassword = password_is_hashed ? password : await bcrypt.hash(password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
+    
+    return new Promise((resolve, reject) => {
+      db.run(`
+        INSERT INTO Users (
+          user_id, 
+          first_name,
+          last_name,
+          username, 
+          email, 
+          role, 
+          password
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, first_name, last_name, username, email, role, hashedPassword],
+      (err) => {
+        if (err) reject(err);
+        else resolve(userId);
+      }
+      );
+    });
+  } catch (error) {
+    logger.error('Error adding user:', error);
+    throw new Error('Erreur lors de l\'ajout de l\'utilisateur'); 
+  }
 };
 
-const updateUser = (userId, updates) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Check if the user is the default admin user to avoid editing it
-      const user = await getUserById(userId);
+const updateUser = async (userId, updates) => {
+  try {
+    // Check if the user is the default admin user to avoid editing it
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
+    }
 
-      logger.debug(`Trying to update user ${userId} with fields: ${JSON.stringify(updates)}`);
+    logger.debug(`Trying to update user ${userId} with fields: ${JSON.stringify(updates)}`);
 
-      if(process.env.ADMIN_USERNAME === user.username) {
-        logger.warn('Cannot edit default admin user.');
-        return reject(new Error('Impossible de modifier l\'administrateur par défaut.'));
+    if(process.env.ADMIN_USERNAME === user.username.replace(' (Désactivé)', '')) {
+      logger.warn('Cannot edit default admin user.');
+      throw new Error('Impossible de modifier l\'administrateur par défaut.');
+    }
+
+    const fields = [];
+    const values = [];
+
+    if (updates.email !== undefined) {
+      fields.push('email = ?');
+      values.push(updates.email.toLowerCase());
+    }
+
+    if (updates.first_name !== undefined) {
+      fields.push('first_name = ?');
+      values.push(toCamelCase(updates.first_name));
+    }
+
+    if (updates.last_name !== undefined) {
+      fields.push('last_name = ?');
+      values.push(updates.last_name.toUpperCase());
+    }
+
+    if (updates.role !== undefined) {
+      fields.push('role = ?');
+      values.push(updates.role.toLowerCase());
+    }
+
+    if (updates.password !== undefined) {
+      fields.push('password = ?');
+      const hashedPassword = await bcrypt.hash(updates.password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
+      values.push(hashedPassword);
+    }
+
+    if (updates.is_active !== undefined) {
+      fields.push('is_active = ?');
+      values.push(updates.is_active);
+    }
+
+    if (updates.username !== undefined) {
+      const existingUser = await getUserByUsername(updates.username);
+      if (existingUser && existingUser.user_id !== userId) {
+        throw new Error('Ce nom d\'utilisateur existe déjà');
       }
+      fields.push('username = ?');
+      values.push(updates.username.toLowerCase());
+    }
 
-      const fields = [];
-      const values = [];
+    if (fields.length === 0) {
+      logger.debug(`No updates to perform for user ${userId} Fields => ${fields} => ${JSON.stringify(updates)}`);
+      return; // No updates to perform
+    }
 
-      if (updates.email !== undefined) {
-        fields.push('email = ?');
-        values.push(updates.email.toLowerCase());
-      }
-
-      if (updates.first_name !== undefined) {
-        fields.push('first_name = ?');
-        values.push(toCamelCase(updates.first_name));
-      }
-
-      if (updates.last_name !== undefined) {
-        fields.push('last_name = ?');
-        values.push(updates.last_name.toUpperCase());
-      }
-
-      if (updates.role !== undefined) {
-        fields.push('role = ?');
-        values.push(updates.role.toLowerCase());
-      }
-
-      if (updates.password !== undefined) {
-        fields.push('password = ?');
-        const hashedPassword = await bcrypt.hash(updates.password, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
-        values.push(hashedPassword);
-      }
-
-      if (updates.is_active !== undefined) {
-        fields.push('is_active = ?');
-        values.push(updates.is_active);
-      }
-
-      if (updates.username !== undefined) {
-        const existingUser = await getUserByUsername(updates.username);
-        if (existingUser !== 'N/A') {
-          throw new Error('Ce nom d\'utilisateur existe déjà');
-        } else {
-          fields.push('username = ?');
-          values.push(updates.username.toLowerCase());
-        }
-      }
-
-      if (fields.length === 0) {
-        logger.debug(`No updates to perform for user ${userId}`);
-        return resolve(); // No updates to perform
-      }
-
-      values.push(userId);
-
+    values.push(userId);
+    
+    return new Promise((resolve, reject) => {
       const query = `UPDATE Users SET ${fields.join(', ')} WHERE user_id = ?`;
       db.run(query, values, (err) => {
         if (err) reject(err);
         else resolve();
       });
-    } catch (error) {
-      reject(error);
-    }
-  });
+    });
+  } catch (error) {
+    logger.error('Error updating user:', error);
+    throw new Error('Erreur lors de la mise à jour de l\'utilisateur');
+  }
 };
 
 const deleteUser = async (userId) => {
-  const user = await getUserById(userId);
-  const admin = await createDefaultAdminUser();
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
+    }
 
-  return new Promise((resolve, reject) => {
+    const admin = await createDefaultAdminUser();
 
     if(user.role === 'admin' && admin === user.user_id) {
       logger.error('Impossible de supprimer l\'administrateur par défaut.');
-      return reject(new Error('Impossible de supprimer l\'administrateur par défaut.'));
-    
-    } else {
-      db.run(`DELETE FROM Users WHERE user_id = ?`, [userId], (err) => {
-        if (err) reject(err); else resolve();
-      });
-
+      throw new Error('Impossible de supprimer l\'administrateur par défaut.');
     }
-  });
+
+    return new Promise((resolve, reject) => {
+      db.run('DELETE FROM Users WHERE user_id = ?', [userId], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  } catch (error) {
+    logger.error('Error deleting user:', error);
+    throw new Error('Erreur lors de la suppression de l\'utilisateur');
+  }
 };
 
-const getUserById = (userId) => {
-  // log all things from here to debugger
+const getUserById = async (userId) => {
   logger.debug(`Getting user with ID: ${userId}`);
-  return new Promise((resolve, reject) => {
-    db.get('SELECT user_id, first_name, last_name, username, email, role, is_active FROM Users WHERE user_id = ?', [userId], (err, row) => {
-      if (err) reject(err);
-      else if (!row) {
-        logger.error(`User with ID ${userId} not found. Returning N/A`);
-        resolve('N/A');
-      } else if (!row.is_active) {
-        logger.warn(`User ${userId} status is disabled. Adding (Désactivé) label to username`);
-        row.username += ' (Désactivé)';
-        resolve(row);
-      } else {
-        logger.debug(`User with ID ${userId} found: ${row.username}`);
-        resolve(row);
-      }
-    });
-  });
-};
+  
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
 
-const getUserByUsername = (username) => {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT user_id, first_name, last_name, username, email, role, is_active FROM Users WHERE username = ?', [username], (err, row) => {
-      if (err) reject(err);
-      else if (!row) {
-        logger.error(`Username ${username} not found. Returning N/A`);
-        resolve('N/A');
-      } else if (!row.is_active) {
-        logger.warn(`User ${username} status is ${row.is_active}. Adding (Désactivé) label to username`);
-        row.username += ' (Désactivé)';
-        resolve(row);
-      } else {
-        logger.debug(`User ${username} found: ${row.user_id}`);
-        resolve(row);
-      }
-    });
-  });
-};
-
-const getUserWithPasswordByUsername = (username) => {
   return new Promise((resolve, reject) => {
     db.get(
-      'SELECT user_id, username, password, first_name, last_name, email, role, is_active FROM Users WHERE username = ?',
+      'SELECT user_id, first_name, last_name, username, email, role, is_active FROM Users WHERE user_id = ?',
+      [userId],
+      (err, row) => {
+        if (err) {
+          logger.error(`Database error while fetching user ${userId}:`, err);
+          return reject(err);
+        }
+
+        if (!row) {
+          logger.error(`User with ID ${userId} not found`);
+          return resolve(null);
+        }
+
+        // Create a new object instead of mutating the original
+        const user = {
+          ...row,
+          username: row.is_active ? row.username : `${row.username} (Désactivé)`
+        };
+
+        logger.debug(`User with ID ${userId} found: ${user.username}`);
+        resolve(user);
+      }
+    );
+  });
+};
+
+const getUserByUsername = async (username) => {
+  if (!username) {
+    throw new Error('Username is required');
+  }
+
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT 
+        user_id, 
+        first_name, 
+        last_name, 
+        username, 
+        email, 
+        role, 
+        is_active
+      FROM Users 
+      WHERE LOWER(username) = LOWER(?)`, 
       [username],
-      (err, user) => {
-        if (err) reject(err);
-        else resolve(user);
+      (err, row) => {
+        if (err) {
+          logger.error(`Database error while fetching user ${username}:`, err);
+          return reject(err);
+        }
+
+        if (!row) {
+          logger.debug(`Username ${username} not found`);
+          return resolve(null);
+        }
+
+        // Create a new object instead of mutating the original
+        const user = {
+          ...row,
+          username: row.is_active ? row.username : `${row.username} (Désactivé)`
+        };
+
+        if (!row.is_active) {
+          logger.warn(`User ${username} is disabled`);
+        }
+
+        logger.debug(`User ${username} found with id: ${user.user_id}`);
+        resolve(user);
+      }
+    );
+  });
+};
+
+const getUserWithPasswordByUsername = async (username) => {
+  if (!username) {
+    throw new Error('Username is required');
+  }
+
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT user_id, username, password, first_name, last_name, email, role, is_active FROM Users WHERE LOWER(username) = LOWER(?)',
+      [username],
+      (err, row) => {
+        if (err) {
+          logger.error(`Database error while fetching user ${username}:`, err);
+          return reject(err);
+        }
+
+        if (!row) {
+          logger.debug(`Username ${username} not found`);
+          return resolve(null);
+        }
+
+        // Create a new object instead of mutating the original
+        const user = {
+          ...row,
+          username: row.is_active ? row.username : `${row.username} (Désactivé)`
+        };
+
+        if (!row.is_active) {
+          logger.warn(`User ${username} is disabled`);
+        }
+
+        logger.debug(`User ${username} found with id: ${user.user_id}`);
+        resolve(user);
       }
     );
   });
@@ -472,7 +547,7 @@ const getAllActiveUsers = () => {
 const getCustomerById = async (customer_id) => {
   const db = getDatabase();
   return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM Customers WHERE customer_id = ?`, [customer_id], (err, customer) => {
+    db.get('SELECT * FROM Customers WHERE customer_id = ?', [customer_id], (err, customer) => {
       if (err) reject(err);
       else resolve(customer);
     });
@@ -559,7 +634,7 @@ const getCustomerCarsAndReports = (customerId) => {
 const addCustomer = (name, phone, email, address, is_company) => {
   return new Promise((resolve, reject) => {
     const customerId = uuidv4();
-    db.run(`INSERT INTO Customers (customer_id, name, email, phone, address, is_company) VALUES (?, ?, ?, ?, ?, ?)`, 
+    db.run('INSERT INTO Customers (customer_id, name, email, phone, address, is_company) VALUES (?, ?, ?, ?, ?, ?)', 
       [customerId, name, email, phone, address, is_company ? 1 : 0], 
       (err) => {
         if (err) reject(err); else resolve(customerId);
@@ -617,7 +692,7 @@ const updateCustomer = async (customer_id, updates) => {
 
 const deleteCustomer = (customer_id) => {
   return new Promise((resolve, reject) => {
-    db.run(`DELETE FROM Customers WHERE customer_id = ?`, [customer_id], (err) => {
+    db.run('DELETE FROM Customers WHERE customer_id = ?', [customer_id], (err) => {
       if (err) reject(err); else resolve();
     });
   });
@@ -748,7 +823,7 @@ const getInspectionItems = () => {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
     db.all(
-      `SELECT * FROM InspectionItems WHERE is_active = true ORDER BY category, display_order`, 
+      'SELECT * FROM InspectionItems WHERE is_active = true ORDER BY category, display_order', 
       (err, rows) => {
         if (err) {
           logger.error('Error fetching inspection items:', err);
@@ -768,7 +843,7 @@ const addInspectionReport = (reportData, userId) => {
     const customerEmail = reportData.client_email;
 
     // Check if customer already exists based on phone or email
-    db.get(`SELECT customer_id FROM Customers WHERE phone = ? OR email = ?`, [customerPhone, customerEmail], (err, row) => {
+    db.get('SELECT customer_id FROM Customers WHERE phone = ? OR email = ?', [customerPhone, customerEmail], (err, row) => {
       if (err) {
         return reject(err);
       }
@@ -776,7 +851,7 @@ const addInspectionReport = (reportData, userId) => {
       let customerId;
       if (row) {
         customerId = row.customer_id;
-        console.log(`Existing customer found: ${customerId}`);
+        logger.debug(`Existing customer found: ${customerId}`);
         
         // Update existing customer
         db.run(`UPDATE Customers SET
@@ -1102,50 +1177,6 @@ const getInspectionReport = (reportId) => {
       });
     });
   });
-};
-
-// Map inspection results to inspection items
-const mapInspectionResults = async (inspectionResults) => {
-  const items = await getInspectionItems();
-
-  return items.map(item => {
-    const result = inspectionResults[item.item_id] || {};
-    return {
-      item_id: item.item_id,
-      name: item.name,
-      category: item.category,
-      type: item.type,
-      value: parseInt(result.value, 10) || 0,
-      options: JSON.parse(item.options || '[]'),
-      unit: result.unit
-    };
-  });
-};
-
-const temporaryDatabaseUpdate = async () => {
-  // Backup using Vacuum into database_vacuum.sqlite
-  // db.run('VACUUM INTO ?', ['database_vacuum.sqlite']);
-  // console.log("Database vacuumed.");
-
-  // Drop table InspectionReports
-  // await db.run('DROP TABLE InspectionReports');
-  // console.log("Table InspectionReports dropped.");
-
-  console.log("Updating the database...");
-  // Hash the password
-  // const hashedPassword = await bcrypt.hash('30122010', 10);
-  // Update the user with id 0c4297ff-78a5-4b56-b2d8-9a0a9a156188 and set the password and email.
-  // db.run(`UPDATE Users SET password = ?, username = ?, email = ? WHERE user_id = ?`, [hashedPassword, 'd.celine', 'toto@toto.com', '0c4297ff-78a5-4b56-b2d8-9a0a9a156188']);
-  
-  // Update the InspectionItems with id efd99bd5-1967-4720-8655-3edd1fe45c62 and set the name to "Serrage des roues (Nm)".
-  // db.run(`UPDATE InspectionItems SET name = ? WHERE item_id = ?`, ['Serrage des roues (Nm)', 'efd99bd5-1967-4720-8655-3edd1fe45c62']);
-  
-  // Email of customer can be duplicate
-  const query = `ALTER TABLE Customers DROP CONSTRAINT email;`;
-  await db.run(query);
-  console.log("Unique email removed from Customers.");
-  
-  console.log("Database updated.");
 };
 
 // Database backup function

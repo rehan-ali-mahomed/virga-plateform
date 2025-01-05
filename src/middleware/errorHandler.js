@@ -1,6 +1,6 @@
 ﻿const logger = require('../utils/logger');
 
-module.exports = (err, req, res, next) => {
+module.exports = (err, req, res) => {
   logger.error('Unhandled error:', err);
   
   const errorMessage = err.message || 'Internal Server Error';
