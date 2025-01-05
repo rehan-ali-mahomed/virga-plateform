@@ -11,25 +11,30 @@ on:
 
 env:
   INSTANCE_DIR: /var/lib/virga-platform/instances
-  BACKUP_BASE_DIR: /var/lib/virga-platform/backups
+  BACKUP_DIR: /var/lib/virga-platform/backups
   DOCKER_REGISTRY: rehanalimahomed/virga-platform
   COMPANY_DOMAIN: amadiy.com
 
 jobs:
-  build-and-deploy:
+  initialize:
+    name: 🔧 Initialize and List Instances
     runs-on: self-hosted
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      display_version: ${{ steps.version.outputs.display_version }}
+      active_instances: ${{ steps.list-instances.outputs.instances }}
     
     steps:
     - name: Check Environment
       run: |
         echo "🔍 Checking environment configuration..."
         echo "Instance Directory: $INSTANCE_DIR"
-        echo "Backup Directory: $BACKUP_BASE_DIR"
+        echo "Backup Directory: $BACKUP_DIR"
         echo "Current User: $(whoami)"
         echo "Docker Status: $(docker info | grep 'Server Version')"
         
         # Verify directories exist
-        for dir in "$INSTANCE_DIR" "$BACKUP_BASE_DIR"; do
+        for dir in "$INSTANCE_DIR" "$BACKUP_DIR"; do
           if [ ! -d "$dir" ]; then
             echo "Creating directory: $dir"
             mkdir -p "$dir"
@@ -44,7 +49,7 @@ jobs:
           echo "✅ Docker Hub already logged in"
           echo "NEED_DOCKER_LOGIN=false" >> $GITHUB_ENV
         fi
-        
+
     - name: Checkout code
       uses: actions/checkout@v3
       with:
@@ -56,28 +61,19 @@ jobs:
       run: |
         # Get base version from file
         BASE_VERSION=$(cat VERSION)
-        
-        # Get current date in readable format
         BUILD_DATE=$(date +'%Y.%m.%d')
-        
-        # Get git info
         GIT_SHORT_SHA=$(git rev-parse --short HEAD)
-        GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        
-        # Get commit count since last tag for build number
         BUILD_NUMBER=$(git rev-list --count HEAD)
         
-        # Format versions
-        # Technical version (for Docker tags and internal use)
+        # Generate versions
         TECHNICAL_VERSION="${BASE_VERSION}-${BUILD_NUMBER}-${GIT_SHORT_SHA}"
-        # User-friendly version (for display and logs)
         DISPLAY_VERSION="${BASE_VERSION} (${BUILD_DATE} build ${BUILD_NUMBER})"
         
         # Export versions
-        echo "VERSION=${TECHNICAL_VERSION}" >> $GITHUB_ENV
-        echo "DISPLAY_VERSION=${DISPLAY_VERSION}" >> $GITHUB_ENV
+        echo "version=${TECHNICAL_VERSION}" >> $GITHUB_OUTPUT
+        echo "display_version=${DISPLAY_VERSION}" >> $GITHUB_OUTPUT
         
-        # Save versions to environment file
+        # Save to .env
         cat > .env << EOL
         VERSION=${TECHNICAL_VERSION}
         DISPLAY_VERSION=${DISPLAY_VERSION}
@@ -85,12 +81,96 @@ jobs:
         GIT_SHA=${GIT_SHORT_SHA}
         BUILD_NUMBER=${BUILD_NUMBER}
         EOL
+
+    - name: List Active Instances
+      id: list-instances
+      run: |
+        # Create temporary file for instances
+        instance_file="${RUNNER_TEMP}/active_instances.txt"
+        > "$instance_file"
         
-        # Log version information
-        echo "Generated versions:"
-        echo "Technical version: ${TECHNICAL_VERSION}"
-        echo "Display version: ${DISPLAY_VERSION}"
+        # Find and store active instances
+        while IFS= read -r dir; do
+          instance_id=$(basename "$dir")
+          
+          # Skip test and preprod instances
+          if [[ "$instance_id" != test-* ]] && [[ "$instance_id" != preprod-* ]]; then
+            if [ -f "$dir/secrets.env" ]; then
+              container_name="${instance_id}-plateform"
+              
+              # Check if instance is running
+              if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+                domain=$(grep DOMAIN "$dir/secrets.env" | cut -d'=' -f2)
+                echo "${instance_id}|${domain}|${dir}" >> "$instance_file"
+              fi
+            fi
+          fi
+        done < <(find ${INSTANCE_DIR} -name "docker-compose.yml" -exec dirname {} \;)
         
+        # Validate we found instances
+        if [ ! -s "$instance_file" ]; then
+          echo "::warning::No active instances found"
+        fi
+        
+        # Store instances for other jobs
+        echo "instances=$(cat $instance_file)" >> $GITHUB_OUTPUT
+        echo "Found active instances:"
+        cat "$instance_file"
+
+  backup:
+    name: 📦 Backup Production Databases
+    needs: initialize
+    runs-on: self-hosted
+    
+    steps:
+    - name: Backup Production Databases
+      run: |
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        instances='${{ needs.initialize.outputs.active_instances }}'
+        
+        echo "🔄 Processing instance backups..."
+        
+        # Exit if no instances
+        [ -z "$instances" ] && echo "No instances to backup" && exit 0
+        
+        # Process each instance
+        echo "$instances" | while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          
+          echo "📦 Backing up instance: $id ($domain)"
+          
+          # Create backup directory
+          backup_dir="${BACKUP_DIR}/${id}/backup_${timestamp}"
+          mkdir -p "$backup_dir" || { echo "Failed to create backup dir for $id"; continue; }
+          
+          # Backup main database using VACUUM
+          if [ -f "${dir}/db/database.sqlite" ]; then
+            if ! echo ".backup '${backup_dir}/database.sqlite'" | sqlite3 "${dir}/db/database.sqlite"; then
+              echo "Failed to backup database for $id"
+              continue
+            fi
+            echo "✓ Database backed up to: ${backup_dir}/database.sqlite"
+          fi
+          
+          # Copy database for preprod
+          preprod_dir="${INSTANCE_DIR}/preprod-${id}"
+          mkdir -p "${preprod_dir}/db" || { echo "Failed to create preprod dir for $id"; continue; }
+          
+          if [ -f "${dir}/db/database.sqlite" ]; then
+            if ! echo ".backup '${preprod_dir}/db/database.sqlite'" | sqlite3 "${dir}/db/database.sqlite"; then
+              echo "Failed to copy database to preprod for $id"
+              continue
+            fi
+            echo "✓ Database copied to preprod: ${preprod_dir}/db/database.sqlite"
+          fi
+        done
+
+  build:
+    name: 🏗️ Build and Test Code
+    needs: [initialize, backup]
+    runs-on: self-hosted
+    
+    steps:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
@@ -106,29 +186,10 @@ jobs:
     - name: Run tests
       run: npm test
       
-    - name: Backup Production Database
-      run: |
-        timestamp=$(date +%Y%m%d_%H%M%S)
-        backup_dir="${BACKUP_BASE_DIR}/${timestamp}"
-        mkdir -p "$backup_dir"
-        
-        # Find and backup all instance databases
-        find ${INSTANCE_DIR} -name "*.db" -type f -exec bash -c '
-          instance_name=$(basename $(dirname {}))
-          cp {} "$0/${instance_name}_$(basename {})"
-        ' "$backup_dir" \;
-        
-        echo "BACKUP_DIR=${backup_dir}" >> $GITHUB_ENV
-        
-        # Log backup information
-        echo "📦 Databases backed up to: $backup_dir"
-        echo "Found databases:"
-        ls -l "$backup_dir"
-      
     - name: Build Docker image
       run: |
-        docker build -t ${DOCKER_REGISTRY}:${{ env.VERSION }} .
-        docker tag ${DOCKER_REGISTRY}:${{ env.VERSION }} ${DOCKER_REGISTRY}:latest
+        docker build -t ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }} .
+        docker tag ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }} ${DOCKER_REGISTRY}:latest
       
     - name: Login to Docker Hub
       if: env.NEED_DOCKER_LOGIN == 'true'
@@ -139,160 +200,246 @@ jobs:
     
     - name: Push Docker image
       run: |
-        # Try to push, if it fails and we haven't logged in, try logging in
-        if ! docker push ${DOCKER_REGISTRY}:${{ env.VERSION }}; then
+        if ! docker push ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }}; then
           if [ "${{ env.NEED_DOCKER_LOGIN }}" = "false" ]; then
             echo "::warning::Push failed, trying to login to Docker Hub..."
             echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-            docker push ${DOCKER_REGISTRY}:${{ env.VERSION }}
+            docker push ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }}
           else
             echo "::error::Failed to push Docker image"
             exit 1
           fi
         fi
         docker push ${DOCKER_REGISTRY}:latest
-        
+
+  test-deploy:
+    name: 🧪 Deploy & Verify Test Instance
+    needs: [initialize, build]
+    runs-on: self-hosted
+    
+    steps:
     - name: Deploy Test Instance
-      id: deploy_test
+      id: deploy
       run: |
-        export APP_VERSION=${{ env.VERSION }}
-        export APP_DISPLAY_VERSION="${{ env.DISPLAY_VERSION }}"
+        export APP_VERSION=${{ needs.initialize.outputs.version }}
+        export APP_DISPLAY_VERSION="${{ needs.initialize.outputs.display_version }}"
         
-        # Configuration test instance
-        TEST_DOMAIN="test-virga.${COMPANY_DOMAIN}"
+        # Set up test instance variables
+        COMPANY_DIR="virga-plateform"
+        TEST_DOMAIN="test-${COMPANY_DIR}.${COMPANY_DOMAIN}"
+        TEST_INSTANCE_DIR="${INSTANCE_DIR}/test-${COMPANY_DIR}"
         
         echo "🚀 Deploying test instance to ${TEST_DOMAIN}..."
         
         ./deploy-instance.sh \
-          --company-name="test-instance" \
+          --company-name="Test ${COMPANY_DIR}" \
           --company-address="Test Address" \
           --company-phone="0123456789" \
-          --company-email="test@example.com" \
+          --company-email="test@${COMPANY_DOMAIN}" \
           --domain="${TEST_DOMAIN}" \
           --admin-password="${{ secrets.TEST_ADMIN_PASSWORD }}" \
           --force
           
     - name: Verify Test Instance
       run: |
-        TEST_DOMAIN="test-virga.${COMPANY_DOMAIN}"
+        COMPANY_DIR="virga-plateform"
+        TEST_DOMAIN="test-${COMPANY_DIR}.${COMPANY_DOMAIN}"
         echo "🔍 Verifying test instance at ${TEST_DOMAIN}..."
         
-        # Wait for the service to be up
-        sleep 30
+        # Wait for instance to be ready
+        for i in {1..10}; do
+          if curl -sf "https://${TEST_DOMAIN}/health" > /dev/null; then
+            echo "✅ Test instance health check passed"
+            exit 0
+          fi
+          echo "Waiting for instance to be ready... (attempt $i/10)"
+          sleep 30
+        done
         
-        # Test the health endpoint
-        if ! curl -f "https://${TEST_DOMAIN}/health"; then
-          echo "❌ Test instance health check failed"
-          exit 1
-        fi
-        echo "✅ Test instance health check passed"
-        
-        # Additional checks for test instance
-        echo "Running additional checks..."
-        curl -f "https://${TEST_DOMAIN}/health" | jq .
-        
-    - name: Prepare Pre-production
+        echo "❌ Test instance health check failed after 10 attempts"
+        exit 1
+
+  deploy-preprod:
+    name: 🚀 Deploy PreProduction Instances
+    needs: [initialize, backup, test-deploy]
+    runs-on: self-hosted
+    environment: preprod
+    
+    steps:
+    - name: Deploy PreProd Instances
       run: |
-        PREPROD_DOMAIN="preprod-virga.${COMPANY_DOMAIN}"
-        PROD_INSTANCE="${INSTANCE_DIR}/prod"
-        PREPROD_INSTANCE="${INSTANCE_DIR}/preprod"
+        export APP_VERSION=${{ needs.initialize.outputs.version }}
+        instances='${{ needs.initialize.outputs.active_instances }}'
         
-        echo "🔄 Preparing pre-production environment..."
+        # Exit if no instances
+        [ -z "$instances" ] && echo "No instances to deploy" && exit 0
         
-        # Ensure prod instance exists
-        if [ ! -d "$PROD_INSTANCE" ]; then
-          echo "❌ Production instance not found at ${PROD_INSTANCE}"
-          exit 1
-        fi
+        # Create deployment report
+        report_file="${RUNNER_TEMP}/preprod_deployment.txt"
+        echo "PreProduction Deployment Report - $(date)" > "$report_file"
         
-        # Create backup of current pre-prod if exists
-        if [ -d "$PREPROD_INSTANCE" ]; then
-          timestamp=$(date +%Y%m%d_%H%M%S)
-          backup_dir="${BACKUP_BASE_DIR}/preprod_${timestamp}"
-          echo "📦 Backing up current pre-prod to ${backup_dir}"
-          cp -r "$PREPROD_INSTANCE" "$backup_dir"
-        fi
-        
-        # Copy production data to pre-prod
-        echo "📋 Copying production data to pre-prod..."
-        mkdir -p "$PREPROD_INSTANCE"
-        
-        # Copy only necessary files (database and configurations)
-        cp -r "${PROD_INSTANCE}/db" "${PREPROD_INSTANCE}/"
-        
-        echo "PREPROD_DOMAIN=${PREPROD_DOMAIN}" >> $GITHUB_ENV
-        echo "✅ Pre-production environment prepared"
-        
-    - name: Deploy to Pre-production
-      id: deploy_preprod
-      run: |
-        export APP_VERSION=${{ env.VERSION }}
-        export APP_DISPLAY_VERSION="${{ env.DISPLAY_VERSION }}"
-        
-        echo "🚀 Deploying pre-production instance to ${PREPROD_DOMAIN}..."
-        
-        ./deploy-instance.sh \
-          --company-name="preprod" \
-          --company-address="${{ secrets.PREPROD_ADDRESS }}" \
-          --company-phone="${{ secrets.PREPROD_PHONE }}" \
-          --company-email="${{ secrets.PREPROD_EMAIL }}" \
-          --domain="${PREPROD_DOMAIN}" \
-          --admin-password="${{ secrets.PREPROD_ADMIN_PASSWORD }}" \
-          --force
+        # Process each instance
+        echo "$instances" | while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
           
-    - name: Verify Pre-production
+          echo "🔄 Deploying preprod for: $id"
+          echo "Instance: $id ($domain)" >> "$report_file"
+          
+          preprod_domain="preprod-${domain}"
+          
+          if ./deploy-instance.sh \
+            --company-name="PreProd ${id}" \
+            --domain="${preprod_domain}" \
+            --force \
+            --update-only; then
+            echo "✓ Deployed: ${preprod_domain}" >> "$report_file"
+            
+            # Verify deployment with retries
+            for i in {1..5}; do
+              if curl -sf "https://${preprod_domain}/health" > /dev/null; then
+                echo "✓ Health check passed" >> "$report_file"
+                break
+              fi
+              if [ $i -eq 5 ]; then
+                echo "✗ Health check failed after 5 attempts" >> "$report_file"
+              else
+                echo "Retrying health check... (attempt $i/5)"
+                sleep 30
+              fi
+            done
+          else
+            echo "✗ Deployment failed" >> "$report_file"
+          fi
+          
+          echo "---" >> "$report_file"
+        done
+        
+        # Save report
+        mkdir -p "${GITHUB_WORKSPACE}/reports"
+        cp "$report_file" "${GITHUB_WORKSPACE}/reports/preprod_$(date +%Y%m%d_%H%M%S).txt"
+        
+    - name: Upload PreProd Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: preprod-deployment-report
+        path: reports/
+        retention-days: 30
+
+  approve-production:
+    name: ✋ Approve Production Deployment
+    needs: [initialize, deploy-preprod]
+    runs-on: self-hosted
+    environment:
+      name: production
+      url: ${{ steps.deployment-urls.outputs.urls }}
+    
+    steps:
+    - name: List Deployment URLs
+      id: deployment-urls
       run: |
-        echo "🔍 Verifying pre-production instance at ${PREPROD_DOMAIN}..."
+        instances='${{ needs.initialize.outputs.active_instances }}'
         
-        # Wait for the service to be up
-        sleep 30
+        # Exit if no instances
+        [ -z "$instances" ] && echo "urls=" >> $GITHUB_OUTPUT && exit 0
         
-        # Basic health check
-        if ! curl -f "https://${PREPROD_DOMAIN}/health"; then
-          echo "❌ Pre-production health check failed"
-          exit 1
-        fi
+        urls=""
+        while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          urls="${urls}https://preprod-${domain}\n"
+        done <<< "$instances"
         
-        # Additional verification steps
-        echo "Running additional checks..."
+        echo "urls=${urls}" >> $GITHUB_OUTPUT
+
+  deploy-production:
+    name: 🚀 Deploy Production Instances
+    needs: [initialize, approve-production]
+    runs-on: self-hosted
+    
+    steps:
+    - name: Deploy to Production
+      run: |
+        export APP_VERSION=${{ needs.initialize.outputs.version }}
+        instances='${{ needs.initialize.outputs.active_instances }}'
         
-        # Check database integrity
-        if ! curl -f "https://${PREPROD_DOMAIN}/health" | jq -e '.database.status == "ok"'; then
-          echo "❌ Database integrity check failed"
-          exit 1
-        fi
+        # Exit if no instances
+        [ -z "$instances" ] && echo "No instances to deploy" && exit 0
         
-        # Verify application version
-        if ! curl -f "https://${PREPROD_DOMAIN}/health" | jq -e ".version == \"${{ env.VERSION }}\""; then
-          echo "❌ Version mismatch in pre-production"
-          exit 1
-        fi
+        # Create deployment report
+        report_file="${RUNNER_TEMP}/production_deployment.txt"
+        echo "Production Deployment Report - $(date)" > "$report_file"
         
-        echo "✅ Pre-production verification complete"
+        # Process each instance
+        while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          
+          echo "🔄 Updating: $id ($domain)"
+          echo "Instance: $id ($domain)" >> "$report_file"
+          
+          if ./deploy-instance.sh \
+            --company-name="${id}" \
+            --domain="${domain}" \
+            --force \
+            --update-only; then
+            echo "✓ Deployed successfully" >> "$report_file"
+            
+            # Verify deployment with retries
+            for i in {1..5}; do
+              if curl -sf "https://${domain}/health" > /dev/null; then
+                echo "✓ Health check passed" >> "$report_file"
+                break
+              fi
+              if [ $i -eq 5 ]; then
+                echo "✗ Health check failed after 5 attempts" >> "$report_file"
+              else
+                echo "Retrying health check... (attempt $i/5)"
+                sleep 30
+              fi
+            done
+          else
+            echo "✗ Deployment failed" >> "$report_file"
+          fi
+          
+          echo "---" >> "$report_file"
+        done <<< "$instances"
         
+        # Save report
+        mkdir -p "${GITHUB_WORKSPACE}/reports"
+        cp "$report_file" "${GITHUB_WORKSPACE}/reports/production_$(date +%Y%m%d_%H%M%S).txt"
+        
+    - name: Upload Production Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: production-deployment-report
+        path: reports/
+        retention-days: 30
+
+  cleanup:
+    name: 🧹 Cleanup and Report
+    needs: [initialize, deploy-production]
+    if: always()
+    runs-on: self-hosted
+    
+    steps:
     - name: Cleanup Old Backups
-      if: always()
       run: |
-        # Keep only last 5 backups
-        cd ${BACKUP_BASE_DIR}
-        ls -t | tail -n +6 | xargs -r rm -rf
+        # Keep only last 5 backups for each instance
+        find ${BACKUP_DIR} -mindepth 1 -maxdepth 1 -type d | while read instance_dir; do
+          cd "$instance_dir"
+          ls -t | tail -n +6 | xargs -r rm -rf
+        done
         echo "🧹 Cleaned up old backups"
-        echo "Remaining backups:"
-        ls -l
         
-    - name: Notify Status
-      if: always()
+    - name: Generate Final Report
       run: |
-        if [ "${{ job.status }}" = "success" ]; then
-          echo "✅ Deployment successful"
-          echo "Version: ${{ env.DISPLAY_VERSION }}"
-          echo "Technical version: ${{ env.VERSION }}"
-          echo "Test URL: https://test-virga.${COMPANY_DOMAIN}"
-          echo "Pre-prod URL: https://preprod-virga.${COMPANY_DOMAIN}"
-          echo "Backup location: ${{ env.BACKUP_DIR }}"
+        if [ "${{ needs.deploy-production.result }}" = "success" ]; then
+          echo "✅ Deployment Pipeline Complete"
+          echo "Version: ${{ needs.initialize.outputs.display_version }}"
+          echo "Technical version: ${{ needs.initialize.outputs.version }}"
+          echo "Check deployment reports for details"
         else
-          echo "❌ Deployment failed"
-          echo "Version: ${{ env.DISPLAY_VERSION }}"
-          echo "Backup available at: ${{ env.BACKUP_DIR }}"
-          echo "Check the logs above for error details"
+          echo "❌ Deployment Pipeline Failed"
+          echo "Version: ${{ needs.initialize.outputs.display_version }}"
+          echo "Check deployment reports for error details"
+        fi 
+        fi 
         fi 

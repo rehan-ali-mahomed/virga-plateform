@@ -278,7 +278,7 @@ if check_instance "$COMPANY_DIR"; then
 fi
 
 # Create instance directories
-INSTANCE_DIR="instances/${COMPANY_DIR}"
+INSTANCE_DIR="/var/lib/virga-platform/instances/${COMPANY_DIR}"
 if ! mkdir -p ${INSTANCE_DIR}/{db,logs}; then
     error "Failed to create instance directories"
 fi
