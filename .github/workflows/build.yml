@@ -26,24 +26,15 @@ jobs:
       active_instances: ${{ steps.list-instances.outputs.instances }}
     
     steps:
-    - name: Check Environment and Permissions
-      id: check-env
+    - name: Check Environment
       run: |
-        echo "🔍 Checking environment and permissions..."
+        echo "🔍 Checking environment configuration..."
+        echo "Instance Directory: $INSTANCE_DIR"
+        echo "Backup Directory: $BACKUP_DIR"
+        echo "Current User: $(whoami)"
+        echo "Docker Status: $(docker info | grep 'Server Version')"
         
-        # Check if we're running as the correct user
-        CURRENT_USER=$(whoami)
-        echo "Current user: $CURRENT_USER"
-        
-        # Test sudo access for required commands
-        if ! sudo -n true 2>/dev/null; then
-          echo "::error::Sudo requires password. Please configure passwordless sudo for the runner user."
-          echo "Run: sudo visudo -f /etc/sudoers.d/github-actions"
-          echo "Add: $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/chmod, /bin/chown, /bin/mv, /bin/mkdir"
-          exit 1
-        fi
-        
-        # Verify directories exist with proper permissions
+        # Verify directories exist
         for dir in "$INSTANCE_DIR" "$BACKUP_DIR"; do
           if [ ! -d "$dir" ]; then
             echo "Creating directory: $dir"
