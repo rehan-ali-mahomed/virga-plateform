@@ -100,8 +100,11 @@ jobs:
               
               # Check if instance is running
               if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
-                domain=$(grep DOMAIN "$dir/secrets.env" | cut -d'=' -f2)
-                echo "${instance_id}|${domain}|${dir}" >> "$instance_file"
+                # Read domain from secrets.env safely
+                domain=$(grep "^DOMAIN=" "$dir/secrets.env" | cut -d'=' -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+                if [ -n "$domain" ]; then
+                  printf "%s|%s|%s\n" "$instance_id" "$domain" "$dir" >> "$instance_file"
+                fi
               fi
             fi
           fi
@@ -110,10 +113,13 @@ jobs:
         # Validate we found instances
         if [ ! -s "$instance_file" ]; then
           echo "::warning::No active instances found"
+          echo "instances=" >> $GITHUB_OUTPUT
+          exit 0
         fi
         
-        # Store instances for other jobs
-        echo "instances=$(cat $instance_file)" >> $GITHUB_OUTPUT
+        # Convert instances to a single line with proper escaping
+        instances=$(cat "$instance_file" | tr '\n' ',' | sed 's/,$//')
+        echo "instances=${instances}" >> $GITHUB_OUTPUT
         echo "Found active instances:"
         cat "$instance_file"
 
@@ -126,15 +132,16 @@ jobs:
     - name: Backup Production Databases
       run: |
         timestamp=$(date +%Y%m%d_%H%M%S)
-        instances='${{ needs.initialize.outputs.active_instances }}'
+        IFS=',' read -ra instance_array <<< "${{ needs.initialize.outputs.active_instances }}"
         
         echo "🔄 Processing instance backups..."
         
         # Exit if no instances
-        [ -z "$instances" ] && echo "No instances to backup" && exit 0
+        [ -z "${{ needs.initialize.outputs.active_instances }}" ] && echo "No instances to backup" && exit 0
         
         # Process each instance
-        echo "$instances" | while IFS='|' read -r id domain dir; do
+        for instance in "${instance_array[@]}"; do
+          IFS='|' read -r id domain dir <<< "$instance"
           [ -z "$id" ] && continue
           
           echo "📦 Backing up instance: $id ($domain)"
