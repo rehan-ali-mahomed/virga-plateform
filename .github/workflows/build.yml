@@ -100,7 +100,7 @@ jobs:
       id: list-instances
       run: |
         # Create temporary file for instances
-        instance_file="${RUNNER_TEMP}/active_instances.txt"
+        instance_file="/tmp/active_instances.txt"
         > "$instance_file"
         
         # Find and store active instances
@@ -269,6 +269,9 @@ jobs:
           --domain="${TEST_DOMAIN}" \
           --admin-password="${{ secrets.TEST_ADMIN_PASSWORD }}" \
           --force
+
+        echo "✅ Deployed test instance to ${TEST_DOMAIN}"
+          
           
     - name: Verify Test Instance
       run: |

@@ -416,7 +416,7 @@ if ! docker pull rehanalimahomed/virga-plateform:${APP_VERSION}; then
     error "Failed to pull latest image"
 fi
 
-if docker-compose up -d; then
+if docker compose up -d; then
     success "Container deployment successful!"
     
     # Update HAProxy configuration for both new and updated instances

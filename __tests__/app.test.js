@@ -3,11 +3,10 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env.test') });
 
 const app = require('../app');
-const { initializeDatabase } = require('../src/config/database');
 
 let server;
 
-const waitForServer = (port) => {
+const waitForServer = () => {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const timeout = 10000; // 10 seconds timeout
@@ -33,9 +32,6 @@ const waitForServer = (port) => {
 
 describe('App', () => {
   beforeAll(async () => {
-    // Initialize database first
-    await initializeDatabase();
-    
     // Start the server
     const PORT = process.env.PORT || 3000;
     server = app.listen(PORT);
