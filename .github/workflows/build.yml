@@ -41,8 +41,7 @@ jobs:
         for dir in "$INSTANCE_DIR" "$BACKUP_DIR"; do
           if [ ! -d "$dir" ]; then
             echo "Creating directory: $dir"
-            sudo mkdir -p "$dir"
-            sudo chown $CURRENT_USER:$CURRENT_USER "$dir"
+            mkdir -p "$dir" || sudo mkdir -p "$dir"
           fi
         done
         
