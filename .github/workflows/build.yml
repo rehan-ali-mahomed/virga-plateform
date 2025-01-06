@@ -10,8 +10,9 @@ on:
       - 'LICENSE'
 
 env:
-  INSTANCE_DIR: /var/lib/virga-plateform/instances
-  BACKUP_DIR: /var/lib/virga-plateform/backups
+  BASE_DIR: /var/lib/virga-plateform
+  INSTANCE_DIR: ${BASE_DIR}/instances
+  BACKUP_DIR: ${BASE_DIR}/backups
   DOCKER_REGISTRY: rehanalimahomed/virga-plateform
   COMPANY_DOMAIN: amadiy.com
   PROXY_USER: amadiyadm

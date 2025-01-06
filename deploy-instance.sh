@@ -22,25 +22,6 @@ info() {
     echo -e "${YELLOW}$1${NC}"
 }
 
-# Validate required environment variables
-required_env_vars=(
-    "INSTANCE_DIR"
-    "BACKUP_DIR"
-    "DOCKER_REGISTRY"
-    "COMPANY_DOMAIN"
-    "PROXY_USER"
-    "PROXY_HOST"
-    "PROXY_MANAGER_DIR"
-    "APP_SERVER_IP"
-)
-
-# Check for required environment variables
-for var in "${required_env_vars[@]}"; do
-    if [ -z "${!var}" ]; then
-        error "Required environment variable $var is not set"
-    fi
-done
-
 # Normalize paths (replace ~ with actual home directory)
 PROXY_MANAGER_DIR="${PROXY_MANAGER_DIR/#\~/$HOME}"
 INSTANCE_DIR="${INSTANCE_DIR/#\~/$HOME}"
@@ -70,11 +51,6 @@ fi
 
 if [ -z "$APP_VERSION" ]; then
     error "Failed to generate or obtain APP_VERSION"
-fi
-
-# Load additional configuration if exists
-if [ -f "config.env" ]; then
-    source config.env
 fi
 
 # Function to generate secure random string
@@ -376,8 +352,9 @@ if check_instance "$COMPANY_DIR"; then
     fi
 fi
 
-# Create instance directories if they don't exist
-INSTANCE_DIR="/var/lib/virga-plateform/instances/${COMPANY_DIR}"
+BASE_DIR="/var/lib/virga-plateform"
+INSTANCE_DIR="${BASE_DIR}/instances/${COMPANY_DIR}"
+
 if ! mkdir -p ${INSTANCE_DIR}/{db,logs}; then
     error "Failed to create instance directories"
 fi
