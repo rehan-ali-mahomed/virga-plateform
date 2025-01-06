@@ -12,8 +12,9 @@ on:
 env:
   INSTANCE_DIR: /var/lib/virga-platform/instances
   BACKUP_DIR: /var/lib/virga-platform/backups
-  DOCKER_REGISTRY: rehanalimahomed/virga-platform
+  DOCKER_REGISTRY: rehanalimahomed/virga-plateform
   COMPANY_DOMAIN: amadiy.com
+  RUNNER_USER: ${{ github.actor }}
 
 jobs:
   initialize:
@@ -25,19 +26,29 @@ jobs:
       active_instances: ${{ steps.list-instances.outputs.instances }}
     
     steps:
-    - name: Check Environment
+    - name: Check Environment and Permissions
+      id: check-env
       run: |
-        echo "🔍 Checking environment configuration..."
-        echo "Instance Directory: $INSTANCE_DIR"
-        echo "Backup Directory: $BACKUP_DIR"
-        echo "Current User: $(whoami)"
-        echo "Docker Status: $(docker info | grep 'Server Version')"
+        echo "🔍 Checking environment and permissions..."
         
-        # Verify directories exist
+        # Check if we're running as the correct user
+        CURRENT_USER=$(whoami)
+        echo "Current user: $CURRENT_USER"
+        
+        # Test sudo access for required commands
+        if ! sudo -n true 2>/dev/null; then
+          echo "::error::Sudo requires password. Please configure passwordless sudo for the runner user."
+          echo "Run: sudo visudo -f /etc/sudoers.d/github-actions"
+          echo "Add: $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/chmod, /bin/chown, /bin/mv, /bin/mkdir"
+          exit 1
+        fi
+        
+        # Verify directories exist with proper permissions
         for dir in "$INSTANCE_DIR" "$BACKUP_DIR"; do
           if [ ! -d "$dir" ]; then
             echo "Creating directory: $dir"
-            mkdir -p "$dir"
+            sudo mkdir -p "$dir"
+            sudo chown $CURRENT_USER:$CURRENT_USER "$dir"
           fi
         done
         
@@ -235,6 +246,15 @@ jobs:
         COMPANY_DIR="virga-plateform"
         TEST_DOMAIN="test-${COMPANY_DIR}.${COMPANY_DOMAIN}"
         TEST_INSTANCE_DIR="${INSTANCE_DIR}/test-${COMPANY_DIR}"
+
+        # Check if deploy-instance.sh is executable
+        if [ ! -x "./deploy-instance.sh" ]; then
+          echo "Making deploy-instance.sh executable..."
+          chmod +x ./deploy-instance.sh || sudo -n chmod +x ./deploy-instance.sh || {
+            echo "::error::Failed to make deploy-instance.sh executable"
+            exit 1
+          }
+        fi
         
         echo "🚀 Deploying test instance to ${TEST_DOMAIN}..."
         
