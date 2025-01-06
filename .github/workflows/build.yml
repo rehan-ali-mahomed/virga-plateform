@@ -245,11 +245,22 @@ jobs:
         for i in {1..10}; do
           if curl -sf "https://${TEST_DOMAIN}/health" > /dev/null; then
             echo "✅ Test instance health check passed"
+
+            # Check if remove-instance.sh is executable
+            if [ ! -x "./remove-instance.sh" ]; then
+              echo "Making remove-instance.sh executable..."
+              chmod +x ./remove-instance.sh || sudo -n chmod +x ./remove-instance.sh || {
+                echo "::error::Failed to make remove-instance.sh executable"
+                exit 1
+              }
+            fi
             
             # Remove test instance after successful verification
             echo "🧹 Removing test instance..."
+
             ./remove-instance.sh --company-name="test-${COMPANY_DIR}" --force
             
+            echo "✅ Removed test instance"
             exit 0
           fi
           echo "Waiting for instance to be ready... (attempt $i/10)"
