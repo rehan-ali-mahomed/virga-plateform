@@ -366,7 +366,6 @@ save_secrets "$INSTANCE_DIR"
 
 # Generate docker-compose file
 if ! cat > ${INSTANCE_DIR}/docker-compose.yml << EOL
-version: '3.8'
 
 services:
   carinspection:

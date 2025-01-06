@@ -6,7 +6,7 @@ HAPROXY_MAP="/etc/haproxy/domain2backend.map"
 HAPROXY_CONFIG_TEMPLATE="/home/amadiyadm/proxy-settings/haproxy.cfg.template"
 HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 PROXY_TMP_DIR="/tmp/haproxy-manager"
-# PROXY_MANAGER_DIR="/home/amadiyadm/proxy-settings"
+CLOUDFLARE_MANAGER_SCRIPT="/home/amadiyadm/manage_dns_record_cloudflare/manage_dns_record_cloudflare.sh"
 
 # Ensure map file exists and has proper permissions
 if [ ! -f "$HAPROXY_MAP" ]; then
@@ -252,6 +252,15 @@ add_update_instance() {
         return 1
     fi
 
+    # Update Cloudflare DNS record
+    echo "Updating DNS record in Cloudflare..."
+    if ! ${CLOUDFLARE_MANAGER_SCRIPT} add "$domain" "CNAME" "amadiy.com"; then
+        echo "Warning: Failed to update DNS record in Cloudflare for ${domain}"
+        # Don't return error here as the proxy setup might still be needed
+    else
+        echo "Successfully updated DNS record in Cloudflare for ${domain}"
+    fi
+
     # Update instances file
     if grep -q "^${company_dir}|" "$INSTANCES_FILE" 2>/dev/null; then
         # Create the new line first
@@ -274,9 +283,7 @@ add_update_instance() {
     
     # Update domain mapping with additional checks
     if [ -z "${domain}" ]; then
-	domain="$3"
-        # echo "Error: Domain or company_dir is empty. Domain=${domain}, Company=${company_dir}"
-        # return 1
+        domain="$3"
     fi
 
     # Update domain mapping
@@ -332,6 +339,16 @@ remove_instance() {
     local port=$(echo "$instance_info" | cut -d'|' -f2)
     local server_ip=$(echo "$instance_info" | cut -d'|' -f4)
     local backend_config=$(grep "^backend ${company_dir}_backend" -A 2 "$HAPROXY_CONFIG" || echo "Not found")
+
+    # Remove DNS record using manage_dns_record_cloudflare.sh
+    if [ ! -z "$domain" ]; then
+        echo "Removing DNS record for domain: $domain"
+        if ! ${CLOUDFLARE_MANAGER_SCRIPT} delete "$domain"; then
+            echo "Warning: Failed to remove DNS record for ${domain}"
+        else
+            echo "Successfully removed DNS record for ${domain}"
+        fi
+    fi
     
     # Save metadata about the removal
     cat << EOF | sudo tee "$metadata_file" > /dev/null

@@ -1,6 +1,6 @@
 {
     "name": "virga",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "description": "VIRGA (Vehicle Inspection Report Generation Application) - A comprehensive solution for managing vehicle inspections and generating reports",
     "main": "./app.js",
     "scripts": {
