@@ -10,11 +10,14 @@ on:
       - 'LICENSE'
 
 env:
-  INSTANCE_DIR: /var/lib/virga-platform/instances
-  BACKUP_DIR: /var/lib/virga-platform/backups
+  INSTANCE_DIR: /var/lib/virga-plateform/instances
+  BACKUP_DIR: /var/lib/virga-plateform/backups
   DOCKER_REGISTRY: rehanalimahomed/virga-plateform
   COMPANY_DOMAIN: amadiy.com
-  RUNNER_USER: ${{ github.actor }}
+  PROXY_USER: amadiyadm
+  PROXY_HOST: ${{ secrets.PROXY_HOST }}
+  PROXY_MANAGER_DIR: /home/amadiyadm/proxy-settings
+  APP_SERVER_IP: ${{ secrets.DOCKERS_HOST }}
 
 jobs:
   initialize:
@@ -40,6 +43,15 @@ jobs:
             echo "Creating directory: $dir"
             sudo mkdir -p "$dir"
             sudo chown $CURRENT_USER:$CURRENT_USER "$dir"
+          fi
+        done
+        
+        # Validate required environment variables
+        required_vars=("PROXY_HOST" "APP_SERVER_IP" "PROXY_MANAGER_DIR" "PROXY_USER")
+        for var in "${required_vars[@]}"; do
+          if [ -z "${!var}" ]; then
+            echo "::error::Required environment variable $var is not set"
+            exit 1
           fi
         done
         

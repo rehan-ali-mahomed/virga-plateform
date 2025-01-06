@@ -6,19 +6,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Build app version
-BASE_VERSION=$(cat VERSION)
-BUILD_DATE=$(date +'%Y.%m.%d')
-GIT_SHORT_SHA=$(git rev-parse --short HEAD)
-BUILD_NUMBER=$(git rev-list --count HEAD)
-
-# Generate versions
-export APP_VERSION="${BASE_VERSION}-${BUILD_NUMBER}-${GIT_SHORT_SHA}"
-
-if [ -z "$APP_VERSION" ]; then
-    export APP_VERSION="latest"
-fi
-
 # Function to print error and exit
 error() {
     echo -e "${RED}Error: $1${NC}" >&2
@@ -35,6 +22,61 @@ info() {
     echo -e "${YELLOW}$1${NC}"
 }
 
+# Validate required environment variables
+required_env_vars=(
+    "INSTANCE_DIR"
+    "BACKUP_DIR"
+    "DOCKER_REGISTRY"
+    "COMPANY_DOMAIN"
+    "PROXY_USER"
+    "PROXY_HOST"
+    "PROXY_MANAGER_DIR"
+    "APP_SERVER_IP"
+)
+
+# Check for required environment variables
+for var in "${required_env_vars[@]}"; do
+    if [ -z "${!var}" ]; then
+        error "Required environment variable $var is not set"
+    fi
+done
+
+# Normalize paths (replace ~ with actual home directory)
+PROXY_MANAGER_DIR="${PROXY_MANAGER_DIR/#\~/$HOME}"
+INSTANCE_DIR="${INSTANCE_DIR/#\~/$HOME}"
+BACKUP_DIR="${BACKUP_DIR/#\~/$HOME}"
+
+# Build app version if not provided by CI/CD
+if [ -z "$APP_VERSION" ]; then
+    BASE_VERSION=$(cat VERSION)
+    if [ -z "$BASE_VERSION" ]; then
+        error "VERSION file not found or empty"
+    fi
+
+    BUILD_DATE=$(date +'%Y.%m.%d')
+    GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+    if [ $? -ne 0 ]; then
+        error "Failed to get git commit hash. Ensure this is run from a git repository"
+    fi
+
+    BUILD_NUMBER=$(git rev-list --count HEAD)
+    if [ $? -ne 0 ]; then
+        error "Failed to get git commit count. Ensure this is run from a git repository"
+    fi
+
+    # Generate versions
+    export APP_VERSION="${BASE_VERSION}-${BUILD_NUMBER}-${GIT_SHORT_SHA}"
+fi
+
+if [ -z "$APP_VERSION" ]; then
+    error "Failed to generate or obtain APP_VERSION"
+fi
+
+# Load additional configuration if exists
+if [ -f "config.env" ]; then
+    source config.env
+fi
+
 # Function to generate secure random string
 generate_secret() {
     local length=$1
@@ -47,6 +89,11 @@ prompt_required() {
     local prompt_text=$2
     local default_value=$3
     local is_secret=$4
+    
+    # Skip prompts in update-only mode
+    if [ "$UPDATE_ONLY" = "true" ]; then
+        return 0
+    fi
     
     if [ -z "${!var_name}" ]; then
         if [ "$is_secret" = "true" ]; then
@@ -80,11 +127,35 @@ prompt_required() {
 # Function to check if instance exists
 check_instance() {
     local company_dir=$1
-    if [ -d "instances/${company_dir}" ]; then
+    local instance_dir="/var/lib/virga-plateform/instances/${company_dir}"
+    if [ -d "$instance_dir" ] && [ -f "$instance_dir/secrets.env" ] && [ -f "$instance_dir/docker-compose.yml" ]; then
         return 0
     else
         return 1
     fi
+}
+
+# Function to load existing instance configuration
+load_instance_config() {
+    local instance_dir=$1
+    local secrets_file="${instance_dir}/secrets.env"
+    
+    if [ ! -f "$secrets_file" ]; then
+        error "Cannot load instance configuration: secrets file not found"
+    fi
+    
+    # Load existing configuration
+    source "$secrets_file"
+    
+    # Verify required variables are loaded
+    local required_vars=("COMPANY_NAME" "COMPANY_ADDRESS" "COMPANY_PHONE" "COMPANY_EMAIL" "DOMAIN" "ADMIN_PASSWORD")
+    for var in "${required_vars[@]}"; do
+        if [ -z "${!var}" ]; then
+            error "Required variable $var not found in existing configuration"
+        fi
+    done
+    
+    success "Loaded existing instance configuration"
 }
 
 # Function to save secrets
@@ -92,6 +163,12 @@ save_secrets() {
     local instance_dir=$1
     local secrets_file="${instance_dir}/secrets.env"
     local credentials_file="${instance_dir}/admin_credentials.txt"
+    
+    # Skip if update-only and secrets file exists
+    if [ "$UPDATE_ONLY" = "true" ] && [ -f "$secrets_file" ]; then
+        info "Preserving existing secrets file in update-only mode"
+        return 0
+    fi
     
     # Format admin username (use email format for consistency)
     local admin_username="admin.${COMPANY_DIR}"
@@ -133,11 +210,11 @@ EOL
         error "Failed to create secrets file"
     fi
 
-    
     success "Secrets saved to $secrets_file"
     
-    # Save a backup of credentials
-    if ! cat > "$credentials_file" << EOL
+    # Save a backup of credentials only for new instances
+    if [ "$UPDATE_ONLY" != "true" ]; then
+        if ! cat > "$credentials_file" << EOL
 Admin Portal Credentials
 =======================
 URL: https://${DOMAIN}/admin
@@ -152,30 +229,18 @@ Phone: ${COMPANY_PHONE}
 IMPORTANT: Store this file securely and then delete it.
 This file will be automatically deleted in 24 hours for security.
 EOL
-    then
-        error "Failed to create credentials file"
+        then
+            error "Failed to create credentials file"
+        fi
+        
+        # Schedule credentials file deletion
+        if ! echo "rm -f \"$credentials_file\"" | at now + 24 hours 2>/dev/null; then
+            info "Note: Could not schedule automatic deletion of credentials file"
+        fi
+        
+        success "Admin credentials saved to $credentials_file (will be deleted in 24 hours)"
     fi
-    
-    # Schedule credentials file deletion
-    if ! echo "rm -f \"$credentials_file\"" | at now + 24 hours 2>/dev/null; then
-        info "Note: Could not schedule automatic deletion of credentials file"
-    fi
-    
-    success "Admin credentials saved to $credentials_file (will be deleted in 24 hours)"
 }
-
-# Load default configuration
-if [ -f "config.env" ]; then
-    source config.env
-else
-    info "config.env not found, will prompt for all required values"
-fi
-
-# Prompt for proxy configuration if not defined
-prompt_required PROXY_USER "Enter proxy server username"
-prompt_required PROXY_HOST "Enter proxy server hostname"
-prompt_required PROXY_MANAGER_DIR "Enter proxy manager directory path"
-prompt_required APP_SERVER_IP "Enter application server IP"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -212,6 +277,11 @@ while [[ $# -gt 0 ]]; do
             FORCE=true
             shift
             ;;
+        --update-only)
+            UPDATE_ONLY=true
+            FORCE=true  # Implicit force in update-only mode
+            shift
+            ;;
         --help)
             echo "Usage: $0 [options]"
             echo "Options:"
@@ -223,6 +293,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --domain=DOMAIN         Domain name"
             echo "  --admin-password=PASS   Admin password (will prompt if not provided)"
             echo "  --force                 Force redeployment"
+            echo "  --update-only           Update existing instance only (implies --force)"
             exit 0
             ;;
         *)
@@ -231,37 +302,61 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Prompt for required values if not provided
-prompt_required COMPANY_NAME "Enter company name"
-prompt_required COMPANY_ADDRESS "Enter company address"
-prompt_required COMPANY_PHONE "Enter company phone"
-prompt_required COMPANY_EMAIL "Enter company email"
-prompt_required ADMIN_PASSWORD "Enter admin password" "" true
-
 # Format company name for directory
-export COMPANY_DIR=$(echo "${COMPANY_NAME}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | xargs)
-[[ -z "$COMPANY_DIR" ]] && error "Failed to format company directory name"
-
-# Generate default domain name
-export GENERATED_DOMAIN="${COMPANY_DIR}.amadiy.com"
-prompt_required DOMAIN "Enter domain name (default: ${GENERATED_DOMAIN})" "${GENERATED_DOMAIN}"
-
-# if domain is not provided, use generated domain
-if [ -z "$DOMAIN" ]; then
-    info "Using generated domain name: ${GENERATED_DOMAIN}"
-    DOMAIN="${GENERATED_DOMAIN}"
+if [ -n "$COMPANY_NAME" ]; then
+    export COMPANY_DIR=$(echo "${COMPANY_NAME}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | xargs)
+    [[ -z "$COMPANY_DIR" ]] && error "Failed to format company directory name"
 fi
 
-# if domain doesnt end with .amadiy.com, add it
-if [[ "$DOMAIN" != *.amadiy.com ]]; then
-    DOMAIN="${DOMAIN}.amadiy.com"
-    info "Added amadiy.com to domain name : ${DOMAIN}"
+# Handle update-only mode
+if [ "$UPDATE_ONLY" = "true" ]; then
+    # Require company name for update-only mode
+    [ -z "$COMPANY_DIR" ] && error "Company name is required for update-only mode"
+    [ -z "$DOMAIN" ] && error "Domain is required for update-only mode"
+    
+    # Check if instance exists
+    if ! check_instance "$COMPANY_DIR"; then
+        error "Cannot update: Instance ${COMPANY_DIR} does not exist"
+    fi
+    
+    # Load existing configuration
+    INSTANCE_DIR="/var/lib/virga-plateform/instances/${COMPANY_DIR}"
+    load_instance_config "$INSTANCE_DIR"
+    
+    info "Updating existing instance ${COMPANY_DIR}"
+else
+    # Prompt for required values if not provided
+    prompt_required COMPANY_NAME "Enter company name"
+    prompt_required COMPANY_ADDRESS "Enter company address"
+    prompt_required COMPANY_PHONE "Enter company phone"
+    prompt_required COMPANY_EMAIL "Enter company email"
+    prompt_required ADMIN_PASSWORD "Enter admin password" "" true
+
+    # Generate default domain name if not in update-only mode
+    export GENERATED_DOMAIN="${COMPANY_DIR}.amadiy.com"
+    prompt_required DOMAIN "Enter domain name (default: ${GENERATED_DOMAIN})" "${GENERATED_DOMAIN}"
+
+    # if domain is not provided, use generated domain
+    if [ -z "$DOMAIN" ]; then
+        info "Using generated domain name: ${GENERATED_DOMAIN}"
+        DOMAIN="${GENERATED_DOMAIN}"
+    fi
+
+    # if domain doesnt end with .amadiy.com, add it
+    if [[ "$DOMAIN" != *.amadiy.com ]]; then
+        DOMAIN="${DOMAIN}.amadiy.com"
+        info "Added amadiy.com to domain name : ${DOMAIN}"
+    fi
 fi
 
-# Generate secure secrets if not existing
-SESSION_SECRET=${SESSION_SECRET:-$(generate_secret 32)}
+# Validate required variables
+[ -z "$COMPANY_DIR" ] && error "Company directory name is not set"
+[ -z "$DOMAIN" ] && error "Domain is not set"
+[ -z "$APP_VERSION" ] && error "App version is not set"
 
 # Set default values for optional parameters
+# Generate secure secrets if not existing
+SESSION_SECRET=${SESSION_SECRET:-$(generate_secret 32)}
 PORT=${PORT:-3000}
 NODE_ENV=${NODE_ENV:-production}
 LOG_LEVEL=${LOG_LEVEL:-info}
@@ -281,16 +376,15 @@ if check_instance "$COMPANY_DIR"; then
     fi
 fi
 
-# Create instance directories
-INSTANCE_DIR="/var/lib/virga-platform/instances/${COMPANY_DIR}"
+# Create instance directories if they don't exist
+INSTANCE_DIR="/var/lib/virga-plateform/instances/${COMPANY_DIR}"
 if ! mkdir -p ${INSTANCE_DIR}/{db,logs}; then
     error "Failed to create instance directories"
 fi
 
-# Display instance directory with a 
-success "Created/Updated instance directories ${INSTANCE_DIR}"
+success "Instance directory: ${INSTANCE_DIR}"
 
-# Save secrets to protected file
+# Save or update secrets
 save_secrets "$INSTANCE_DIR"
 
 # Generate docker-compose file
@@ -299,7 +393,7 @@ version: '3.8'
 
 services:
   carinspection:
-    image: rehanalimahomed/virga-plateform:latest
+    image: rehanalimahomed/virga-plateform:${APP_VERSION}
     container_name: ${COMPANY_DIR}-plateform
     ports:
       - "${PORT}:3000"
@@ -339,22 +433,31 @@ fi
 # Deploy container
 info "Deploying instance..."
 cd ${INSTANCE_DIR}
+
+# Pull latest image before deploying
+if ! docker pull rehanalimahomed/virga-plateform:${APP_VERSION}; then
+    error "Failed to pull latest image"
+fi
+
 if docker-compose up -d; then
     success "Container deployment successful!"
     
-    # Update HAProxy configuration
+    # Update HAProxy configuration for both new and updated instances
     info "Updating proxy configuration..."
     if ssh ${PROXY_USER}@${PROXY_HOST} "${PROXY_MANAGER_DIR}/update-proxy.sh add \"$COMPANY_DIR\" \"$PORT\" \"$DOMAIN\" \"$APP_SERVER_IP\""; then
         success "Proxy configuration updated"
-        success "Instance is accessible at https://$DOMAIN"
-        success "Container name: ${COMPANY_DIR}-plateform"
-        
+    else
+        error "Failed to update proxy configuration"
+    fi
+    
+    success "Instance is accessible at https://$DOMAIN"
+    success "Container name: ${COMPANY_DIR}-plateform"
+    
+    if [ "$UPDATE_ONLY" != "true" ]; then
         # Display admin credentials securely
         echo -e "\n${GREEN}Admin Credentials${NC}"
         echo "Username: admin.${COMPANY_DIR}"
         echo "Password: (saved in ${INSTANCE_DIR}/secrets.env)"
-    else
-        error "Failed to update proxy configuration"
     fi
 else
     error "Deployment failed"
