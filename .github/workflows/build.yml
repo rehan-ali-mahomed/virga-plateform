@@ -522,6 +522,14 @@ jobs:
             fi
           done
           echo "Found available port: $PORT"
+
+          if [[ ! -x "./deploy-instance.sh" ]]; then
+            echo "Making deploy-instance.sh executable..."
+            chmod +x ./deploy-instance.sh || sudo -n chmod +x ./deploy-instance.sh || {
+              echo "::error::Failed to make deploy-instance.sh executable"
+              exit 1
+            }
+          fi
           
           # Deploy new instance
           ./deploy-instance.sh \
