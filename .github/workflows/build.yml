@@ -530,7 +530,7 @@ jobs:
               
               # Export the variable
               export "$key=$value"
-            done < "${INSTANCE_DIR}/${instance_dir_name}/secrets.env"
+            done < <(grep -v '^[[:space:]]*$' "${INSTANCE_DIR}/${instance_dir_name}/secrets.env")
             
             # Ensure required variables are set
             if [ -z "$COMPANY_ADDRESS" ]; then
@@ -542,6 +542,22 @@ jobs:
             if [ -z "$COMPANY_EMAIL" ]; then
               export COMPANY_EMAIL="preprod@${COMPANY_DOMAIN}"
             fi
+            
+            # Find an available port starting from 3000
+            echo "Finding available port..."
+            PORT=3000
+            while lsof -i ":$PORT" > /dev/null 2>&1; do
+              echo "Port $PORT is in use, trying next port..."
+              PORT=$((PORT + 1))
+              if [ $PORT -gt 3100 ]; then
+                echo "::error::No available ports found in range 3000-3100"
+                exit 1
+              fi
+            done
+            echo "Found available port: $PORT"
+            
+            # Export port for deploy-instance.sh
+            export APP_PORT=$PORT
             
             ./deploy-instance.sh \
               --company-name="PreProd ${id}" \
