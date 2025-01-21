@@ -102,10 +102,10 @@ const organizeInspectionResults = (results) => {
 
       // Convert category names to match our standardized format
       const mappedCategory = result.category.toUpperCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove accents
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Remove accents
       
       // Only add to categories we know about
-      if (organized.hasOwnProperty(mappedCategory)) {
+      if (Object.prototype.hasOwnProperty.call(organized, mappedCategory)) {
         organized[mappedCategory].push({
           name: result.name,
           value: result.value || 'Non Vérifier',
@@ -119,6 +119,7 @@ const organizeInspectionResults = (results) => {
 
     // Remove empty categories
     return Object.fromEntries(
+      // eslint-disable-next-line no-unused-vars
       Object.entries(organized).filter(([_, items]) => items.length > 0)
     );
   } catch (error) {

@@ -255,7 +255,6 @@ const createDefaultAdminUser = async () => {
   const defaultLastName = process.env.ADMIN_LAST_NAME;
   const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12);
   const defaultEmail = process.env.ADMIN_EMAIL;
-  const userId = uuidv4();
 
   try {
     const user = await getUserByUsername(defaultUsername);

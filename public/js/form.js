@@ -213,6 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Submit form to generate preview in new tab
     form.submit();
+
+    previewPdfBtn.disabled = true;
     
     // Redirect main page to dashboard after a short delay
     setTimeout(() => {
