@@ -12,6 +12,7 @@ on:
 env:
   INSTANCE_DIR: /var/lib/virga-plateform/instances
   BACKUP_DIR: /var/lib/virga-plateform/backups
+  BUILD_METADATA_DIR: /var/lib/virga-plateform/build-metadata
   DOCKER_REGISTRY: rehanalimahomed/virga-plateform
   COMPANY_DOMAIN: amadiy.com
   PROXY_USER: amadiyadm
@@ -153,10 +154,20 @@ jobs:
     - name: Check for Code Changes
       id: check-changes
       run: |
-        # Get the last successful commit hash from a file
+        # Ensure build metadata directory exists with proper permissions
+        if [ ! -d "$BUILD_METADATA_DIR" ]; then
+          echo "Creating build metadata directory..."
+          mkdir -p "$BUILD_METADATA_DIR" || sudo mkdir -p "$BUILD_METADATA_DIR"
+          sudo chown $(whoami) "$BUILD_METADATA_DIR"
+          sudo chmod 755 "$BUILD_METADATA_DIR"
+        fi
+        
+        # Get the last successful commit hash from permanent storage
+        LAST_BUILD_FILE="${BUILD_METADATA_DIR}/last_successful_build"
         LAST_SUCCESSFUL_HASH=""
-        if [ -f ".last_successful_build" ]; then
-          LAST_SUCCESSFUL_HASH=$(cat .last_successful_build)
+        
+        if [ -f "$LAST_BUILD_FILE" ]; then
+          LAST_SUCCESSFUL_HASH=$(cat "$LAST_BUILD_FILE")
         fi
         
         # If no last successful build found, consider everything changed
@@ -166,8 +177,12 @@ jobs:
           exit 0
         fi
         
-        # Check for changes in relevant directories/files
-        CHANGED_FILES=$(git diff --name-only $LAST_SUCCESSFUL_HASH HEAD)
+        # Verify the hash exists in the repository
+        if ! git rev-parse --quiet --verify "$LAST_SUCCESSFUL_HASH^{commit}" >/dev/null; then
+          echo "Last successful build commit not found in history. Building Docker image."
+          echo "docker_image_built=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
         
         # Define patterns that should trigger a build
         BUILD_PATTERNS=(
@@ -196,12 +211,14 @@ jobs:
           "^\.env.*$"               # Environment files
           "^VERSION$"               # Version file (handled by initialize job)
           "^.*\.md$"                # Documentation files
-          "^\.last_successful_build$" # Build tracking file
         )
         
         echo "Checking for changes in files..."
         NEEDS_BUILD=false
-        for FILE in $CHANGED_FILES; do
+        
+        # Get changed files using triple dot to include merge commits
+        while IFS= read -r FILE; do
+          [ -z "$FILE" ] && continue
           echo "Checking file: $FILE"
           
           # First check if file should be ignored
@@ -227,7 +244,7 @@ jobs:
               break 2
             fi
           done
-        done
+        done < <(git diff --name-only "$LAST_SUCCESSFUL_HASH...HEAD")
         
         if [ "$NEEDS_BUILD" = true ]; then
           echo "Changes detected in relevant files. Building Docker image."
@@ -283,7 +300,15 @@ jobs:
     - name: Update Last Successful Build
       if: success() && steps.check-changes.outputs.docker_image_built == 'true'
       run: |
-        git rev-parse HEAD > .last_successful_build
+        # Update the last successful build hash in permanent storage
+        echo "Updating last successful build hash..."
+        NEW_HASH=$(git rev-parse HEAD)
+        
+        # Write hash with atomic operation
+        echo "$NEW_HASH" > "${BUILD_METADATA_DIR}/last_successful_build"
+        chmod 644 "${BUILD_METADATA_DIR}/last_successful_build"
+        
+        echo "Successfully updated build hash to: $NEW_HASH"
 
   test-deploy:
     name: 🧪 Deploy & Verify Test Instance
@@ -535,7 +560,7 @@ jobs:
             
             # Ensure required variables are set
             if [ -z "$COMPANY_ADDRESS" ]; then
-              export COMPANY_ADDRESS="PreProd Environment"
+              export COMPANY_ADDRESS="PreProd_Environment"
             fi
             if [ -z "$COMPANY_PHONE" ]; then
               export COMPANY_PHONE="0123456789"
@@ -547,7 +572,7 @@ jobs:
             # Find an available port starting from 3000
             echo "Finding available port..."
             PORT=3000
-            while lsof -i ":$PORT" > /dev/null 2>&1; do
+            while ss -tulpn | grep ":$PORT" >/dev/null 2>&1; do
               echo "Port $PORT is in use, trying next port..."
               PORT=$((PORT + 1))
               if [ $PORT -gt 3100 ]; then
@@ -561,7 +586,7 @@ jobs:
             export APP_PORT=$PORT
             
             ./deploy-instance.sh \
-              --company-name="PreProd ${id}" \
+              --company-name="PreProd_${id}" \
               --company-address="$COMPANY_ADDRESS" \
               --company-phone="$COMPANY_PHONE" \
               --company-email="$COMPANY_EMAIL" \
@@ -576,12 +601,13 @@ jobs:
             
             # Create the instance
             ./deploy-instance.sh \
-              --company-name="PreProd ${id}" \
-              --company-address="PreProd Environment" \
+              --company-name="PreProd_${id}" \
+              --company-address="PreProd_Environment" \
               --company-phone="0123456789" \
               --company-email="preprod@${COMPANY_DOMAIN}" \
               --domain="${preprod_domain}" \
               --admin-password="${{ secrets.TEST_ADMIN_PASSWORD }}" \
+              --port=$PORT \
               --force && deployment_success=true
             
             # Restore the database
