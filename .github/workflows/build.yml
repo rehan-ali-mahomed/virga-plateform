@@ -140,6 +140,8 @@ jobs:
     name: 🏗️ Build and Test Code
     needs: [initialize]
     runs-on: self-hosted
+    outputs:
+      docker_image_built: ${{ steps.check-changes.outputs.docker_image_built }}
     
     steps:
     - name: Checkout code
@@ -147,6 +149,93 @@ jobs:
       with:
         clean: true
         fetch-depth: 0
+
+    - name: Check for Code Changes
+      id: check-changes
+      run: |
+        # Get the last successful commit hash from a file
+        LAST_SUCCESSFUL_HASH=""
+        if [ -f ".last_successful_build" ]; then
+          LAST_SUCCESSFUL_HASH=$(cat .last_successful_build)
+        fi
+        
+        # If no last successful build found, consider everything changed
+        if [ -z "$LAST_SUCCESSFUL_HASH" ]; then
+          echo "No previous successful build found. Building Docker image."
+          echo "docker_image_built=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Check for changes in relevant directories/files
+        CHANGED_FILES=$(git diff --name-only $LAST_SUCCESSFUL_HASH HEAD)
+        
+        # Define patterns that should trigger a build
+        BUILD_PATTERNS=(
+          # Core application files
+          "^src/"                    # Backend source code
+          "^public/js/"              # Frontend JavaScript
+          "^app\.js$"                # Main application entry
+          
+          # Dependencies and build files
+          "^package\.json$"          # NPM dependencies
+          "^package-lock\.json$"     # NPM lock file
+          "^Dockerfile$"             # Docker build instructions
+          "^\.dockerignore$"         # Docker build exclusions
+          
+          # Configuration and views
+          "^src/views/.*\.ejs$"     # View templates
+          "^src/config/[^/]*\.js$"  # Config files (excluding subdirs)
+          "^src/services/.*\.js$"   # Service files
+          "^src/utils/.*\.js$"      # Utility files
+        )
+        
+        # Define patterns to explicitly ignore
+        IGNORE_PATTERNS=(
+          "^\.github/"              # GitHub workflows
+          "^__tests__/"             # Test files
+          "^\.env.*$"               # Environment files
+          "^VERSION$"               # Version file (handled by initialize job)
+          "^.*\.md$"                # Documentation files
+          "^\.last_successful_build$" # Build tracking file
+        )
+        
+        echo "Checking for changes in files..."
+        NEEDS_BUILD=false
+        for FILE in $CHANGED_FILES; do
+          echo "Checking file: $FILE"
+          
+          # First check if file should be ignored
+          SHOULD_IGNORE=false
+          for PATTERN in "${IGNORE_PATTERNS[@]}"; do
+            if echo "$FILE" | grep -qE "$PATTERN"; then
+              echo "Ignoring file (matches ignore pattern): $FILE"
+              SHOULD_IGNORE=true
+              break
+            fi
+          done
+          
+          # Skip to next file if this one should be ignored
+          if [ "$SHOULD_IGNORE" = true ]; then
+            continue
+          fi
+          
+          # Check if file matches any build pattern
+          for PATTERN in "${BUILD_PATTERNS[@]}"; do
+            if echo "$FILE" | grep -qE "$PATTERN"; then
+              echo "Match found: $FILE matches build pattern $PATTERN"
+              NEEDS_BUILD=true
+              break 2
+            fi
+          done
+        done
+        
+        if [ "$NEEDS_BUILD" = true ]; then
+          echo "Changes detected in relevant files. Building Docker image."
+          echo "docker_image_built=true" >> $GITHUB_OUTPUT
+        else
+          echo "No relevant changes detected. Skipping Docker image build."
+          echo "docker_image_built=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
@@ -164,18 +253,20 @@ jobs:
       run: npm test
       
     - name: Build Docker image
+      if: steps.check-changes.outputs.docker_image_built == 'true'
       run: |
         docker build -t ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }} .
         docker tag ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }} ${DOCKER_REGISTRY}:latest
       
     - name: Login to Docker Hub
-      if: env.NEED_DOCKER_LOGIN == 'true'
+      if: env.NEED_DOCKER_LOGIN == 'true' && steps.check-changes.outputs.docker_image_built == 'true'
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
     - name: Push Docker image
+      if: steps.check-changes.outputs.docker_image_built == 'true'
       run: |
         if ! docker push ${DOCKER_REGISTRY}:${{ needs.initialize.outputs.version }}; then
           if [ "${{ env.NEED_DOCKER_LOGIN }}" = "false" ]; then
@@ -188,12 +279,18 @@ jobs:
           fi
         fi
         docker push ${DOCKER_REGISTRY}:latest
+        
+    - name: Update Last Successful Build
+      if: success() && steps.check-changes.outputs.docker_image_built == 'true'
+      run: |
+        git rev-parse HEAD > .last_successful_build
 
   test-deploy:
     name: 🧪 Deploy & Verify Test Instance
     needs: [build]
     runs-on: self-hosted
     environment: test
+    if: needs.build.outputs.docker_image_built == 'true'
     
     steps:
     - name: Checkout code
@@ -273,6 +370,7 @@ jobs:
   backup:
     name: 📦 Backup Production Databases
     needs: [test-deploy, initialize]
+    if: always() && (needs.test-deploy.result == 'success' || needs.test-deploy.result == 'skipped')
     runs-on: self-hosted
     
     steps:
@@ -329,7 +427,8 @@ jobs:
 
   deploy-preprod:
     name: 🚀 Deploy PreProduction Instances
-    needs: [backup, initialize]
+    needs: [backup, initialize, build]
+    if: always() && (needs.backup.result == 'success' || needs.backup.result == 'skipped')
     runs-on: self-hosted
     environment: preprod
     
@@ -342,7 +441,23 @@ jobs:
 
     - name: Deploy PreProd Instances
       run: |
-        export APP_VERSION="${{ needs.initialize.outputs.version }}"
+        # If no Docker image was built, use the existing version
+        if [ "${{ needs.build.outputs.docker_image_built }}" != "true" ]; then
+          echo "No new Docker image built. Using existing version for deployment."
+          # Get current version from running container
+          for instance in $(docker ps --format '{{.Names}}' | grep '^preprod-.*-plateform$'); do
+            export APP_VERSION=$(docker inspect $instance --format '{{index .Config.Labels "version"}}')
+            if [ ! -z "$APP_VERSION" ]; then
+              break
+            fi
+          done
+          if [ -z "$APP_VERSION" ]; then
+            echo "Could not determine current version. Skipping deployment."
+            exit 0
+          fi
+        else
+          export APP_VERSION="${{ needs.initialize.outputs.version }}"
+        fi
         export APP_DISPLAY_VERSION="${{ needs.initialize.outputs.display_version }}"
         instances="${{ needs.initialize.outputs.active_instances }}"
         
@@ -365,8 +480,10 @@ jobs:
         # Track overall success
         overall_success=true
         
-        # Process each instance
-        while IFS='|' read -r id domain dir; do
+        # Process instances with proper IFS handling
+        IFS=',' read -ra instance_array <<< "$instances"
+        for instance in "${instance_array[@]}"; do
+          IFS='|' read -r id domain dir <<< "$instance"
           [ -z "$id" ] && continue
           
           echo "🔄 Deploying preprod for: $id"
@@ -376,8 +493,16 @@ jobs:
           instance_dir_name="preprod-${id}"
           deployment_success=false
           
-          # Check if preprod instance exists
-          if [ -d "${INSTANCE_DIR}/${instance_dir_name}" ]; then
+          # Check if database was copied successfully in backup job
+          if [ ! -f "${INSTANCE_DIR}/${instance_dir_name}/db/database.sqlite" ]; then
+            echo "❌ Error: Database not found for preprod instance. Backup job may have failed."
+            echo "✗ Missing database for preprod instance" >> "$report_file"
+            overall_success=false
+            continue
+          fi
+          
+          # Check if instance already exists (look for secrets.env as indicator)
+          if [ -f "${INSTANCE_DIR}/${instance_dir_name}/secrets.env" ]; then
             echo "Updating existing preprod instance..."
             ./deploy-instance.sh \
               --company-name="PreProd ${id}" \
@@ -386,6 +511,11 @@ jobs:
               --update-only && deployment_success=true
           else
             echo "Creating new preprod instance..."
+            # First, ensure the database is preserved
+            db_temp="${INSTANCE_DIR}/${instance_dir_name}/db/database.sqlite.temp"
+            mv "${INSTANCE_DIR}/${instance_dir_name}/db/database.sqlite" "$db_temp"
+            
+            # Create the instance
             ./deploy-instance.sh \
               --company-name="PreProd ${id}" \
               --company-address="PreProd Environment" \
@@ -394,6 +524,11 @@ jobs:
               --domain="${preprod_domain}" \
               --admin-password="${{ secrets.TEST_ADMIN_PASSWORD }}" \
               --force && deployment_success=true
+            
+            # Restore the database
+            if [ -f "$db_temp" ]; then
+              mv "$db_temp" "${INSTANCE_DIR}/${instance_dir_name}/db/database.sqlite"
+            fi
           fi
           
           if [ "$deployment_success" = true ]; then
@@ -421,7 +556,7 @@ jobs:
           fi
           
           echo "---" >> "$report_file"
-        done <<< "$instances"
+        done
         
         # Save report
         mkdir -p "${GITHUB_WORKSPACE}/reports"
