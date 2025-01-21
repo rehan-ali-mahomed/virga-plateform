@@ -560,7 +560,7 @@ jobs:
             
             # Ensure required variables are set
             if [ -z "$COMPANY_ADDRESS" ]; then
-              export COMPANY_ADDRESS="PreProd_Environment"
+              export COMPANY_ADDRESS="PreProd Environment"
             fi
             if [ -z "$COMPANY_PHONE" ]; then
               export COMPANY_PHONE="0123456789"
@@ -586,7 +586,7 @@ jobs:
             export APP_PORT=$PORT
             
             ./deploy-instance.sh \
-              --company-name="PreProd_${id}" \
+              --company-name="PreProd-${id}" \
               --company-address="$COMPANY_ADDRESS" \
               --company-phone="$COMPANY_PHONE" \
               --company-email="$COMPANY_EMAIL" \
@@ -601,8 +601,8 @@ jobs:
             
             # Create the instance
             ./deploy-instance.sh \
-              --company-name="PreProd_${id}" \
-              --company-address="PreProd_Environment" \
+              --company-name="PreProd-${id}" \
+              --company-address="PreProd-Environment" \
               --company-phone="0123456789" \
               --company-email="preprod@${COMPANY_DOMAIN}" \
               --domain="${preprod_domain}" \
