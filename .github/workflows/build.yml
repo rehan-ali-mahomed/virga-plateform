@@ -440,6 +440,7 @@ jobs:
         fetch-depth: 0
 
     - name: Deploy PreProd Instances
+      id: deploy
       run: |
         # If no Docker image was built, use the existing version
         if [ "${{ needs.build.outputs.docker_image_built }}" != "true" ]; then
@@ -467,6 +468,12 @@ jobs:
         # Create deployment report
         report_file="${RUNNER_TEMP}/preprod_deployment.txt"
         echo "PreProduction Deployment Report - $(date)" > "$report_file"
+        
+        # Stop and remove existing preprod containers to avoid port conflicts
+        echo "🧹 Cleaning up existing preprod containers..."
+        docker stop $(docker ps -q --filter name=preprod-.*-plateform) 2>/dev/null || true
+        docker rm $(docker ps -aq --filter name=preprod-.*-plateform) 2>/dev/null || true
+        docker network prune -f
         
         # Check if deploy-instance.sh is executable
         if [ ! -x "./deploy-instance.sh" ]; then
@@ -565,16 +572,54 @@ jobs:
         # Exit with failure if any deployment failed
         $overall_success || exit 1
 
-  approve-production:
-    name: ✋ Approve Production Deployment
-    needs: [deploy-preprod]
+    - name: Verify Deployment Status
+      id: verify
+      run: |
+        # Exit if no instances
+        [ -z "${{ needs.initialize.outputs.active_instances }}" ] && exit 0
+        
+        # Track verification status
+        verification_failed=false
+        
+        # Verify each instance
+        while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          preprod_domain="preprod-${domain}"
+          
+          echo "🔍 Verifying $preprod_domain..."
+          
+          # Check if instance is accessible
+          for i in {1..5}; do
+            if curl -sf "https://${preprod_domain}/health" > /dev/null; then
+              echo "✅ $preprod_domain is healthy"
+              break
+            fi
+            if [ $i -eq 5 ]; then
+              echo "❌ $preprod_domain health check failed"
+              verification_failed=true
+            else
+              sleep 30
+            fi
+          done
+        done <<< "${{ needs.initialize.outputs.active_instances }}"
+        
+        if [ "$verification_failed" = true ]; then
+          echo "::error::One or more preprod instances failed verification"
+          exit 1
+        fi
+        
+        echo "All preprod instances verified successfully"
+
+  staging-approval:
+    name: 🎭 Staging Verification & Approval
+    needs: [deploy-preprod, initialize]
     runs-on: self-hosted
     environment:
-      name: production
+      name: staging
       url: ${{ steps.deployment-urls.outputs.urls }}
     
     steps:
-    - name: List Deployment URLs
+    - name: Generate Staging Report
       id: deployment-urls
       run: |
         instances='${{ needs.initialize.outputs.active_instances }}'
@@ -582,17 +627,113 @@ jobs:
         # Exit if no instances
         [ -z "$instances" ] && echo "urls=" >> $GITHUB_OUTPUT && exit 0
         
+        # Create staging report
+        echo "## 🚀 Staging Deployment Report" > staging_report.md
+        echo "### Version Information" >> staging_report.md
+        echo "- **Version:** \`${{ needs.initialize.outputs.version }}\`" >> staging_report.md
+        echo "- **Display Version:** ${{ needs.initialize.outputs.display_version }}" >> staging_report.md
+        echo "" >> staging_report.md
+        
+        echo "### 🔍 PreProd Instances Status:" >> staging_report.md
+        
+        urls=""
+        verification_failed=false
+        
+        while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          preprod_url="https://preprod-${domain}"
+          
+          echo "#### $id" >> staging_report.md
+          echo "- **URL:** [${preprod_url}](${preprod_url})" >> staging_report.md
+          echo "- **Admin Portal:** [${preprod_url}/admin](${preprod_url}/admin)" >> staging_report.md
+          
+          # Check instance health
+          if curl -sf "${preprod_url}/health" > /dev/null; then
+            echo "- **Status:** ✅ Healthy" >> staging_report.md
+          else
+            echo "- **Status:** ❌ Health Check Failed" >> staging_report.md
+            verification_failed=true
+          fi
+          
+          # Add database info
+          if [ -f "${INSTANCE_DIR}/preprod-${id}/db/database.sqlite" ]; then
+            echo "- **Database:** ✅ Present" >> staging_report.md
+          else
+            echo "- **Database:** ❌ Missing" >> staging_report.md
+            verification_failed=true
+          fi
+          
+          echo "" >> staging_report.md
+          urls="${urls}${preprod_url}\n"
+        done <<< "$instances"
+        
+        # Add deployment checklist
+        echo "### ✅ Deployment Checklist" >> staging_report.md
+        echo "Please verify the following before approving:" >> staging_report.md
+        echo "- [ ] All PreProd instances are healthy" >> staging_report.md
+        echo "- [ ] Admin portals are accessible" >> staging_report.md
+        echo "- [ ] Core functionality works as expected" >> staging_report.md
+        echo "- [ ] No critical bugs or issues found" >> staging_report.md
+        echo "- [ ] Database migrations (if any) completed successfully" >> staging_report.md
+        
+        echo "urls=${urls}" >> $GITHUB_OUTPUT
+        
+        if [ "$verification_failed" = true ]; then
+          echo "::error::One or more instances failed verification"
+          exit 1
+        fi
+        
+        cat staging_report.md
+    
+    - name: Upload Staging Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: staging-report
+        path: staging_report.md
+        retention-days: 5
+
+  approve-production:
+    name: ✋ Approve Production Deployment
+    needs: [staging-approval, initialize]
+    runs-on: self-hosted
+    environment:
+      name: production
+      url: ${{ steps.deployment-urls.outputs.urls }}
+    
+    steps:
+    - name: Download Staging Report
+      uses: actions/download-artifact@v3
+      with:
+        name: staging-report
+        
+    - name: Display Staging Report
+      run: |
+        echo "## Production Deployment Approval"
+        echo "Please review the staging report and approve the deployment to production."
+        echo ""
+        cat staging_report.md
+        
+    - name: List Production Deployment Targets
+      id: deployment-urls
+      run: |
+        instances='${{ needs.initialize.outputs.active_instances }}'
+        
+        # Exit if no instances
+        [ -z "$instances" ] && echo "urls=" >> $GITHUB_OUTPUT && exit 0
+        
+        echo "## 🎯 Production Deployment Targets"
         urls=""
         while IFS='|' read -r id domain dir; do
           [ -z "$id" ] && continue
-          urls="${urls}https://preprod-${domain}\n"
-        done <<< "$instances"
+          echo "- **${id}**: https://${domain}"
+          urls="${urls}https://${domain}\n"
+        done
         
         echo "urls=${urls}" >> $GITHUB_OUTPUT
 
   deploy-production:
     name: 🚀 Deploy Production Instances
-    needs: [approve-production]
+    needs: [approve-production, initialize]
     runs-on: self-hosted
     
     steps:
@@ -602,10 +743,123 @@ jobs:
         clean: true
         fetch-depth: 0
 
-    - name: Deploy to Production
+    - name: Create Rollback Point
+      id: rollback
       run: |
-        export APP_VERSION=${{ needs.initialize.outputs.version }}
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        version="${{ needs.initialize.outputs.version }}"
+        rollback_dir="${BACKUP_DIR}/rollback_${timestamp}_${version}"
+        
+        # Ensure backup directory exists and is writable
+        if ! mkdir -p "$rollback_dir"; then
+          echo "::error::Failed to create rollback directory"
+          exit 1
+        fi
+        
+        echo "timestamp=${timestamp}" >> $GITHUB_OUTPUT
+        echo "rollback_dir=${rollback_dir}" >> $GITHUB_OUTPUT
+        
+        # Track backup status
+        backup_failed=false
+        failed_backups=()
+        
+        # Save current state of each instance
+        while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          
+          instance_backup="${rollback_dir}/${id}"
+          if ! mkdir -p "${instance_backup}/db"; then
+            echo "::error::Failed to create backup directory for $id"
+            backup_failed=true
+            failed_backups+=("$id")
+            continue
+          fi
+          
+          echo "📦 Creating rollback point for $id..."
+          
+          # Backup database with verification
+          if [ -f "${dir}/db/database.sqlite" ]; then
+            # Check if database is not corrupted
+            if ! echo "PRAGMA integrity_check;" | sqlite3 "${dir}/db/database.sqlite"; then
+              echo "::error::Database corruption detected for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            fi
+            
+            # Create backup with VACUUM
+            if ! echo ".backup '${instance_backup}/db/database.sqlite'" | sqlite3 "${dir}/db/database.sqlite"; then
+              echo "::error::Failed to create database backup for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            fi
+            
+            # Verify backup
+            if ! echo "PRAGMA integrity_check;" | sqlite3 "${instance_backup}/db/database.sqlite"; then
+              echo "::error::Backup verification failed for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            fi
+            
+            # Check backup size
+            original_size=$(stat -f%z "${dir}/db/database.sqlite")
+            backup_size=$(stat -f%z "${instance_backup}/db/database.sqlite")
+            if [ "$backup_size" -lt "$((original_size / 2))" ]; then
+              echo "::error::Backup size verification failed for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            fi
+          fi
+          
+          # Save current container state with timeout
+          if docker ps --format '{{.Names}}' | grep -q "^${id}-plateform$"; then
+            timeout 30s docker inspect "${id}-plateform" > "${instance_backup}/container_state.json" || {
+              echo "::error::Failed to save container state for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            }
+          fi
+          
+          # Save environment files with verification
+          if [ -f "${dir}/secrets.env" ]; then
+            if ! cp "${dir}/secrets.env" "${instance_backup}/"; then
+              echo "::error::Failed to backup secrets for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            fi
+            
+            # Verify copy
+            if ! diff "${dir}/secrets.env" "${instance_backup}/secrets.env" >/dev/null; then
+              echo "::error::Secrets backup verification failed for $id"
+              backup_failed=true
+              failed_backups+=("$id")
+              continue
+            fi
+          fi
+          
+          echo "✅ Rollback point created for $id"
+        done <<< "${{ needs.initialize.outputs.active_instances }}"
+        
+        # Save backup status
+        echo "backup_failed=${backup_failed}" >> $GITHUB_OUTPUT
+        echo "failed_backups=${failed_backups[*]}" >> $GITHUB_OUTPUT
+        
+        if [ "$backup_failed" = true ]; then
+          echo "::error::Failed to create rollback points for: ${failed_backups[*]}"
+          exit 1
+        fi
+
+    - name: Deploy to Production
+      id: deploy
+      run: |
+        export APP_VERSION="${{ needs.initialize.outputs.version }}"
         instances="${{ needs.initialize.outputs.active_instances }}"
+        rollback_dir="${{ steps.rollback.outputs.rollback_dir }}"
         
         # Exit if no instances
         [ -z "$instances" ] && echo "No instances to deploy" && exit 0
@@ -614,11 +868,14 @@ jobs:
         report_file="${RUNNER_TEMP}/production_deployment.txt"
         echo "Production Deployment Report - $(date)" > "$report_file"
         
-        # Process each instance
+        # Track deployment status
+        deployment_failed=false
+        failed_instances=()
+        
         while IFS='|' read -r id domain dir; do
           [ -z "$id" ] && continue
           
-          echo "🔄 Updating: $id ($domain)"
+          echo "🔄 Updating production instance: $id ($domain)"
           echo "Instance: $id ($domain)" >> "$report_file"
           
           if ./deploy-instance.sh \
@@ -626,34 +883,164 @@ jobs:
             --domain="${domain}" \
             --force \
             --update-only; then
-            echo "✓ Deployed successfully" >> "$report_file"
+            echo "✅ Deployed successfully" >> "$report_file"
             
-            # Verify deployment with retries
+            # Verify deployment
             for i in {1..5}; do
               if curl -sf "https://${domain}/health" > /dev/null; then
-                echo "✓ Health check passed" >> "$report_file"
+                echo "✅ Health check passed" >> "$report_file"
                 break
               fi
               if [ $i -eq 5 ]; then
-                echo "✗ Health check failed after 5 attempts" >> "$report_file"
+                echo "❌ Health check failed" >> "$report_file"
+                deployment_failed=true
+                failed_instances+=("$id")
               else
-                echo "Retrying health check... (attempt $i/5)"
                 sleep 30
               fi
             done
           else
-            echo "✗ Deployment failed" >> "$report_file"
+            echo "❌ Deployment failed" >> "$report_file"
+            deployment_failed=true
+            failed_instances+=("$id")
           fi
           
           echo "---" >> "$report_file"
         done <<< "$instances"
         
+        # Save deployment status for potential rollback
+        echo "deployment_failed=${deployment_failed}" >> $GITHUB_OUTPUT
+        echo "failed_instances=${failed_instances[*]}" >> $GITHUB_OUTPUT
+        
         # Save report
         mkdir -p "${GITHUB_WORKSPACE}/reports"
         cp "$report_file" "${GITHUB_WORKSPACE}/reports/production_$(date +%Y%m%d_%H%M%S).txt"
+
+    - name: Verify Production Deployment
+      id: verify
+      run: |
+        if [ "${{ steps.deploy.outputs.deployment_failed }}" = "true" ]; then
+          echo "::error::Production deployment failed for instances: ${{ steps.deploy.outputs.failed_instances }}"
+          exit 1
+        fi
+        echo "✅ Production deployment verified successfully"
+
+    - name: Rollback Failed Deployments
+      if: failure() && steps.deploy.outputs.deployment_failed == 'true'
+      run: |
+        echo "🔄 Starting rollback procedure..."
+        rollback_dir="${{ steps.rollback.outputs.rollback_dir }}"
+        failed_instances="${{ steps.deploy.outputs.failed_instances }}"
         
+        # Track rollback status
+        rollback_failed=false
+        
+        while IFS='|' read -r id domain dir; do
+          [ -z "$id" ] && continue
+          
+          # Check if this instance needs rollback
+          if [[ ! " ${failed_instances[*]} " =~ " ${id} " ]]; then
+            continue
+          fi
+          
+          echo "Rolling back instance: $id ($domain)"
+          instance_backup="${rollback_dir}/${id}"
+          
+          if [ ! -d "$instance_backup" ]; then
+            echo "::error::Rollback data not found for $id"
+            rollback_failed=true
+            continue
+          fi
+          
+          # Stop current container with timeout
+          timeout 30s docker stop "${id}-plateform" || true
+          timeout 30s docker rm "${id}-plateform" || true
+          
+          # Restore database with verification
+          if [ -f "${instance_backup}/db/database.sqlite" ]; then
+            # Verify backup integrity
+            if ! echo "PRAGMA integrity_check;" | sqlite3 "${instance_backup}/db/database.sqlite"; then
+              echo "::error::Backup corruption detected for $id, skipping restore"
+              rollback_failed=true
+              continue
+            fi
+            
+            # Create restore directory if needed
+            restore_dir="${INSTANCE_DIR}/${id}/db"
+            mkdir -p "$restore_dir"
+            
+            # Restore with verification
+            if ! cp "${instance_backup}/db/database.sqlite" "${restore_dir}/database.sqlite"; then
+              echo "::error::Failed to restore database for $id"
+              rollback_failed=true
+              continue
+            fi
+            
+            # Verify restored database
+            if ! echo "PRAGMA integrity_check;" | sqlite3 "${restore_dir}/database.sqlite"; then
+              echo "::error::Restored database verification failed for $id"
+              rollback_failed=true
+              continue
+            fi
+          fi
+          
+          # Restore environment files with verification
+          if [ -f "${instance_backup}/secrets.env" ]; then
+            if ! cp "${instance_backup}/secrets.env" "${INSTANCE_DIR}/${id}/secrets.env"; then
+              echo "::error::Failed to restore secrets for $id"
+              rollback_failed=true
+              continue
+            fi
+          fi
+          
+          # Restore container from previous state
+          if [ -f "${instance_backup}/container_state.json" ]; then
+            previous_version=$(jq -r '.Config.Labels.version' "${instance_backup}/container_state.json")
+            if [ ! -z "$previous_version" ]; then
+              export APP_VERSION="$previous_version"
+              if ! ./deploy-instance.sh \
+                --company-name="${id}" \
+                --domain="${domain}" \
+                --force \
+                --update-only; then
+                echo "::error::Failed to restore container for $id"
+                rollback_failed=true
+                continue
+              fi
+              
+              # Verify container is running
+              sleep 10
+              if ! docker ps --format '{{.Names}}' | grep -q "^${id}-plateform$"; then
+                echo "::error::Restored container is not running for $id"
+                rollback_failed=true
+                continue
+              fi
+            fi
+          fi
+          
+          # Verify rollback
+          for i in {1..5}; do
+            if curl -sf "https://${domain}/health" > /dev/null; then
+              echo "✅ Rollback verified for $id"
+              break
+            fi
+            if [ $i -eq 5 ]; then
+              echo "::error::Rollback verification failed for $id"
+              rollback_failed=true
+            else
+              sleep 30
+            fi
+          done
+          
+        done <<< "${{ needs.initialize.outputs.active_instances }}"
+        
+        if [ "$rollback_failed" = true ]; then
+          echo "::error::One or more rollbacks failed"
+          exit 1
+        fi
+
   cleanup:
-    name: 🧹 Cleanup and Report
+    name: 🧹 Cleanup and Maintenance
     needs: [deploy-production]
     if: always()
     runs-on: self-hosted
@@ -661,22 +1048,104 @@ jobs:
     steps:
     - name: Cleanup Old Backups
       run: |
-        # Keep only last 5 backups for each instance
-        find ${BACKUP_DIR} -mindepth 1 -maxdepth 1 -type d | while read instance_dir; do
-          cd "$instance_dir"
-          ls -t | tail -n +6 | xargs -r rm -rf
-        done
-        echo "🧹 Cleaned up old backups"
+        # Ensure we're in the correct directory
+        if [ ! -d "${BACKUP_DIR}" ]; then
+          echo "::error::Backup directory not found"
+          exit 1
+        fi
         
+        # Create a temporary directory for atomic operations
+        temp_dir=$(mktemp -d)
+        trap 'rm -rf "$temp_dir"' EXIT
+        
+        echo "🧹 Cleaning up old backups..."
+        
+        # Process each instance directory
+        find "${BACKUP_DIR}" -mindepth 1 -maxdepth 1 -type d | while read instance_dir; do
+          if [[ "$instance_dir" != *"/rollback_"* ]]; then
+            # Ensure we can access the directory
+            if [ ! -r "$instance_dir" ] || [ ! -w "$instance_dir" ]; then
+              echo "::warning::Cannot access directory: $instance_dir"
+              continue
+            fi
+            
+            cd "$instance_dir" || continue
+            
+            # List files to delete before removing them
+            ls -t | tail -n +6 > "$temp_dir/to_delete.txt"
+            
+            # Remove files if list is not empty
+            if [ -s "$temp_dir/to_delete.txt" ]; then
+              while read -r file; do
+                rm -rf "$file"
+              done < "$temp_dir/to_delete.txt"
+            fi
+          fi
+        done
+        
+        # Clean up rollback points
+        cd "${BACKUP_DIR}" || exit 1
+        ls -td rollback_* 2>/dev/null | tail -n +3 | while read -r rollback; do
+          rm -rf "$rollback"
+        done
+        
+        echo "✅ Backup cleanup completed"
+
+    - name: Cleanup PreProd Instances
+      if: needs.deploy-production.result == 'success'
+      run: |
+        echo "🧹 Cleaning up successful preprod instances..."
+        
+        # Stop containers with timeout and error handling
+        docker ps -q --filter name=preprod-.*-plateform | while read -r container; do
+          if ! timeout 30s docker stop "$container"; then
+            echo "::warning::Failed to stop container: $container"
+            docker kill "$container" || true
+          fi
+        done
+        
+        # Remove stopped containers
+        docker ps -aq --filter name=preprod-.*-plateform | while read -r container; do
+          timeout 30s docker rm "$container" || true
+        done
+        
+        # Clean up networks safely
+        docker network ls --filter name=preprod-* -q | while read -r network; do
+          timeout 30s docker network rm "$network" || true
+        done
+        
+        # Remove old preprod databases with verification
+        find "${INSTANCE_DIR}" -name "preprod-*" -type d -mtime +7 | while read -r dir; do
+          if [ -d "$dir" ]; then
+            # Ensure no containers are using this directory
+            if ! lsof "$dir" >/dev/null 2>&1; then
+              rm -rf "$dir"
+            else
+              echo "::warning::Directory in use, skipping: $dir"
+            fi
+          fi
+        done
+        
+        echo "✅ Cleanup completed"
+
     - name: Generate Final Report
       run: |
+        echo "## 📊 Deployment Summary" > final_report.md
+        echo "Version: ${{ needs.initialize.outputs.display_version }}" >> final_report.md
+        echo "Technical version: ${{ needs.initialize.outputs.version }}" >> final_report.md
+        echo "" >> final_report.md
+        
         if [ "${{ needs.deploy-production.result }}" = "success" ]; then
-          echo "✅ Deployment Pipeline Complete"
-          echo "Version: ${{ needs.initialize.outputs.display_version }}"
-          echo "Technical version: ${{ needs.initialize.outputs.version }}"
-          echo "Check deployment reports for details"
+          echo "### ✅ Deployment Pipeline Complete" >> final_report.md
+          echo "- All instances deployed successfully" >> final_report.md
+          echo "- Backups created and verified" >> final_report.md
+          echo "- Old backups cleaned up" >> final_report.md
+          echo "- PreProd instances cleaned up" >> final_report.md
         else
-          echo "❌ Deployment Pipeline Failed"
-          echo "Version: ${{ needs.initialize.outputs.display_version }}"
-          echo "Check deployment reports for error details"
+          echo "### ❌ Deployment Pipeline Failed" >> final_report.md
+          echo "- Check deployment reports for error details" >> final_report.md
+          echo "- Rollback procedures executed for failed instances" >> final_report.md
+          echo "- PreProd instances preserved for debugging" >> final_report.md
         fi
+        
+        cat final_report.md
