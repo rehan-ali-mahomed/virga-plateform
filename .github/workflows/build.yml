@@ -471,9 +471,15 @@ jobs:
         
         # Stop and remove existing preprod containers to avoid port conflicts
         echo "🧹 Cleaning up existing preprod containers..."
-        docker stop $(docker ps -q --filter name=preprod-.*-plateform) 2>/dev/null || true
-        docker rm $(docker ps -aq --filter name=preprod-.*-plateform) 2>/dev/null || true
-        docker network prune -f
+        docker ps -q --filter name=preprod-.*-plateform | while read -r container; do
+          timeout 30s docker stop "$container" || true
+          timeout 30s docker rm "$container" || true
+        done
+        
+        # Clean up networks safely
+        docker network ls --filter name=preprod-* -q | while read -r network; do
+          timeout 30s docker network rm "$network" || true
+        done
         
         # Check if deploy-instance.sh is executable
         if [ ! -x "./deploy-instance.sh" ]; then
@@ -511,8 +517,37 @@ jobs:
           # Check if instance already exists (look for secrets.env as indicator)
           if [ -f "${INSTANCE_DIR}/${instance_dir_name}/secrets.env" ]; then
             echo "Updating existing preprod instance..."
+            
+            # Load existing configuration safely
+            while IFS='=' read -r key value; do
+              # Skip comments and empty lines
+              [[ $key =~ ^[[:space:]]*# ]] && continue
+              [[ -z "$key" ]] && continue
+              
+              # Remove leading/trailing whitespace and quotes
+              key=$(echo "$key" | xargs)
+              value=$(echo "$value" | xargs | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+              
+              # Export the variable
+              export "$key=$value"
+            done < "${INSTANCE_DIR}/${instance_dir_name}/secrets.env"
+            
+            # Ensure required variables are set
+            if [ -z "$COMPANY_ADDRESS" ]; then
+              export COMPANY_ADDRESS="PreProd Environment"
+            fi
+            if [ -z "$COMPANY_PHONE" ]; then
+              export COMPANY_PHONE="0123456789"
+            fi
+            if [ -z "$COMPANY_EMAIL" ]; then
+              export COMPANY_EMAIL="preprod@${COMPANY_DOMAIN}"
+            fi
+            
             ./deploy-instance.sh \
               --company-name="PreProd ${id}" \
+              --company-address="$COMPANY_ADDRESS" \
+              --company-phone="$COMPANY_PHONE" \
+              --company-email="$COMPANY_EMAIL" \
               --domain="${preprod_domain}" \
               --force \
               --update-only && deployment_success=true
