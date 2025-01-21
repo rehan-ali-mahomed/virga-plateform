@@ -329,7 +329,7 @@ jobs:
 
   deploy-preprod:
     name: 🚀 Deploy PreProduction Instances
-    needs: [backup]
+    needs: [backup, initialize]
     runs-on: self-hosted
     environment: preprod
     
@@ -342,7 +342,7 @@ jobs:
 
     - name: Deploy PreProd Instances
       run: |
-        export APP_VERSION=${{ needs.initialize.outputs.version }}
+        export APP_VERSION="${{ needs.initialize.outputs.version }}"
         export APP_DISPLAY_VERSION="${{ needs.initialize.outputs.display_version }}"
         instances="${{ needs.initialize.outputs.active_instances }}"
         
