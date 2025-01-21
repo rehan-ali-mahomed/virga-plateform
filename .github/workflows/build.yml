@@ -328,6 +328,7 @@ jobs:
           --company-email="test@${COMPANY_DOMAIN}" \
           --domain="${TEST_DOMAIN}" \
           --admin-password="${{ secrets.TEST_ADMIN_PASSWORD }}" \
+          --port=3099 \
           --force
 
         echo "✅ Deployed test instance to ${TEST_DOMAIN}"
