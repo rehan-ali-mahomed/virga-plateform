@@ -141,10 +141,30 @@ router.get('/', isAuthenticated, async (req, res) => {
     const users = await getAllActiveUsers();
     const mechanicsList = users.filter(user => user.role === 'mechanic');
     
+    // Sort inspection items to match our desired order
+    const categoryOrder = [
+      'Intérieur',
+      'Moteur',
+      'Direction Avant',
+      'Direction Arrière',
+      'Accessoires',
+      'Travaux terminés'
+    ];
+
+    const sortedInspectionItems = inspectionItems.sort((a, b) => {
+      const categoryA = categoryOrder.indexOf(a.category);
+      const categoryB = categoryOrder.indexOf(b.category);
+      
+      if (categoryA === categoryB) {
+        return a.display_order - b.display_order;
+      }
+      return categoryA - categoryB;
+    });
+    
     res.render('form', { 
       errors: null, 
       data: {}, 
-      inspectionItems,
+      inspectionItems: sortedInspectionItems,
       mechanicsList,
       user: req.session.user
     });
@@ -162,10 +182,30 @@ router.get('/:id', isAuthenticated, async (req, res) => {
     const users = await getAllActiveUsers();
     const mechanicsList = users.filter(user => user.role === 'mechanic');
 
+    // Sort inspection items to match our desired order
+    const categoryOrder = [
+      'Intérieur',
+      'Moteur',
+      'Direction Avant',
+      'Direction Arrière',
+      'Accessoires',
+      'Travaux terminés'
+    ];
+
+    const sortedInspectionItems = inspectionItems.sort((a, b) => {
+      const categoryA = categoryOrder.indexOf(a.category);
+      const categoryB = categoryOrder.indexOf(b.category);
+      
+      if (categoryA === categoryB) {
+        return a.display_order - b.display_order;
+      }
+      return categoryA - categoryB;
+    });
+
     res.render('form', { 
       errors: null, 
       data: {}, 
-      inspectionItems,
+      inspectionItems: sortedInspectionItems,
       mechanicsList,
       user: req.session.user
     });

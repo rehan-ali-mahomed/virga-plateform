@@ -71,16 +71,78 @@ document.addEventListener('DOMContentLoaded', () => {
   if (licensePlateInput) {
     licensePlateInput.addEventListener('input', (e) => {
       try {
-        let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-        if (value.length > 4) {
-          value = value.slice(0, 2) + '-' + value.slice(2, 5) + '-' + value.slice(5, 7);
-        } else if (value.length > 2) {          
-          value = value.slice(0, 2) + '-' + value.slice(2);
+        let value = e.target.value.toUpperCase();
+        
+        // Keep any manually entered spaces or dashes
+        const manuallyFormatted = value.includes(' ') || value.includes('-');
+        
+        // Remove any characters that aren't letters, numbers, spaces, or dashes
+        value = value.replace(/[^A-Z0-9\s-]/g, '');
+        
+        // If user hasn't manually formatted, detect and auto-format
+        if (!manuallyFormatted) {
+          // Remove any existing spaces or dashes for pattern detection
+          const stripped = value.replace(/[\s-]/g, '');
+          
+          // Detect format based on input pattern
+          const isFNIPattern = /^\d{0,3}[A-Z]{0,3}\d{0,3}$/.test(stripped);
+          const isSIVPattern = /^[A-Z]{0,2}\d{0,3}[A-Z]{0,2}$/.test(stripped);
+          
+          // If neither pattern matches, prevent input
+          if (!isFNIPattern && !isSIVPattern) {
+            value = value.slice(0, -1);
+          }
+          
+          // Enforce maximum length
+          if (isFNIPattern && stripped.length > 9) {
+            value = stripped.slice(0, 9);
+          } else if (isSIVPattern && stripped.length > 7) {
+            value = stripped.slice(0, 7);
+          }
+          
+          // Auto-format complete plates
+          if (stripped.length === 9 && /^\d{3}[A-Z]{3}\d{3}$/.test(stripped)) {
+            // FNI format (DOM-TOM): 123ABC000 -> 123 ABC 000
+            value = stripped.slice(0, 3) + ' ' + stripped.slice(3, 6) + ' ' + stripped.slice(6);
+          } else if (stripped.length === 7 && /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(stripped)) {
+            // SIV format: AB123CD -> AB-123-CD
+            value = stripped.slice(0, 2) + '-' + stripped.slice(2, 5) + '-' + stripped.slice(5);
+          }
+        } else {
+          // For manually formatted input, just enforce max length including separators
+          const isFNIFormat = value.includes(' '); // FNI uses spaces
+          const maxLength = isFNIFormat ? 11 : 9; // 11 chars for FNI (9 + 2 spaces), 9 for SIV (7 + 2 dashes)
+          if (value.length > maxLength) {
+            value = value.slice(0, maxLength);
+          }
         }
+        
         e.target.value = value;
-        // console.info('License plate formatted:', value);
       } catch (error) {
         console.error('Error in license plate formatter', error);
+      }
+    });
+
+    // Add blur event to validate format
+    licensePlateInput.addEventListener('blur', (e) => {
+      try {
+        let value = e.target.value.trim().toUpperCase();
+        const stripped = value.replace(/[\s-]/g, '');
+        
+        // Check if it's a complete plate of either format
+        const isFNI = /^\d{3}[A-Z]{3}\d{3}$/.test(stripped);
+        const isSIV = /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(stripped);
+        
+        // If complete but not properly formatted, apply formatting
+        if (isFNI && !/^\d{3}\s[A-Z]{3}\s\d{3}$/.test(value)) {
+          value = stripped.slice(0, 3) + ' ' + stripped.slice(3, 6) + ' ' + stripped.slice(6);
+        } else if (isSIV && !/^[A-Z]{2}-\d{3}-[A-Z]{2}$/.test(value)) {
+          value = stripped.slice(0, 2) + '-' + stripped.slice(2, 5) + '-' + stripped.slice(5);
+        }
+        
+        e.target.value = value;
+      } catch (error) {
+        console.error('Error in license plate blur handler', error);
       }
     });
   } else {
@@ -138,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   previewPdfBtn.addEventListener('click', async () => {
-
     if (!validateForm(true)) {
       console.error('Form validation failed, preventing submission');
       return;
@@ -146,14 +207,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     setUnsetRadioInputs();
     
+    // Set form attributes for preview submission
     form.action = '/form/submit-preview';
     form.target = '_blank';
-
-    await form.submit();
     
-    window.location.replace('/dashboard');
-
-    window.location.reload();
+    // Submit form to generate preview in new tab
+    form.submit();
+    
+    // Redirect main page to dashboard after a short delay
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 1000);
   });
 
     
@@ -208,11 +272,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Validate license plate format
       const licensePlateInput = document.getElementById('license_plate');
       if (licensePlateInput && licensePlateInput.value) {
-        const plateRegex = /^[A-Z]{2}[-]?[0-9]{3}[-]?[A-Z]{2}$/;
+        const sivRegex = /^[A-Z]{2}[-]?[0-9]{3}[-]?[A-Z]{2}$/;
+        const fniRegex = /^[0-9]{3}\s?[A-Z]{3}\s?[0-9]{3}$/;
         const value = licensePlateInput.value.trim().toUpperCase();
-        if (!plateRegex.test(value)) {
+        
+        if (!sivRegex.test(value) && !fniRegex.test(value)) {
           console.error('Invalid license plate format');
-          showError(licensePlateInput, 'Format d\'immatriculation invalide (ex: AB-123-CD)');
+          showError(licensePlateInput, 'Format d\'immatriculation invalide (ex: AB-123-CD ou 123 ABC 000)');
           isValid = false;
         }
       }

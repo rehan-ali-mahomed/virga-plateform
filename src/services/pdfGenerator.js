@@ -71,6 +71,15 @@ const optimizedGrid = {
   itemPadding: 6
 };
 
+const categoryOrder = [
+  'INTERIEUR',
+  'MOTEUR',
+  'DIRECTION AVANT',
+  'DIRECTION ARRIERE',
+  'ACCESSOIRES',
+  'TRAVAUX TERMINES'
+];
+
 const organizeInspectionResults = (results) => {
   if (!results || !Array.isArray(results)) {
     logger.warn('No inspection results to organize or invalid format');
@@ -78,29 +87,40 @@ const organizeInspectionResults = (results) => {
   }
 
   try {
-    return results.reduce((acc, result) => {
-      if (!result.category) {
-        logger.warn('Found result without category:', { result });
-        return acc;
-      }
-
-      const mappedCategory = result.category.toUpperCase();
-
-      if (!acc[mappedCategory]) {
-        acc[mappedCategory] = [];
-      }
-
-      acc[mappedCategory].push({
-        name: result.name,
-        value: result.value || 'Non Vérifier',
-        type: result.type || 'options',
-        status: result.value === 'Conforme' ? 'good' : 
-          result.value === 'Pas bon' ? 'critical' : 
-            'neutral'
-      });
-
+    // First create the organized object with all categories initialized
+    const organized = categoryOrder.reduce((acc, category) => {
+      acc[category] = [];
       return acc;
     }, {});
+
+    // Then populate it with results
+    results.forEach(result => {
+      if (!result.category) {
+        logger.warn('Found result without category:', { result });
+        return;
+      }
+
+      // Convert category names to match our standardized format
+      const mappedCategory = result.category.toUpperCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove accents
+      
+      // Only add to categories we know about
+      if (organized.hasOwnProperty(mappedCategory)) {
+        organized[mappedCategory].push({
+          name: result.name,
+          value: result.value || 'Non Vérifier',
+          type: result.type || 'options',
+          status: result.value === 'Conforme' ? 'good' : 
+            result.value === 'Pas bon' ? 'critical' : 
+              'neutral'
+        });
+      }
+    });
+
+    // Remove empty categories
+    return Object.fromEntries(
+      Object.entries(organized).filter(([_, items]) => items.length > 0)
+    );
   } catch (error) {
     logger.error('Error organizing inspection results:', { error: error.message });
     return {};

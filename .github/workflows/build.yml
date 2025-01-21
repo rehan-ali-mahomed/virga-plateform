@@ -272,7 +272,7 @@ jobs:
 
   backup:
     name: 📦 Backup Production Databases
-    needs: [test-deploy]
+    needs: [test-deploy, initialize]
     runs-on: self-hosted
     
     steps:
@@ -284,7 +284,9 @@ jobs:
 
     - name: Backup Production Databases
       run: |
-        timestamp=$(date +%Y%m%d_%H%M%S)
+        timestamp=$(date +%Y%m%d)
+        version="${{ needs.initialize.outputs.version }}"
+        git_sha=$(echo "$version" | cut -d'-' -f3)  # Extract SHA from version string
         IFS=',' read -ra instance_array <<< "${{ needs.initialize.outputs.active_instances }}"
         
         echo "🔄 Processing instance backups..."
@@ -299,8 +301,8 @@ jobs:
           
           echo "📦 Backing up instance: $id ($domain)"
           
-          # Create backup directory
-          backup_dir="${BACKUP_DIR}/${id}/backup_${timestamp}"
+          # Create backup directory with git SHA
+          backup_dir="${BACKUP_DIR}/${id}/backup_${timestamp}_${git_sha}"
           mkdir -p "$backup_dir" || { echo "Failed to create backup dir for $id"; continue; }
           
           # Backup main database using VACUUM
@@ -342,7 +344,7 @@ jobs:
       run: |
         export APP_VERSION=${{ needs.initialize.outputs.version }}
         export APP_DISPLAY_VERSION="${{ needs.initialize.outputs.display_version }}"
-        instances='${{ needs.initialize.outputs.active_instances }}'
+        instances="${{ needs.initialize.outputs.active_instances }}"
         
         # Exit if no instances
         [ -z "$instances" ] && echo "No instances to deploy" && exit 0
@@ -468,7 +470,7 @@ jobs:
     - name: Deploy to Production
       run: |
         export APP_VERSION=${{ needs.initialize.outputs.version }}
-        instances='${{ needs.initialize.outputs.active_instances }}'
+        instances="${{ needs.initialize.outputs.active_instances }}"
         
         # Exit if no instances
         [ -z "$instances" ] && echo "No instances to deploy" && exit 0
