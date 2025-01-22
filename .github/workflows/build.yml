@@ -621,8 +621,16 @@ jobs:
     environment:
       name: staging
       url: ${{ steps.deployment-urls.outputs.urls }}
-    
+    permissions:
+      deployments: write
     steps:
+    - name: ⏳ Waiting for Manual Approval ⚠️
+      run: |
+        echo "🔔 Manual approval required!"
+        echo "👉 Please review the staging deployment carefully"
+        echo "✋ Workflow is paused until approved"
+        echo "⚡ Production deployment will start after approval"
+        echo "🔍 Review the changes at the provided staging URL"
     - name: Generate Staging Report
       id: deployment-urls
       run: |
