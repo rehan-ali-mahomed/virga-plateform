@@ -314,8 +314,6 @@ jobs:
     name: 🧪 Deploy & Verify Test Instance
     needs: [build]
     runs-on: self-hosted
-    environment: test
-    if: needs.build.outputs.docker_image_built == 'true'
     
     steps:
     - name: Checkout code
@@ -587,7 +585,9 @@ jobs:
         verification_failed=false
         
         # Verify each instance
-        while IFS='|' read -r id domain dir; do
+        IFS=',' read -ra instance_array <<< "${{ needs.initialize.outputs.active_instances }}"
+        for instance in "${instance_array[@]}"; do
+          IFS='|' read -r id domain dir <<< "$instance"
           [ -z "$id" ] && continue
           preprod_domain="preprod-${domain}"
           preprod_dir="${INSTANCE_DIR}/preprod-${id}"
@@ -602,7 +602,7 @@ jobs:
           fi
           
           # Verify database integrity
-          if ! echo "PRAGMA integrity_check;" | sqlite3 "${preprod_dir}/db/database.sqlite"; then
+          if ! echo "PRAGMA integrity_check;" | sqlite3 "${preprod_dir}/db/database.sqlite" > /dev/null; then
             echo "❌ Database integrity check failed for $preprod_domain"
             verification_failed=true
             continue
@@ -643,6 +643,7 @@ jobs:
   deploy-production:
     name: 🚀 Deploy Production Instances
     needs: [initialize, deploy-preprod]
+    environment: production
     runs-on: self-hosted
     
     steps:
@@ -673,6 +674,7 @@ jobs:
         failed_backups=()
         
         # Save current state of each instance
+        
         while IFS='|' read -r id domain dir; do
           [ -z "$id" ] && continue
           
@@ -781,7 +783,11 @@ jobs:
         deployment_failed=false
         failed_instances=()
         
-        while IFS='|' read -r id domain dir; do
+        # Split instances by comma and process each
+        IFS=',' read -ra instance_array <<< "$instances"
+        for instance in "${instance_array[@]}"; do
+          # Split instance by pipe to get components
+          IFS='|' read -r id domain dir <<< "$instance"
           [ -z "$id" ] && continue
           
           echo "🔄 Updating production instance: $id ($domain)"
@@ -815,7 +821,7 @@ jobs:
           fi
           
           echo "---" >> "$report_file"
-        done <<< "$instances"
+        done
         
         # Save deployment status for potential rollback
         echo "deployment_failed=${deployment_failed}" >> $GITHUB_OUTPUT
@@ -840,11 +846,16 @@ jobs:
         echo "🔄 Starting rollback procedure..."
         rollback_dir="${{ steps.rollback.outputs.rollback_dir }}"
         failed_instances="${{ steps.deploy.outputs.failed_instances }}"
+        instances="${{ needs.initialize.outputs.active_instances }}"
         
         # Track rollback status
         rollback_failed=false
         
-        while IFS='|' read -r id domain dir; do
+        # Split instances by comma and process each
+        IFS=',' read -ra instance_array <<< "$instances"
+        for instance in "${instance_array[@]}"; do
+          # Split instance by pipe to get components
+          IFS='|' read -r id domain dir <<< "$instance"
           [ -z "$id" ] && continue
           
           # Check if this instance needs rollback
@@ -941,7 +952,7 @@ jobs:
             fi
           done
           
-        done <<< "${{ needs.initialize.outputs.active_instances }}"
+        done
         
         if [ "$rollback_failed" = true ]; then
           echo "::error::One or more rollbacks failed"
