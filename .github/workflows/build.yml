@@ -473,7 +473,8 @@ jobs:
           APP_VERSION="${{ needs.initialize.outputs.version }}"
           echo "Using new build version: $APP_VERSION"
         else
-          echo "No new Docker image built. Using latest version..."
+          # Always pull latest image to ensure we have the most recent version
+          echo "No new build, using latest version and ensuring it's up to date..."
           docker pull ${DOCKER_REGISTRY}:latest
           APP_VERSION="latest"
         fi
@@ -531,7 +532,7 @@ jobs:
             }
           fi
           
-          # Deploy new instance
+          # Always deploy new instance regardless of build status
           ./deploy-instance.sh \
             --company-name="PreProd-${id}" \
             --company-address="PreProd Environment" \
@@ -589,21 +590,47 @@ jobs:
         while IFS='|' read -r id domain dir; do
           [ -z "$id" ] && continue
           preprod_domain="preprod-${domain}"
+          preprod_dir="${INSTANCE_DIR}/preprod-${id}"
           
           echo "🔍 Verifying $preprod_domain..."
           
-          # Check if instance is accessible
+          # Verify database exists and is valid
+          if [ ! -f "${preprod_dir}/db/database.sqlite" ]; then
+            echo "❌ Database file missing for $preprod_domain"
+            verification_failed=true
+            continue
+          fi
+          
+          # Verify database integrity
+          if ! echo "PRAGMA integrity_check;" | sqlite3 "${preprod_dir}/db/database.sqlite"; then
+            echo "❌ Database integrity check failed for $preprod_domain"
+            verification_failed=true
+            continue
+          fi
+          
+          # Check if instance is accessible and healthy
+          health_check_success=false
           for i in {1..5}; do
             if curl -sf "https://${preprod_domain}/health" > /dev/null; then
               echo "✅ $preprod_domain is healthy"
+              health_check_success=true
+              break
             fi
             if [ $i -eq 5 ]; then
               echo "❌ $preprod_domain health check failed"
               verification_failed=true
             else
+              echo "Retrying health check... (attempt $i/5)"
               sleep 30
             fi
           done
+          
+          # Verify container is running
+          if ! docker ps --format '{{.Names}}' | grep -q "^preprod-${id}-plateform$"; then
+            echo "❌ Container not running for $preprod_domain"
+            verification_failed=true
+          fi
+          
         done <<< "${{ needs.initialize.outputs.active_instances }}"
         
         if [ "$verification_failed" = true ]; then
@@ -611,7 +638,7 @@ jobs:
           exit 1
         fi
         
-        echo "All preprod instances verified successfully"
+        echo "✅ All preprod instances verified successfully"
 
   staging-approval:
     name: 🎭 Staging Verification & Approval
