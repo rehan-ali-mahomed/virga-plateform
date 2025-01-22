@@ -596,7 +596,6 @@ jobs:
           for i in {1..5}; do
             if curl -sf "https://${preprod_domain}/health" > /dev/null; then
               echo "✅ $preprod_domain is healthy"
-              break
             fi
             if [ $i -eq 5 ]; then
               echo "❌ $preprod_domain health check failed"
