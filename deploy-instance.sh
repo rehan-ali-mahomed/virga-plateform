@@ -375,6 +375,7 @@ services:
       - "${PORT}:3000"
     volumes:
       - ./db:/app/src/db
+      - ./company_logo.png:/app/public/img/company_logo.png
       - ./logs:/app/src/logs
       - ./secrets.env:/app/secrets.env:ro
     environment:
