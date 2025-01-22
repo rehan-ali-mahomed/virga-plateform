@@ -642,7 +642,7 @@ jobs:
 
   deploy-production:
     name: 🚀 Deploy Production Instances
-    needs: [initialize]
+    needs: [initialize, deploy-preprod]
     runs-on: self-hosted
     
     steps:
