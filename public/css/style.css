@@ -103,14 +103,6 @@ textarea {
 }
 
 /* Footer */
-.app-footer {
-  background-color: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  padding: 1rem;
-  flex-shrink: 0;
-  margin-top: auto;
-}
-
 .footer-content {
   display: flex;
   justify-content: center;
@@ -1526,7 +1518,7 @@ label i {
 .app-footer {
   background-color: #f8f9fa;
   border-top: 1px solid #e9ecef;
-  padding: 1rem;
+  padding: 0.5rem;
   flex-shrink: 0;
   margin-top: auto;
 }

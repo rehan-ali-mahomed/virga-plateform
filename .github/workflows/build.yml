@@ -314,6 +314,7 @@ jobs:
     name: 🧪 Deploy & Verify Test Instance
     needs: [build]
     runs-on: self-hosted
+    if: needs.build.outputs.docker_image_built == 'true'
     
     steps:
     - name: Checkout code
