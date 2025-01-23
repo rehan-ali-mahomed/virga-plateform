@@ -314,7 +314,6 @@ jobs:
     name: 🧪 Deploy & Verify Test Instance
     needs: [build]
     runs-on: self-hosted
-    if: needs.build.outputs.docker_image_built == 'true'
     
     steps:
     - name: Checkout code
@@ -643,7 +642,7 @@ jobs:
 
   deploy-production:
     name: 🚀 Deploy Production Instances
-    needs: [initialize, deploy-preprod]
+    needs: [deploy-preprod]
     environment: production
     runs-on: self-hosted
     

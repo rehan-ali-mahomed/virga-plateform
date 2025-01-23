@@ -103,11 +103,6 @@ textarea {
 }
 
 /* Footer */
-.footer-content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
 
 .footer-version {
   display: flex;
