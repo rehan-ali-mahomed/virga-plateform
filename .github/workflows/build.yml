@@ -653,7 +653,7 @@ jobs:
 
   deploy-production:
     name: 🚀 Deploy Production Instances
-    needs: [deploy-preprod]
+    needs: [deploy-preprod, initialize]
     environment: production
     runs-on: self-hosted
     
