@@ -188,7 +188,7 @@ jobs:
         BUILD_PATTERNS=(
           # Core application files
           "^src/"                    # Backend source code
-          "^public/js/"              # Frontend JavaScript
+          "^public/"                 # Frontend JavaScript
           "^app\.js$"                # Main application entry
           
           # Dependencies and build files
@@ -325,7 +325,18 @@ jobs:
     - name: Deploy Test Instance
       id: deploy
       run: |
-        export APP_VERSION=${{ needs.initialize.outputs.version }}
+        # Check if new image exists and set version
+        if [ "${{ needs.build.outputs.docker_image_built }}" = "true" ]; then
+          APP_VERSION="${{ needs.initialize.outputs.version }}"
+          echo "Using new build version: $APP_VERSION"
+        else
+          # Use latest version if no new build
+          echo "No new build, using latest version..."
+          docker pull ${DOCKER_REGISTRY}:latest
+          APP_VERSION="latest"
+        fi
+
+        export APP_VERSION
         export APP_DISPLAY_VERSION="${{ needs.initialize.outputs.display_version }}"
         
         # Set up test instance variables
