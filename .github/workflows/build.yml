@@ -495,6 +495,15 @@ jobs:
         # Exit if no instances
         [ -z "$instances" ] && echo "No instances to deploy" && exit 0
         
+        # Check if deploy-instance.sh is executable
+        if [ ! -x "./deploy-instance.sh" ]; then
+          echo "Making deploy-instance.sh executable..."
+          chmod +x ./deploy-instance.sh || sudo -n chmod +x ./deploy-instance.sh || {
+            echo "::error::Failed to make deploy-instance.sh executable"
+            exit 1
+          }
+        fi
+        
         # Create deployment report
         report_file="${RUNNER_TEMP}/preprod_deployment.txt"
         echo "PreProduction Deployment Report - $(date)" > "$report_file"
@@ -786,6 +795,15 @@ jobs:
         # Exit if no instances
         [ -z "$instances" ] && echo "No instances to deploy" && exit 0
         
+        # Check if deploy-instance.sh is executable
+        if [ ! -x "./deploy-instance.sh" ]; then
+          echo "Making deploy-instance.sh executable..."
+          chmod +x ./deploy-instance.sh || sudo -n chmod +x ./deploy-instance.sh || {
+            echo "::error::Failed to make deploy-instance.sh executable"
+            exit 1
+          }
+        fi
+        
         # Create deployment report
         report_file="${RUNNER_TEMP}/production_deployment.txt"
         echo "Production Deployment Report - $(date)" > "$report_file"
@@ -794,14 +812,13 @@ jobs:
         deployment_failed=false
         failed_instances=()
         
-        # Split instances by comma and process each
+        echo "🚀 Starting production deployment..."
         IFS=',' read -ra instance_array <<< "$instances"
-        for instance in "${instance_array[@]}"; do
-          # Split instance by pipe to get components
-          IFS='|' read -r id domain dir <<< "$instance"
+        for instance_data in "${instance_array[@]}"; do
+          IFS='|' read -r id domain dir <<< "$instance_data"
           [ -z "$id" ] && continue
           
-          echo "🔄 Updating production instance: $id ($domain)"
+          echo "Deploying $id ($domain)..."
           echo "Instance: $id ($domain)" >> "$report_file"
           
           if ./deploy-instance.sh \
@@ -814,10 +831,12 @@ jobs:
             # Verify deployment
             for i in {1..5}; do
               if curl -sf "https://${domain}/health" > /dev/null; then
+                echo "✅ $id deployed successfully"
                 echo "✅ Health check passed" >> "$report_file"
                 break
               fi
               if [ $i -eq 5 ]; then
+                echo "❌ Health check failed for $id"
                 echo "❌ Health check failed" >> "$report_file"
                 deployment_failed=true
                 failed_instances+=("$id")
@@ -826,6 +845,7 @@ jobs:
               fi
             done
           else
+            echo "❌ Deployment failed for $id"
             echo "❌ Deployment failed" >> "$report_file"
             deployment_failed=true
             failed_instances+=("$id")
@@ -841,6 +861,11 @@ jobs:
         # Save report
         mkdir -p "${GITHUB_WORKSPACE}/reports"
         cp "$report_file" "${GITHUB_WORKSPACE}/reports/production_$(date +%Y%m%d_%H%M%S).txt"
+        
+        if [ "$deployment_failed" = true ]; then
+          echo "::error::Deployment failed for instances: ${failed_instances[*]}"
+          exit 1
+        fi
 
     - name: Verify Production Deployment
       id: verify
@@ -864,9 +889,8 @@ jobs:
         
         # Split instances by comma and process each
         IFS=',' read -ra instance_array <<< "$instances"
-        for instance in "${instance_array[@]}"; do
-          # Split instance by pipe to get components
-          IFS='|' read -r id domain dir <<< "$instance"
+        for instance_data in "${instance_array[@]}"; do
+          IFS='|' read -r id domain dir <<< "$instance_data"
           [ -z "$id" ] && continue
           
           # Check if this instance needs rollback
@@ -926,7 +950,8 @@ jobs:
           
           # Restore container from previous state
           if [ -f "${instance_backup}/container_state.json" ]; then
-            previous_version=$(jq -r '.Config.Labels.version' "${instance_backup}/container_state.json")
+            # Parse version using grep and sed instead of jq
+            previous_version=$(grep -o '"version":"[^"]*"' "${instance_backup}/container_state.json" | sed 's/"version":"\(.*\)"/\1/')
             if [ ! -z "$previous_version" ]; then
               export APP_VERSION="$previous_version"
               if ! ./deploy-instance.sh \
@@ -1003,7 +1028,7 @@ jobs:
             cd "$instance_dir" || continue
             
             # List files to delete before removing them
-            ls -t | tail -n +6 > "$temp_dir/to_delete.txt"
+            ls -t | tail -n +9 > "$temp_dir/to_delete.txt"
             
             # Remove files if list is not empty
             if [ -s "$temp_dir/to_delete.txt" ]; then
