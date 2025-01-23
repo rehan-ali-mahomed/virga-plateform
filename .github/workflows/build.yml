@@ -884,8 +884,19 @@ jobs:
         failed_instances="${{ steps.deploy.outputs.failed_instances }}"
         instances="${{ needs.initialize.outputs.active_instances }}"
         
+        # Debug information
+        echo "Debug Information:"
+        echo "Rollback directory: $rollback_dir"
+        echo "Failed instances: $failed_instances"
+        echo "All instances: $instances"
+        
         # Track rollback status
         rollback_failed=false
+        rollback_report=""
+        
+        # Convert failed_instances to array for better handling
+        IFS=' ' read -ra failed_array <<< "$failed_instances"
+        echo "Failed instances array: ${failed_array[*]}"
         
         # Split instances by comma and process each
         IFS=',' read -ra instance_array <<< "$instances"
@@ -893,30 +904,75 @@ jobs:
           IFS='|' read -r id domain dir <<< "$instance_data"
           [ -z "$id" ] && continue
           
-          # Check if this instance needs rollback
-          if [[ ! " ${failed_instances[*]} " =~ " ${id} " ]]; then
+          # Improved check for failed instances
+          needs_rollback=false
+          for failed_id in "${failed_array[@]}"; do
+            if [ "$failed_id" = "$id" ]; then
+              needs_rollback=true
+              break
+            fi
+          done
+          
+          if [ "$needs_rollback" = false ]; then
+            echo "Skipping $id - not in failed instances list"
             continue
           fi
           
-          echo "Rolling back instance: $id ($domain)"
+          echo "📦 Rolling back instance: $id ($domain)"
           instance_backup="${rollback_dir}/${id}"
+          rollback_log="${RUNNER_TEMP}/rollback_${id}.log"
+          
+          # Initialize rollback log with debug information
+          {
+            echo "Rollback Log for $id ($domain)"
+            echo "Timestamp: $(date)"
+            echo "Backup Directory: $instance_backup"
+            echo "Failed Instances: $failed_instances"
+            echo "Instance Directory: $dir"
+          } > "$rollback_log"
+          
+          # Verify backup directory structure
+          echo "Checking backup directory structure:" >> "$rollback_log"
+          if [ -d "$rollback_dir" ]; then
+            ls -la "$rollback_dir" >> "$rollback_log" 2>&1
+          else
+            echo "Parent rollback directory not found: $rollback_dir" >> "$rollback_log"
+          fi
           
           if [ ! -d "$instance_backup" ]; then
-            echo "::error::Rollback data not found for $id"
+            echo "::error::Rollback data not found for $id at $instance_backup"
+            echo "❌ Backup directory not found" >> "$rollback_log"
+            echo "Parent directory contents:" >> "$rollback_log"
+            ls -la "$rollback_dir" >> "$rollback_log" 2>&1
             rollback_failed=true
+            rollback_report+="❌ $id: Backup data not found\n"
             continue
           fi
           
-          # Stop current container with timeout
-          timeout 30s docker stop "${id}-plateform" || true
-          timeout 30s docker rm "${id}-plateform" || true
+          # Log backup contents
+          echo "📝 Backup contents:" >> "$rollback_log"
+          ls -la "$instance_backup" >> "$rollback_log" 2>&1
+          
+          # Stop current container with timeout and force if needed
+          echo "🛑 Stopping current container..." >> "$rollback_log"
+          if timeout 30s docker stop "${id}-plateform"; then
+            echo "✅ Container stopped gracefully" >> "$rollback_log"
+          else
+            echo "⚠️ Force stopping container..." >> "$rollback_log"
+            docker kill "${id}-plateform" || true
+          fi
+          docker rm "${id}-plateform" || true
           
           # Restore database with verification
           if [ -f "${instance_backup}/db/database.sqlite" ]; then
+            echo "🔄 Restoring database..." >> "$rollback_log"
+            
             # Verify backup integrity
             if ! echo "PRAGMA integrity_check;" | sqlite3 "${instance_backup}/db/database.sqlite"; then
               echo "::error::Backup corruption detected for $id, skipping restore"
+              echo "❌ Backup database is corrupted" >> "$rollback_log"
               rollback_failed=true
+              rollback_report+="❌ $id: Database backup corrupted\n"
               continue
             fi
             
@@ -924,43 +980,69 @@ jobs:
             restore_dir="${INSTANCE_DIR}/${id}/db"
             mkdir -p "$restore_dir"
             
+            # Backup current database before restore
+            if [ -f "${restore_dir}/database.sqlite" ]; then
+              cp "${restore_dir}/database.sqlite" "${restore_dir}/database.sqlite.failed_deploy"
+              echo "✅ Created backup of failed deployment database" >> "$rollback_log"
+            fi
+            
             # Restore with verification
             if ! cp "${instance_backup}/db/database.sqlite" "${restore_dir}/database.sqlite"; then
               echo "::error::Failed to restore database for $id"
+              echo "❌ Database restore failed" >> "$rollback_log"
               rollback_failed=true
+              rollback_report+="❌ $id: Database restore failed\n"
               continue
             fi
             
             # Verify restored database
             if ! echo "PRAGMA integrity_check;" | sqlite3 "${restore_dir}/database.sqlite"; then
               echo "::error::Restored database verification failed for $id"
+              echo "❌ Restored database verification failed" >> "$rollback_log"
               rollback_failed=true
+              rollback_report+="❌ $id: Database verification failed\n"
               continue
             fi
+            
+            echo "✅ Database restored and verified" >> "$rollback_log"
           fi
           
           # Restore environment files with verification
           if [ -f "${instance_backup}/secrets.env" ]; then
+            echo "🔄 Restoring environment files..." >> "$rollback_log"
             if ! cp "${instance_backup}/secrets.env" "${INSTANCE_DIR}/${id}/secrets.env"; then
               echo "::error::Failed to restore secrets for $id"
+              echo "❌ Failed to restore secrets" >> "$rollback_log"
               rollback_failed=true
+              rollback_report+="❌ $id: Secrets restore failed\n"
               continue
             fi
+            echo "✅ Environment files restored" >> "$rollback_log"
           fi
           
           # Restore container from previous state
           if [ -f "${instance_backup}/container_state.json" ]; then
+            echo "🔄 Restoring container..." >> "$rollback_log"
             # Parse version using grep and sed instead of jq
             previous_version=$(grep -o '"version":"[^"]*"' "${instance_backup}/container_state.json" | sed 's/"version":"\(.*\)"/\1/')
             if [ ! -z "$previous_version" ]; then
+              echo "📦 Using previous version: $previous_version" >> "$rollback_log"
               export APP_VERSION="$previous_version"
+              
+              # Make deploy script executable if needed
+              if [ ! -x "./deploy-instance.sh" ]; then
+                chmod +x ./deploy-instance.sh || sudo chmod +x ./deploy-instance.sh
+              fi
+              
               if ! ./deploy-instance.sh \
                 --company-name="${id}" \
                 --domain="${domain}" \
                 --force \
-                --update-only; then
+                --update-only 2>> "$rollback_log"; then
                 echo "::error::Failed to restore container for $id"
+                echo "❌ Container restore failed" >> "$rollback_log"
                 rollback_failed=true
+                rollback_report+="❌ $id: Container restore failed\n"
                 continue
               fi
               
@@ -968,30 +1050,53 @@ jobs:
               sleep 10
               if ! docker ps --format '{{.Names}}' | grep -q "^${id}-plateform$"; then
                 echo "::error::Restored container is not running for $id"
+                echo "❌ Container not running after restore" >> "$rollback_log"
                 rollback_failed=true
+                rollback_report+="❌ $id: Container not running\n"
                 continue
               fi
+              echo "✅ Container restored and running" >> "$rollback_log"
+            else
+              echo "⚠️ No previous version found in container state" >> "$rollback_log"
             fi
           fi
           
-          # Verify rollback
-          for i in {1..5}; do
+          # Verify rollback with extended health checks
+          echo "🔍 Verifying rollback..." >> "$rollback_log"
+          health_check_success=false
+          for i in {1..10}; do
             if curl -sf "https://${domain}/health" > /dev/null; then
-              echo "✅ Rollback verified for $id"
+              echo "✅ Health check passed on attempt $i" >> "$rollback_log"
+              health_check_success=true
               break
             fi
-            if [ $i -eq 5 ]; then
-              echo "::error::Rollback verification failed for $id"
+            if [ $i -eq 10 ]; then
+              echo "::error::Rollback verification failed for $id after 10 attempts"
+              echo "❌ Health check failed after 10 attempts" >> "$rollback_log"
               rollback_failed=true
+              rollback_report+="❌ $id: Health check failed\n"
             else
+              echo "⏳ Retry $i/10: Waiting for service to be healthy..." >> "$rollback_log"
               sleep 30
             fi
           done
           
+          if [ "$health_check_success" = true ]; then
+            echo "✅ Rollback successful for $id" >> "$rollback_log"
+            rollback_report+="✅ $id: Rollback successful\n"
+          fi
+          
+          # Save rollback log
+          mkdir -p "${GITHUB_WORKSPACE}/reports"
+          cp "$rollback_log" "${GITHUB_WORKSPACE}/reports/rollback_${id}_$(date +%Y%m%d_%H%M%S).txt"
         done
         
+        # Print final rollback report
+        echo -e "\n📋 Rollback Report:"
+        echo -e "$rollback_report"
+        
         if [ "$rollback_failed" = true ]; then
-          echo "::error::One or more rollbacks failed"
+          echo "::error::One or more rollbacks failed. Check the reports directory for detailed logs."
           exit 1
         fi
 
