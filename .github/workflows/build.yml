@@ -693,8 +693,22 @@ jobs:
         backup_failed=false
         failed_backups=()
         
-        # Save current state of each instance
+        # Function to get file size that works on both Linux and BSD
+        get_file_size() {
+          if [ -f "$1" ]; then
+            if stat --version >/dev/null 2>&1; then
+              # GNU stat
+              stat -c%s "$1"
+            else
+              # BSD stat
+              stat -f%z "$1"
+            fi
+          else
+            echo "0"
+          fi
+        }
         
+        # Save current state of each instance
         while IFS='|' read -r id domain dir; do
           [ -z "$id" ] && continue
           
@@ -734,11 +748,11 @@ jobs:
               continue
             fi
             
-            # Check backup size
-            original_size=$(stat -f%z "${dir}/db/database.sqlite")
-            backup_size=$(stat -f%z "${instance_backup}/db/database.sqlite")
+            # Check backup size using the portable function
+            original_size=$(get_file_size "${dir}/db/database.sqlite")
+            backup_size=$(get_file_size "${instance_backup}/db/database.sqlite")
             if [ "$backup_size" -lt "$((original_size / 2))" ]; then
-              echo "::error::Backup size verification failed for $id"
+              echo "::error::Backup size verification failed for $id (original: ${original_size}, backup: ${backup_size})"
               backup_failed=true
               failed_backups+=("$id")
               continue
