@@ -213,7 +213,11 @@ router.delete('/delete/:id', isAuthenticated, async (req, res) => {
 router.get('/:id', isAuthenticated, async (req, res) => {
   try {
     const report = await getReport(req.params.id);
+
+    logger.debug(`Getting report => ${req.params.id}`);
+    
     if (!report) {
+      logger.debug(`Report not found => ${req.params.id}`);
       return res.status(404).render('error', {
         message: 'Report not found',
         errors: [],
@@ -222,7 +226,7 @@ router.get('/:id', isAuthenticated, async (req, res) => {
     }
 
     const created_by = (await getUserById(report.created_by));
-    logger.debug(`Created by: ${created_by} with id: ${report.created_by}`);
+    logger.debug(`Created by: ${created_by?.username} with id: ${report.created_by}`);
 
     let mechanics = [];
     let mechanicsParsed = JSON.parse(report.mechanics);

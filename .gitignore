@@ -11,6 +11,7 @@ sessions.db
 database.db
 database.sqlite
 db-backups/
+src/db/*
 
 # Ignore SSL certificate
 ssl/
