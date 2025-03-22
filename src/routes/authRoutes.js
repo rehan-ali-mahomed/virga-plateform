@@ -68,11 +68,22 @@ router.post('/login', async (req, res) => {
       role: user.role.toLowerCase()
     };
     
-    res.redirect('/dashboard');
+    req.session.save((err) => {
+      if (err) {
+        logger.error('Session save error:', err);
+        return res.render('login', { 
+          error: 'An error occurred during login (session save error)',
+          errors: [],
+          user: null
+        });
+      }
+      
+      return res.redirect('/dashboard');
+    });
   } catch (err) {
     logger.error('Login error:', err);
     res.render('login', { 
-      error: 'An error occurred during login',
+      error: 'An error occurred during login (login error)',
       errors: [],
       user: null
     });
