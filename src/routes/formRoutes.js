@@ -260,7 +260,19 @@ router.post('/update/:id', isAuthenticated, async (req, res) => {
     req.inspectionItems = inspectionItems;
     const userId = req.user.id;
 
-    const reportId = await updateInspectionReports(req.params.id, req.body, userId);
+    // Pass customer reassignment info to the update function
+    const isCustomerReassignment = req.body.customer_reassign === 'true';
+    const originalCustomerId = req.body.original_customer_id;
+    
+    logger.debug(`Customer reassignment: ${isCustomerReassignment}, Original ID: ${originalCustomerId}`);
+    
+    const reportId = await updateInspectionReports(
+      req.params.id, 
+      req.body, 
+      userId, 
+      isCustomerReassignment, 
+      originalCustomerId
+    );
     
     logger.debug(`Report updated successfully with ID: ${reportId}`);
     

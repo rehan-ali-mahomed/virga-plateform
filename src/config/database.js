@@ -994,7 +994,7 @@ const addInspectionReport = (reportData, userId) => {
   });
 };
 
-const updateInspectionReports = (reportId, reportData, userId) => {
+const updateInspectionReports = (reportId, reportData, userId, isCustomerReassignment = false, originalCustomerId = null) => {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
 
@@ -1019,25 +1019,15 @@ const updateInspectionReports = (reportId, reportData, userId) => {
         db.run('BEGIN TRANSACTION');
 
         try {
-          // 1. Update the customer
-          db.run(`UPDATE Customers SET
-            name = ?,
-            phone = ?,
-            email = ?,
-            address = ?,
-            is_company = ?
-          WHERE customer_id = ?`, [
-            reportData.client_name,
-            reportData.client_phone,
-            reportData.client_email || null,
-            reportData.client_address || null,
-            reportData.is_company || false,
-            existingReport.customer_id
-          ], function(err) {
-            if (err) throw err;
-
-            // 2. Update the vehicule
+          console.log(existingReport);
+          // Handle customer reassignment differently from customer update
+          if (isCustomerReassignment && reportData.customer_id) {
+            logger.debug(`Updating vehicle ${reportData.license_plate} (${existingReport.vehicule_id})`);
+            logger.debug(`From customer_id ${existingReport.customer_id} to ${reportData.customer_id}`);
+            
+            // Instead of updating customer details, update the vehicle's customer_id
             db.run(`UPDATE Vehicules SET
+              customer_id = ?,
               license_plate = ?,
               brand = ?,
               model = ?,
@@ -1049,6 +1039,7 @@ const updateInspectionReports = (reportId, reportData, userId) => {
               drain_plug_torque = ?,
               first_registration_date = ?
             WHERE vehicule_id = ?`, [
+              reportData.customer_id, // Use the new customer_id
               reportData.license_plate.toUpperCase(),
               reportData.brand || null,
               reportData.model || null,
@@ -1063,34 +1054,89 @@ const updateInspectionReports = (reportId, reportData, userId) => {
             ], function(err) {
               if (err) throw err;
 
-              // 3. Update the inspection report
-              db.run(`UPDATE InspectionReports SET
-                mileage = ?,
-                comments = ?,
-                next_technical_inspection = ?,
-                filters = ?,
-                inspection_results = ?,
-                created_by = ?,
-                mechanics = ?
-              WHERE report_id = ?`, [
-                reportData.mileage || null,
-                reportData.comments || null,
-                reportData.next_technical_inspection || null,
-                reportData.filters || null,
-                JSON.stringify(reportData.inspection || '{}'),
-                userId,
-                JSON.stringify(reportData.mechanics || '{}'),
-                reportId
+              // Update the inspection report
+              updateInspectionReportDetails();
+            });
+          } else {
+            // If not a reassignment, proceed with the original flow
+            // 1. Update the customer
+            db.run(`UPDATE Customers SET
+              name = ?,
+              phone = ?,
+              email = ?,
+              address = ?,
+              is_company = ?
+            WHERE customer_id = ?`, [
+              reportData.client_name,
+              reportData.client_phone,
+              reportData.client_email || null,
+              reportData.client_address || null,
+              reportData.is_company || false,
+              existingReport.customer_id
+            ], function(err) {
+              if (err) throw err;
+
+              // 2. Update the vehicule without changing customer_id
+              db.run(`UPDATE Vehicules SET
+                license_plate = ?,
+                brand = ?,
+                model = ?,
+                engine_code = ?,
+                revision_oil_type = ?,
+                revision_oil_volume = ?,
+                brake_disc_thickness_front = ?,
+                brake_disc_thickness_rear = ?,
+                drain_plug_torque = ?,
+                first_registration_date = ?
+              WHERE vehicule_id = ?`, [
+                reportData.license_plate.toUpperCase(),
+                reportData.brand || null,
+                reportData.model || null,
+                reportData.engine_code || null,
+                reportData.revision_oil_type || null,
+                reportData.revision_oil_volume || null,
+                reportData.brake_disc_thickness_front || null,
+                reportData.brake_disc_thickness_rear || null,
+                reportData.drain_plug_torque || null,
+                reportData.first_registration_date || null,
+                existingReport.vehicule_id
               ], function(err) {
                 if (err) throw err;
 
-                db.run('COMMIT', (err) => {
-                  if (err) reject(err);
-                  else resolve(reportId);
-                });
+                // Update the inspection report
+                updateInspectionReportDetails();
               });
             });
-          });
+          }
+
+          // Common function to update inspection report details
+          function updateInspectionReportDetails() {
+            db.run(`UPDATE InspectionReports SET
+              mileage = ?,
+              comments = ?,
+              next_technical_inspection = ?,
+              filters = ?,
+              inspection_results = ?,
+              created_by = ?,
+              mechanics = ?
+            WHERE report_id = ?`, [
+              reportData.mileage || null,
+              reportData.comments || null,
+              reportData.next_technical_inspection || null,
+              reportData.filters || null,
+              JSON.stringify(reportData.inspection || '{}'),
+              userId,
+              JSON.stringify(reportData.mechanics || '{}'),
+              reportId
+            ], function(err) {
+              if (err) throw err;
+
+              db.run('COMMIT', (err) => {
+                if (err) reject(err);
+                else resolve(reportId);
+              });
+            });
+          }
 
         } catch (error) {
           db.run('ROLLBACK', () => {

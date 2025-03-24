@@ -400,8 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
           radio.checked = true;
         }
       }
-      
-      if (!data.mechanics === '{}') {
+      if (data.mechanics !== '{}') {
         const parsedMechanics = JSON.parse(data.mechanics);
 
         for (let mechanic in parsedMechanics) {
@@ -673,6 +672,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const customer = filteredCustomers.find(c => c.customer_id === customerId);
       
       if (customer) {
+        // Get original customer ID (the one loaded with the report)
+        const originalCustomerId = document.getElementById('customer_id').value;
+        
         // Update form fields
         document.getElementById('customer_id').value = customer.customer_id;
         document.getElementById('client_name').value = customer.name;
@@ -680,6 +682,31 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('client_email').value = customer.email || '';
         document.getElementById('client_address').value = customer.address || '';
         document.getElementById('is_company').checked = customer.is_company;
+
+        // Add a hidden field to indicate this is a customer reassignment
+        // Only if selecting a different customer than the original one
+        if (originalCustomerId && originalCustomerId !== customer.customer_id) {
+          let reassignField = document.getElementById('customer_reassign');
+          if (!reassignField) {
+            reassignField = document.createElement('input');
+            reassignField.type = 'hidden';
+            reassignField.id = 'customer_reassign';
+            reassignField.name = 'customer_reassign';
+            form.appendChild(reassignField);
+          }
+          reassignField.value = 'true';
+          
+          // Also store the original customer ID for reference
+          let originalCustomerIdField = document.getElementById('original_customer_id');
+          if (!originalCustomerIdField) {
+            originalCustomerIdField = document.createElement('input');
+            originalCustomerIdField.type = 'hidden';
+            originalCustomerIdField.id = 'original_customer_id';
+            originalCustomerIdField.name = 'original_customer_id';
+            form.appendChild(originalCustomerIdField);
+          }
+          originalCustomerIdField.value = originalCustomerId;
+        }
 
         searchResult.innerHTML = `
           <div class="alert alert-success">
