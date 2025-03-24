@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
           radio.checked = true;
         }
       }
-      if (data.mechanics !== '{}') {
+      if (data.mechanics !== '{}' && Object.prototype.hasOwnProperty.call(data, 'mechanics')) {
         const parsedMechanics = JSON.parse(data.mechanics);
 
         for (let mechanic in parsedMechanics) {

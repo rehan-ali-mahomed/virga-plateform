@@ -1020,6 +1020,36 @@ const updateInspectionReports = (reportId, reportData, userId, isCustomerReassig
 
         try {
           console.log(existingReport);
+          
+          // Common function to update inspection report details - moved outside conditionals
+          const updateInspectionReportDetails = () => {
+            db.run(`UPDATE InspectionReports SET
+              mileage = ?,
+              comments = ?,
+              next_technical_inspection = ?,
+              filters = ?,
+              inspection_results = ?,
+              created_by = ?,
+              mechanics = ?
+            WHERE report_id = ?`, [
+              reportData.mileage || null,
+              reportData.comments || null,
+              reportData.next_technical_inspection || null,
+              reportData.filters || null,
+              JSON.stringify(reportData.inspection || '{}'),
+              userId,
+              JSON.stringify(reportData.mechanics || '{}'),
+              reportId
+            ], function(err) {
+              if (err) throw err;
+
+              db.run('COMMIT', (err) => {
+                if (err) reject(err);
+                resolve(reportId);
+              });
+            });
+          };
+          
           // Handle customer reassignment differently from customer update
           if (isCustomerReassignment && reportData.customer_id) {
             logger.debug(`Updating vehicle ${reportData.license_plate} (${existingReport.vehicule_id})`);
@@ -1118,35 +1148,6 @@ const updateInspectionReports = (reportId, reportData, userId, isCustomerReassig
     });
   });
 };
-
-// Common function to update inspection report details
-function updateInspectionReportDetails() {
-  db.run(`UPDATE InspectionReports SET
-    mileage = ?,
-    comments = ?,
-    next_technical_inspection = ?,
-    filters = ?,
-    inspection_results = ?,
-    created_by = ?,
-    mechanics = ?
-  WHERE report_id = ?`, [
-    reportData.mileage || null,
-    reportData.comments || null,
-    reportData.next_technical_inspection || null,
-    reportData.filters || null,
-    JSON.stringify(reportData.inspection || '{}'),
-    userId,
-    JSON.stringify(reportData.mechanics || '{}'),
-    reportId
-  ], function(err) {
-    if (err) throw err;
-
-    db.run('COMMIT', (err) => {
-      if (err) reject(err);
-      else resolve(reportId);
-    });
-  });
-}
 
 // Add function to get inspection report by ID
 const getInspectionReport = (reportId) => {
