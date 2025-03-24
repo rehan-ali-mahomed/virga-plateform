@@ -994,7 +994,7 @@ const addInspectionReport = (reportData, userId) => {
   });
 };
 
-const updateInspectionReports = (reportId, reportData, userId, isCustomerReassignment = false, originalCustomerId = null) => {
+const updateInspectionReports = (reportId, reportData, userId, isCustomerReassignment = false) => {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
 
@@ -1109,35 +1109,6 @@ const updateInspectionReports = (reportId, reportData, userId, isCustomerReassig
             });
           }
 
-          // Common function to update inspection report details
-          function updateInspectionReportDetails() {
-            db.run(`UPDATE InspectionReports SET
-              mileage = ?,
-              comments = ?,
-              next_technical_inspection = ?,
-              filters = ?,
-              inspection_results = ?,
-              created_by = ?,
-              mechanics = ?
-            WHERE report_id = ?`, [
-              reportData.mileage || null,
-              reportData.comments || null,
-              reportData.next_technical_inspection || null,
-              reportData.filters || null,
-              JSON.stringify(reportData.inspection || '{}'),
-              userId,
-              JSON.stringify(reportData.mechanics || '{}'),
-              reportId
-            ], function(err) {
-              if (err) throw err;
-
-              db.run('COMMIT', (err) => {
-                if (err) reject(err);
-                else resolve(reportId);
-              });
-            });
-          }
-
         } catch (error) {
           db.run('ROLLBACK', () => {
             reject(error);
@@ -1147,6 +1118,35 @@ const updateInspectionReports = (reportId, reportData, userId, isCustomerReassig
     });
   });
 };
+
+// Common function to update inspection report details
+function updateInspectionReportDetails() {
+  db.run(`UPDATE InspectionReports SET
+    mileage = ?,
+    comments = ?,
+    next_technical_inspection = ?,
+    filters = ?,
+    inspection_results = ?,
+    created_by = ?,
+    mechanics = ?
+  WHERE report_id = ?`, [
+    reportData.mileage || null,
+    reportData.comments || null,
+    reportData.next_technical_inspection || null,
+    reportData.filters || null,
+    JSON.stringify(reportData.inspection || '{}'),
+    userId,
+    JSON.stringify(reportData.mechanics || '{}'),
+    reportId
+  ], function(err) {
+    if (err) throw err;
+
+    db.run('COMMIT', (err) => {
+      if (err) reject(err);
+      else resolve(reportId);
+    });
+  });
+}
 
 // Add function to get inspection report by ID
 const getInspectionReport = (reportId) => {
