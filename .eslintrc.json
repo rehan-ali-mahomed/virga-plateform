@@ -19,6 +19,7 @@
         "no-undef": ["off"],
         "no-console": ["off"]
     },
+    "ignorePatterns": ["public/js/vendor/**"],
     "globals": {
         "document": "readonly",
         "window": "readonly",

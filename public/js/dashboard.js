@@ -2,20 +2,26 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   let reportToDelete = null;
-  const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-
-  document.querySelectorAll('button.action-btn.delete').forEach(button => {
-    button.addEventListener('click', function() {
-      reportToDelete = this.dataset.reportId;
-      deleteConfirmModal.show();
+  
+  // Attach event listeners to delete buttons
+  const attachDeleteListeners = () => {
+    document.querySelectorAll('button.action-btn.delete').forEach(button => {
+      button.addEventListener('click', function() {
+        reportToDelete = this.dataset.reportId;
+        // Use jQuery to show modal instead of Bootstrap constructor
+        $('#deleteModal').modal('show');
+      });
     });
-  });
+  };
+
+  // Initial attachment of delete listeners
+  attachDeleteListeners();
   
   // Handle delete confirmation
   document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
     if (!reportToDelete) return;
 
-    try {
+    try { 
       const response = await fetch(`/report/delete/${reportToDelete}`, {
         method: 'DELETE',
         headers: {
@@ -23,14 +29,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      deleteConfirmModal.hide();
+      // Hide modal using jQuery
+      $('#deleteModal').modal('hide');
 
       const data = await response.json();
 
       if (data.success) {
         // Remove the row from the table
-        const row = document.querySelector(`[data-report-id="${reportToDelete}"]`).closest('tr');
-        row.remove();
+        const deleteButton = document.querySelector(`button.delete[data-report-id="${reportToDelete}"]`);
+        if (deleteButton) {
+          const row = deleteButton.closest('tr');
+          if (row) row.remove();
+        }
 
         // Show success message
         showNotification('Rapport supprimé avec succès', 'success');
@@ -41,7 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error:', error);
       showNotification('Erreur lors de la suppression du rapport', 'error');
     } finally {
-      deleteConfirmModal.hide();
+      // Hide modal using jQuery and reset reportToDelete
+      $('#deleteModal').modal('hide');
       reportToDelete = null;
     }
   });
@@ -123,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </tr>
     `).join('');
 
-    // Reattach delete event listeners
+    // Reattach delete event listeners after updating table
     attachDeleteListeners();
   };
 
@@ -147,13 +158,4 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(handleSearch, 300);
   });
-
-  const attachDeleteListeners = () => {
-    document.querySelectorAll('button.action-btn.delete').forEach(button => {
-      button.addEventListener('click', function() {
-        reportToDelete = this.dataset.reportId;
-        deleteConfirmModal.show();
-      });
-    });
-  };
 });
